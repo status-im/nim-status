@@ -51,3 +51,8 @@ gdb --args ./bin/status-term-client -keyhex=0xe8b3b8a7cae540ace9bcaf6206e81387fe
 # bt
 # => stacktrace
 ```
+
+Stacktrace and current integration PRs:
+https://gist.github.com/oskarth/771034417a52927fa9bbc6df415d5714
+https://github.com/status-im/nimbus/pull/331#issuecomment-506308167
+https://github.com/status-im/status-console-client/pull/79
