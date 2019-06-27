@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// #cgo LDFLAGS: libnimbus_api.so -lm
+// #cgo LDFLAGS: /usr/local/lib/libnimbus_api.so -lm
 // #include "libnim.h"
 import "C"
 
