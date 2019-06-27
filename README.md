@@ -31,3 +31,23 @@ make build
 ```
 
 Get predictable segfault (see `segfault.output`)
+
+Replacing libnimbus lib for debugging info:
+
+```
+# Checkout nimbus branch status-c-api
+# Run ./build_status_api.sh
+# Copy over shared library to /usr/local/lib
+# Ensure your go cache in clean, e.g. through `go clean -cache` so it is using new lib
+```
+
+Run through gdb like this to get stacktrace:
+
+```
+gdb --args ./bin/status-term-client -keyhex=0xe8b3b8a7cae540ace9bcaf6206e81387feb6415016aee75307976084f7751ed7 2>/tmp/status-term-client.log
+
+# run
+# Get seg fault
+# bt
+# => stacktrace
+```
