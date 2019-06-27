@@ -18,7 +18,7 @@ func poll() {
 	}
 }
 
-func start() {
+func Start() {
 
 	C.NimMain()
 	fmt.Println(C.nimbus_start(30306))
@@ -35,7 +35,7 @@ func start() {
 
 }
 
-func listenAndPost() {
+func ListenAndPost() {
 	i := 0
 	for {
 		C.nimbus_poll()
@@ -52,6 +52,6 @@ func listenAndPost() {
 
 func main() {
 	fmt.Println("Hi main")
-	start()
-	listenAndPost()
+	Start()
+	ListenAndPost()
 }
