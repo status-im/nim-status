@@ -1,6 +1,6 @@
 # status-nim
 
-Status-Nimbus interop.
+Status-(Go)-Nimbus interop.
 
 Current setup: `nimbus -> expose bindings and shared library -> status-nim -> status-console-client`. Eventually this can expose a similar API as `status-go`, but for now interop with it is easier.
 
@@ -56,3 +56,7 @@ Stacktrace and current integration PRs:
 https://gist.github.com/oskarth/771034417a52927fa9bbc6df415d5714
 https://github.com/status-im/nimbus/pull/331#issuecomment-506308167
 https://github.com/status-im/status-console-client/pull/79
+
+With foreignthread GC hangs:
+https://gist.github.com/oskarth/c3f4392e84c279c433474d31b3173737
+https://github.com/status-im/nimbus/pull/331
