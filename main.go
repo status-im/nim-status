@@ -1,8 +1,9 @@
-package statusnim
+package main
 
 import (
 	"fmt"
 	"time"
+	"runtime"
 )
 
 // #cgo LDFLAGS: /usr/local/lib/libnimbus_api.so -lm
@@ -55,6 +56,10 @@ func ListenAndPost() {
 
 func main() {
 	fmt.Println("Hi main")
+
+	nprocs := runtime.GOMAXPROCS(0)
+	fmt.Println("GOMAXPROCS ", nprocs)
+
 	Start()
 	ListenAndPost()
 }
