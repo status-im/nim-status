@@ -54,12 +54,12 @@ func ListenAndPost() {
 	}
 }
 
-func main() {
-	fmt.Println("Hi main")
+// func main() {
+// 	fmt.Println("Hi main")
 
-	nprocs := runtime.GOMAXPROCS(0)
-	fmt.Println("GOMAXPROCS ", nprocs)
+// 	nprocs := runtime.GOMAXPROCS(0)
+// 	fmt.Println("GOMAXPROCS ", nprocs)
 
-	Start()
-	ListenAndPost()
-}
+// 	Start()
+// 	ListenAndPost()
+// }
