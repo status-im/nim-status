@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"runtime"
+	"time"
 )
 
 // #cgo LDFLAGS: libnimbus_api.so -lm
@@ -41,7 +41,7 @@ func ListenAndPost() {
 	fmt.Println("[nim-status] ListenAndPost 1")
 	i := 0
 	for {
-		fmt.Println("[nim-status] ListenAndPost (post @i==1000) i= ", i)
+		//fmt.Println("[nim-status] ListenAndPost (post @i==1000) i= ", i)
 		C.nimbus_poll()
 		t := time.Now().UnixNano() / int64(time.Millisecond)
 		i = i + 1
