@@ -4,6 +4,12 @@ Status-(Go)-Nimbus interop.
 
 Current setup: `nimbus -> expose bindings and shared library -> status-nim -> status-console-client`. Eventually this can expose a similar API as `status-go`, but for now interop with it is easier.
 
+See experimental support for Nimbus README for latest: https://github.com/status-im/status-console-client/pull/79/files?short_path=04c6e90#diff-04c6e90faac2675aa89e2176d2eec7d8
+
+# OLD STUFF
+
+(keeping around in case there are still issues, to be cleaned up / removed)
+
 ## Misc issues and how to solve them
 
 Can't find `libnimbus_api.so`:
