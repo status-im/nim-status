@@ -86,32 +86,77 @@ proc connectionChange(typ: cstring, expensive: cstring) {.exportc.} =
 proc multiformatSerializePublicKey(key: cstring, outBase: cstring): cstring {.exportc.} =
   result = status_go.MultiformatSerializePublicKey(key, outBase)
 
+proc multiformatDeserializePublicKey(key: cstring, outBase: cstring): cstring {.exportc.} =
+  result = status_go.MultiformatDeserializePublicKey(key, outBase)
 
-# TODO: Create a nim proc for each of these status_go functions
-#[
-extern char* MultiformatDeserializePublicKey(char* key, char* outBase);
-extern char* ValidateNodeConfig(char* configJSON);
-extern char* LoginWithKeycard(char* accountData, char* password, char* keyHex);
-extern char* Recover(char* rpcParams);
-extern char* WriteHeapProfile(char* dataDir);
-extern char* ImportOnboardingAccount(char* id, char* password);
-extern void RemoveOnboarding();
-extern char* HashTypedData(char* data);
-extern char* ResetChainData();
-extern char* SignMessage(char* rpcParams);
-extern char* SignTypedData(char* data, char* address, char* password);
-extern char* StopCPUProfiling();
-extern char* GetNodesFromContract(char* rpcEndpoint, char* contractAddress);
-extern char* ExportNodeLogs();
-extern char* ChaosModeUpdate(int on);
-extern char* SignHash(char* hexEncodedHash);
-extern char* CreateAccount(char* password);
-extern char* SendTransactionWithSignature(char* txtArgsJSON, char* sigString);
-extern char* StartCPUProfile(char* dataDir);
-extern void AppStateChange(char* state);
-extern char* SignGroupMembership(char* content);
-extern char* MultiAccountStoreAccount(char* paramsJSON);
-extern char* MultiAccountLoadAccount(char* paramsJSON);
-extern char* MultiAccountGenerate(char* paramsJSON);
-extern char* MultiAccountReset();
-]#
+proc validateNodeConfig(configJSON: cstring): cstring {.exportc.} =
+  result = status_go.ValidateNodeConfig(configJSON)
+
+proc loginWithKeycard(accountData: cstring, password: cstring, keyHex: cstring): cstring {.exportc.} =
+  result = status_go.LoginWithKeycard(accountData, password, keyHex)
+
+proc recover(rpcParams: cstring): cstring {.exportc.} =
+  result = status_go.Recover(rpcParams)
+
+proc writeHeapProfile(dataDir: cstring): cstring {.exportc.} =
+  result = status_go.WriteHeapProfile(dataDir)
+
+proc importOnboardingAccount(id: cstring, password: cstring): cstring {.exportc.} =
+  result = status_go.ImportOnboardingAccount(id, password)
+
+proc removeOnboarding() {.exportc.} =
+  status_go.RemoveOnboarding()
+
+proc hashTypedData(data: cstring): cstring {.exportc.} =
+  result = status_go.HashTypedData(data)
+
+proc resetChainData(): cstring {.exportc.} =
+  result = status_go.ResetChainData()
+
+proc signMessage(rpcParams: cstring): cstring {.exportc.} =
+  result = status_go.SignMessage(rpcParams)
+
+proc signTypedData(data: cstring, address: cstring, password: cstring): cstring {.exportc.} =
+  result = status_go.SignTypedData(data, address, password)
+
+proc stopCPUProfiling(): cstring {.exportc.} =
+  result = status_go.StopCPUProfiling()
+
+proc getNodesFromContract(rpcEndpoint: cstring, contractAddress: cstring): cstring {.exportc.} =
+  result = status_go.GetNodesFromContract(rpcEndpoint, contractAddress)
+
+proc exportNodeLogs(): cstring {.exportc.} =
+  result = status_go.ExportNodeLogs()
+
+proc chaosModeUpdate(on: cint): cstring {.exportc.} =
+  result = status_go.ChaosModeUpdate(on)
+
+proc signHash(hexEncodedHash: cstring): cstring {.exportc.} =
+  result = status_go.SignHash(hexEncodedHash)
+
+proc createAccount(password: cstring): cstring {.exportc.} =
+  result = status_go.CreateAccount(password)
+
+proc sendTransactionWithSignature(txtArgsJSON: cstring, sigString: cstring): cstring {.exportc.} =
+  result = status_go.SendTransactionWithSignature(txtArgsJSON, sigString)
+
+proc startCPUProfile(dataDir: cstring): cstring {.exportc.} =
+  result = status_go.StartCPUProfile(dataDir)
+
+proc appStateChange(state: cstring) {.exportc.} =
+  status_go.AppStateChange(state)
+
+proc signGroupMembership(content: cstring): cstring {.exportc.} =
+  result = status_go.SignGroupMembership(content)
+
+proc multiAccountStoreAccount(paramsJSON: cstring): cstring {.exportc.} =
+  result = status_go.MultiAccountStoreAccount(paramsJSON)
+
+proc multiAccountLoadAccount(paramsJSON: cstring): cstring {.exportc.} =
+  result = status_go.MultiAccountLoadAccount(paramsJSON)
+
+proc multiAccountGenerate(paramsJSON: cstring): cstring {.exportc.} =
+  result = status_go.MultiAccountGenerate(paramsJSON)
+
+proc multiAccountReset(): cstring {.exportc.} =
+  result = status_go.MultiAccountReset()

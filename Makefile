@@ -116,7 +116,7 @@ clean: | clean-common
 NIMSTATUS := build/nim_status.a
 
 $(NIMSTATUS): | build $(STATUSGO) deps
-	echo -e $(BUILD_MSG) "build/$@" && \
+	echo -e $(BUILD_MSG) "$@" && \
 		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status --passL:$(STATUSGO) -o:$@ src/nim_status.nim 
 		cp nimcache/nim_status/nim_status.h build/.
 		mv nim_status.a build/.

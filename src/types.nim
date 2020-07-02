@@ -1,5 +1,5 @@
 type
-  GoString* = object
+  GoString* {.exportc:"GoString".} = object 
     str*: cstring
     length*: cint
 

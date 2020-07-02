@@ -1,34 +1,5 @@
 import types
 
-#[
-  TODO: create procs for these:
-extern char* MultiformatDeserializePublicKey(char* key, char* outBase);
-extern char* ValidateNodeConfig(char* configJSON);
-extern char* LoginWithKeycard(char* accountData, char* password, char* keyHex);
-extern char* Recover(char* rpcParams);
-extern char* WriteHeapProfile(char* dataDir);
-extern char* ImportOnboardingAccount(char* id, char* password);
-extern void RemoveOnboarding();
-extern char* HashTypedData(char* data);
-extern char* ResetChainData();
-extern char* SignMessage(char* rpcParams);
-extern char* SignTypedData(char* data, char* address, char* password);
-extern char* StopCPUProfiling();
-extern char* GetNodesFromContract(char* rpcEndpoint, char* contractAddress);
-extern char* ExportNodeLogs();
-extern char* ChaosModeUpdate(int on);
-extern char* SignHash(char* hexEncodedHash);
-extern char* CreateAccount(char* password);
-extern char* SendTransactionWithSignature(char* txtArgsJSON, char* sigString);
-extern char* StartCPUProfile(char* dataDir);
-extern void AppStateChange(char* state);
-extern char* SignGroupMembership(char* content);
-extern char* MultiAccountStoreAccount(char* paramsJSON);
-extern char* MultiAccountLoadAccount(char* paramsJSON);
-extern char* MultiAccountGenerate(char* paramsJSON);
-extern char* MultiAccountReset();
-]#
-
 proc HashMessage*(message: cstring): cstring {.importc: "HashMessage".}
 
 proc InitKeystore*(keydir: cstring): cstring {.importc: "InitKeystore".}
@@ -82,3 +53,53 @@ proc ExtractGroupMembershipSignatures*(signaturePairsStr: cstring): cstring {.im
 proc ConnectionChange*(typ: cstring, expensive: cstring) {.importc: "ConnectionChange".}
 
 proc MultiformatSerializePublicKey*(key: cstring, outBase: cstring): cstring {.importc: "MultiformatSerializePublicKey".}
+
+proc MultiformatDeserializePublicKey*(key: cstring, outBase: cstring): cstring {.importc: "MultiformatDeserializePublicKey".}
+
+proc ValidateNodeConfig*(configJSON: cstring): cstring {.importc: "ValidateNodeConfig".}
+
+proc LoginWithKeycard*(accountData: cstring, password: cstring, keyHex: cstring): cstring {.importc: "LoginWithKeycard".}
+
+proc Recover*(rpcParams: cstring): cstring {.importc: "Recover".}
+
+proc WriteHeapProfile*(dataDir: cstring): cstring {.importc: "WriteHeapProfile".}
+
+proc ImportOnboardingAccount*(id: cstring, password: cstring): cstring {.importc: "ImportOnboardingAccount".}
+
+proc RemoveOnboarding*() {.importc: "RemoveOnboarding".}
+
+proc HashTypedData*(data: cstring): cstring {.importc: "HashTypedData".}
+
+proc ResetChainData*(): cstring {.importc: "ResetChainData".}
+
+proc SignMessage*(rpcParams: cstring): cstring {.importc: "SignMessage".}
+
+proc SignTypedData*(data: cstring, address: cstring, password: cstring): cstring {.importc: "SignTypedData".}
+
+proc StopCPUProfiling*(): cstring {.importc: "StopCPUProfiling".}
+
+proc GetNodesFromContract*(rpcEndpoint: cstring, contractAddress: cstring): cstring {.importc: "GetNodesFromContract".}
+
+proc ExportNodeLogs*(): cstring {.importc: "ExportNodeLogs".}
+
+proc ChaosModeUpdate*(on: cint): cstring {.importc: "ChaosModeUpdate".}
+
+proc SignHash*(hexEncodedHash: cstring): cstring {.importc: "SignHash".}
+
+proc CreateAccount*(password: cstring): cstring {.importc: "CreateAccount".}
+
+proc SendTransactionWithSignature*(txtArgsJSON: cstring, sigString: cstring): cstring {.importc: "SendTransactionWithSignature".}
+
+proc StartCPUProfile*(dataDir: cstring): cstring {.importc: "StartCPUProfile".}
+
+proc AppStateChange*(state: cstring) {.importc: "AppStateChange".}
+
+proc SignGroupMembership*(content: cstring): cstring {.importc: "SignGroupMembership".}
+
+proc MultiAccountStoreAccount*(paramsJSON: cstring): cstring {.importc: "MultiAccountStoreAccount".}
+
+proc MultiAccountLoadAccount*(paramsJSON: cstring): cstring {.importc: "MultiAccountLoadAccount".}
+
+proc MultiAccountGenerate*(paramsJSON: cstring): cstring {.importc: "MultiAccountGenerate".}
+
+proc MultiAccountReset*(): cstring {.importc: "MultiAccountReset".}
