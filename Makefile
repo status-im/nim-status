@@ -124,9 +124,14 @@ $(NIMSTATUS): | build $(STATUSGO) deps
 nim_status: $(NIMSTATUS)
 
 tests: | $(NIMSTATUS)
-	echo "Compiling 'test/test'" && \
-	$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o test/test && \
-	echo "Executing 'test/test'" && \
+	echo "Compiling 'test/test'"
+ifeq ($(detected_OS), Darwin)
+		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o test/test
+else
+		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o test/test
+endif
+	echo "Executing 'test/test'"
 	./test/test
+	
 
 endif # "variables.mk" was not included
