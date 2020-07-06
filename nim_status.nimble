@@ -6,7 +6,7 @@ description   = "Nim implementation of the Status protocol"
 license       = "MIT"
 srcDir        = "src"
 bin           = @[""]
-skipExt       = @["nim"]
+skipDirs       = @["test"]
 
 # Deps
 

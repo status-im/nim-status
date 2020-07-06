@@ -41,7 +41,6 @@ proc addPeer*(peer: cstring): cstring {.exportc.} =
   result = status_go.AddPeer(peer)
 
 proc setSignalEventCallback*(callback: SignalCallback) {.exportc.} =
-  # TODO: test callbacks
   status_go.SetSignalEventCallback(callback)
 
 proc sendTransaction*(jsonArgs: cstring, password: cstring): cstring {.exportc.} =
