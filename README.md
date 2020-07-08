@@ -4,11 +4,7 @@ Nim implementation of the Status protocol: https://github.com/status-im/specs
 
 Corresponds roughly to status-go: https://github.com/status-im/status-go which is consumed by status-react: https://github.com/status-im/status-react/
 
-
-
-### Building
-
-#### 1. Requirements
+### Requirements
 * Go - (used to build status-go)
 ```
 # Linux
@@ -18,7 +14,7 @@ Corresponds roughly to status-go: https://github.com/status-im/status-go which i
 brew install go
 ```
 
-#### 2. Clone the repo and build `nim-status-client`
+### Installation
 ```
 git clone https://github.com/status-im/nim-status
 cd nim-status
@@ -30,7 +26,12 @@ For more output use `make V=1 ...`.
 
 Use 4 CPU cores with `make -j4 ...`.
 
-**Troubleshooting**:
+### Usage
+- Include `build/nim_status.a`, `build/nim_status.h` in your project
+- Before any of the API calls are done, NimMain() needs to be run.
+
+
+### Troubleshooting
 
 If the `make` command fails due to already installed Homebrew packages, such as:
 
@@ -42,4 +43,3 @@ make: *** [vendor/status-go/build/bin/libstatus.a] Error 2
 ```
 
 This can be fixed by uninstalling the package e.g. `brew uninstall protobuf` followed by rerunning `make`.
-

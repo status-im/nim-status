@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 Status Research & Development GmbH. Licensed under
+# Copyright (c) 2020 Status Research & Development GmbH. Licensed under
 # either of:
 # - Apache License, version 2.0
 # - MIT license
@@ -21,7 +21,8 @@ BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 	clean \
 	deps \
 	nim_status \
-	update
+	update \
+	tests
 
 ifeq ($(NIM_PARAMS),)
 # "variables.mk" was not included, so we update the submodules.
@@ -95,7 +96,7 @@ endif
 
 # TODO: control debug/release builds with a Make var
 # We need `-d:debug` to get Nim's default stack traces.
-NIM_PARAMS += --app:staticLib --noMain -d:debug
+NIM_PARAMS += -d:debug
 
 deps: | deps-common
 
@@ -108,15 +109,40 @@ $(STATUSGO): | deps
 	+ cd vendor/status-go && \
 	  $(MAKE) statusgo-library $(HANDLE_OUTPUT)
 
-nim_status: | $(STATUSGO) deps
-	echo -e $(BUILD_MSG) "$@" && \
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --passL:"$(STATUSGO)" --passL:"-lm" --header  src/nim_status.nim && \
-  mkdir -p build && \
-	cp nimcache/debug/nim_status/nim_status.h build/.
-	cp nim_status build/nim_status.o
-
-clean: | clean-common
-	rm -rf build/*
+clean: | clean-common clean-build-dir
 	rm -rf $(STATUSGO)
+	rm keystore
+	rm data
+	rm noBackup
+
+clean-build-dir:
+	rm -rf build/*
+
+NIMSTATUS := build/nim_status.a
+
+$(NIMSTATUS): | build deps
+	echo -e $(BUILD_MSG) "$@" && \
+		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status.nim 
+		cp nimcache/nim_status/nim_status.h build/.
+		mv nim_status.a build/.
+
+nim_status: | clean-build-dir $(NIMSTATUS)
+
+tests: | $(NIMSTATUS) $(STATUSGO)
+	rm -Rf keystore
+	rm -Rf data
+	rm -Rf noBackup
+	mkdir -p data
+	mkdir -p noBackup
+	mkdir -p keystore
+	echo "Compiling 'test/test'"
+ifeq ($(detected_OS), Darwin)
+		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o test/test
+else
+		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o test/test
+endif
+	echo "Executing 'test/test'"
+	./test/test
+	
 
 endif # "variables.mk" was not included

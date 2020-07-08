@@ -1,41 +1,105 @@
 import types
 
-proc hashMessage*(p0: cstring): cstring {.importc: "HashMessage".}
+proc HashMessage*(message: cstring): cstring {.importc: "HashMessage".}
 
-proc initKeystore*(keydir: cstring): cstring {.importc: "InitKeystore".}
+proc InitKeystore*(keydir: cstring): cstring {.importc: "InitKeystore".}
 
-proc openAccounts*(datadir: cstring): cstring {.importc: "OpenAccounts".}
+proc OpenAccounts*(datadir: cstring): cstring {.importc: "OpenAccounts".}
 
-proc multiAccountGenerateAndDeriveAddresses*(paramsJSON: cstring): cstring {.importc: "MultiAccountGenerateAndDeriveAddresses".}
+proc MultiAccountGenerateAndDeriveAddresses*(paramsJSON: cstring): cstring {.importc: "MultiAccountGenerateAndDeriveAddresses".}
 
-proc multiAccountStoreDerivedAccounts*(paramsJSON: cstring): cstring {.importc: "MultiAccountStoreDerivedAccounts".}
+proc MultiAccountStoreDerivedAccounts*(paramsJSON: cstring): cstring {.importc: "MultiAccountStoreDerivedAccounts".}
 
-proc multiAccountImportMnemonic*(paramsJSON: cstring): cstring {.importc: "MultiAccountImportMnemonic".}
+proc MultiAccountImportMnemonic*(paramsJSON: cstring): cstring {.importc: "MultiAccountImportMnemonic".}
 
 proc MultiAccountImportPrivateKey*(paramsJSON: cstring): cstring {.importc: "MultiAccountImportPrivateKey".}
 
-proc multiAccountDeriveAddresses*(paramsJSON: cstring): cstring {.importc: "MultiAccountDeriveAddresses".}
+proc MultiAccountDeriveAddresses*(paramsJSON: cstring): cstring {.importc: "MultiAccountDeriveAddresses".}
 
-proc saveAccountAndLogin*(accountData: cstring, password: cstring, settingsJSON: cstring, configJSON: cstring, subaccountData: cstring): cstring {.importc: "SaveAccountAndLogin".}
+proc SaveAccountAndLogin*(accountData: cstring, password: cstring, settingsJSON: cstring, configJSON: cstring, subaccountData: cstring): cstring {.importc: "SaveAccountAndLogin".}
 
-proc callRPC*(inputJSON: cstring): cstring {.importc: "CallRPC".}
+proc CallRPC*(inputJSON: cstring): cstring {.importc: "CallRPC".}
 
-proc callPrivateRPC*(inputJSON: cstring): cstring {.importc: "CallPrivateRPC".}
+proc CallPrivateRPC*(inputJSON: cstring): cstring {.importc: "CallPrivateRPC".}
 
-proc addPeer*(peer: cstring): cstring {.importc: "AddPeer".}
+proc AddPeer*(peer: cstring): cstring {.importc: "AddPeer".}
 
-proc setSignalEventCallback*(callback: SignalCallback) {.importc: "SetSignalEventCallback".}
+proc SetSignalEventCallback*(callback: SignalCallback) {.importc: "SetSignalEventCallback".}
 
-proc sendTransaction*(jsonArgs: cstring, password: cstring): cstring {.importc: "SendTransaction".}
+proc SendTransaction*(jsonArgs: cstring, password: cstring): cstring {.importc: "SendTransaction".}
 
-proc generateAlias*(p0: GoString): cstring {.importc: "GenerateAlias".}
+proc GenerateAlias*(pk: GoString): cstring {.importc: "GenerateAlias".}
 
-proc identicon*(p0: GoString): cstring {.importc: "Identicon".}
+proc Identicon*(pk: GoString): cstring {.importc: "Identicon".}
 
-proc login*(acctData: cstring, password: cstring): cstring {.importc: "Login".}
+proc Login*(accountData: cstring, password: cstring): cstring {.importc: "Login".}
 
-proc logout*(): cstring {.importc: "Logout".}
+proc Logout*(): cstring {.importc: "Logout".}
 
-proc verifyAccountPassword*(keyStoreDir: cstring, address: cstring, password: cstring): cstring {.importc: "VerifyAccountPassword".}
+proc VerifyAccountPassword*(keyStoreDir: cstring, address: cstring, password: cstring): cstring {.importc: "VerifyAccountPassword".}
 
-proc validateMnemonic*(mnemonic: cstring): cstring {.importc: "ValidateMnemonic".}
+proc ValidateMnemonic*(mnemonic: cstring): cstring {.importc: "ValidateMnemonic".}
+
+proc RecoverAccount*(password: cstring, mnemonic: cstring): cstring {.importc: "RecoverAccount".}
+
+proc StartOnboarding*(n: cint, mnemonicPhraseLength: cint): cstring {.importc: "StartOnboarding".}
+
+proc SaveAccountAndLoginWithKeycard*(accountData: cstring, password: cstring, settingsJSON: cstring, configJSON: cstring, subaccountData: cstring, keyHex: cstring): cstring {.importc: "SaveAccountAndLoginWithKeycard".}
+
+proc HashTransaction*(txArgsJSON: cstring): cstring {.importc: "HashTransaction".}
+
+proc ExtractGroupMembershipSignatures*(signaturePairsStr: cstring): cstring {.importc: "ExtractGroupMembershipSignatures".}
+
+proc ConnectionChange*(typ: cstring, expensive: cstring) {.importc: "ConnectionChange".}
+
+proc MultiformatSerializePublicKey*(key: cstring, outBase: cstring): cstring {.importc: "MultiformatSerializePublicKey".}
+
+proc MultiformatDeserializePublicKey*(key: cstring, outBase: cstring): cstring {.importc: "MultiformatDeserializePublicKey".}
+
+proc ValidateNodeConfig*(configJSON: cstring): cstring {.importc: "ValidateNodeConfig".}
+
+proc LoginWithKeycard*(accountData: cstring, password: cstring, keyHex: cstring): cstring {.importc: "LoginWithKeycard".}
+
+proc Recover*(rpcParams: cstring): cstring {.importc: "Recover".}
+
+proc WriteHeapProfile*(dataDir: cstring): cstring {.importc: "WriteHeapProfile".}
+
+proc ImportOnboardingAccount*(id: cstring, password: cstring): cstring {.importc: "ImportOnboardingAccount".}
+
+proc RemoveOnboarding*() {.importc: "RemoveOnboarding".}
+
+proc HashTypedData*(data: cstring): cstring {.importc: "HashTypedData".}
+
+proc ResetChainData*(): cstring {.importc: "ResetChainData".}
+
+proc SignMessage*(rpcParams: cstring): cstring {.importc: "SignMessage".}
+
+proc SignTypedData*(data: cstring, address: cstring, password: cstring): cstring {.importc: "SignTypedData".}
+
+proc StopCPUProfiling*(): cstring {.importc: "StopCPUProfiling".}
+
+proc GetNodesFromContract*(rpcEndpoint: cstring, contractAddress: cstring): cstring {.importc: "GetNodesFromContract".}
+
+proc ExportNodeLogs*(): cstring {.importc: "ExportNodeLogs".}
+
+proc ChaosModeUpdate*(on: cint): cstring {.importc: "ChaosModeUpdate".}
+
+proc SignHash*(hexEncodedHash: cstring): cstring {.importc: "SignHash".}
+
+proc CreateAccount*(password: cstring): cstring {.importc: "CreateAccount".}
+
+proc SendTransactionWithSignature*(txtArgsJSON: cstring, sigString: cstring): cstring {.importc: "SendTransactionWithSignature".}
+
+proc StartCPUProfile*(dataDir: cstring): cstring {.importc: "StartCPUProfile".}
+
+proc AppStateChange*(state: cstring) {.importc: "AppStateChange".}
+
+proc SignGroupMembership*(content: cstring): cstring {.importc: "SignGroupMembership".}
+
+proc MultiAccountStoreAccount*(paramsJSON: cstring): cstring {.importc: "MultiAccountStoreAccount".}
+
+proc MultiAccountLoadAccount*(paramsJSON: cstring): cstring {.importc: "MultiAccountLoadAccount".}
+
+proc MultiAccountGenerate*(paramsJSON: cstring): cstring {.importc: "MultiAccountGenerate".}
+
+proc MultiAccountReset*(): cstring {.importc: "MultiAccountReset".}
