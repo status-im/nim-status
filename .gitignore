@@ -1,0 +1,14 @@
+.idea
+.vscode
+bin/
+build/
+vendor/.nimble
+tmp
+nimcache
+.DS_Store
+TODO
+nim_status
+test/test
+data/
+keystore/
+noBackup/
