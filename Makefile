@@ -109,21 +109,32 @@ $(STATUSGO): | deps
 	+ cd vendor/status-go && \
 	  $(MAKE) statusgo-library $(HANDLE_OUTPUT)
 
-clean: | clean-common
-	rm -rf build/*
+clean: | clean-common clean-build-dir
 	rm -rf $(STATUSGO)
+	rm keystore
+	rm data
+	rm noBackup
+
+clean-build-dir:
+	rm -rf build/*
 
 NIMSTATUS := build/nim_status.a
 
-$(NIMSTATUS): | build $(STATUSGO) deps
+$(NIMSTATUS): | build deps
 	echo -e $(BUILD_MSG) "$@" && \
-		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status --passL:$(STATUSGO) -o:$@ src/nim_status.nim 
+		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status.nim 
 		cp nimcache/nim_status/nim_status.h build/.
 		mv nim_status.a build/.
 
-nim_status: $(NIMSTATUS)
+nim_status: | clean-build-dir $(NIMSTATUS)
 
-tests: | $(NIMSTATUS)
+tests: | $(NIMSTATUS) $(STATUSGO)
+	rm -Rf keystore
+	rm -Rf data
+	rm -Rf noBackup
+	mkdir -p data
+	mkdir -p noBackup
+	mkdir -p keystore
 	echo "Compiling 'test/test'"
 ifeq ($(detected_OS), Darwin)
 		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o test/test

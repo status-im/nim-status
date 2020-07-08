@@ -9,3 +9,6 @@ nimcache
 TODO
 nim_status
 test/test
+data/
+keystore/
+noBackup/

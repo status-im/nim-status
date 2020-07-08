@@ -3,4 +3,4 @@ type
     str*: cstring
     length*: cint
 
-type SignalCallback* = proc(eventMessage: cstring): void {.cdecl.}
+type SignalCallback* {.exportc:"SignalCallback"} = proc(eventMessage: cstring): void {.cdecl.}
