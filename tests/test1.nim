@@ -1,4 +1,9 @@
 {.passL:"vendor/status-go/build/bin/libstatus.a"}
+when defined(macosx):
+  {.passl: "-framework Foundation".}
+  {.passl: "-framework Security".}
+  {.passl: "-framework IOKit".}
+  {.passl: "-framework CoreServices".}
 
 import ../src/nim_status
 import utils
