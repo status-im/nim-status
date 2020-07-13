@@ -111,9 +111,9 @@ $(STATUSGO): | deps
 
 clean: | clean-common clean-build-dir
 	rm -rf $(STATUSGO)
-	rm keystore
-	rm data
-	rm noBackup
+	rm -rf keystore
+	rm -rf data
+	rm -rf noBackup
 
 clean-build-dir:
 	rm -rf build/*
