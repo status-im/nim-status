@@ -80,8 +80,6 @@ int main(int argc, char* argv[]) {
 
   setSignalEventCallback(&eventCallback);
 
-  // TODO: tests GC strings
-
   while(1) {
     printf("...\n");
     sleep(1);
