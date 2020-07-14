@@ -111,9 +111,9 @@ $(STATUSGO): | deps
 
 clean: | clean-common clean-build-dir
 	rm -rf $(STATUSGO)
-	rm keystore
-	rm data
-	rm noBackup
+	rm -rf keystore
+	rm -rf data
+	rm -rf noBackup
 
 clean-build-dir:
 	rm -rf build/*
@@ -137,12 +137,16 @@ tests: | $(NIMSTATUS) $(STATUSGO)
 	mkdir -p keystore
 	echo "Compiling 'test/test'"
 ifeq ($(detected_OS), Darwin)
-		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o test/test
+		$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o test/test
 else
-		$(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o test/test
+		$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o test/test
 endif
 	echo "Executing 'test/test'"
-	./test/test
-	
+	$(ENV_SCRIPT) ./test/test
+	$(ENV_SCRIPT) nimble test
+
+nim-tests: | $(NIMSTATUS) $(STATUSGO)
+	rm -Rf build/*
+	$(ENV_SCRIPT) nimble test
 
 endif # "variables.mk" was not included

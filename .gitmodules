@@ -4,3 +4,27 @@
 [submodule "vendor/status-go"]
 	path = vendor/status-go
 	url = https://github.com/status-im/status-go
+[submodule "vendor/nimcrypto"]
+	path = vendor/nimcrypto
+	url = https://github.com/cheatfate/nimcrypto
+[submodule "vendor/nim-chronicles"]
+	path = vendor/nim-chronicles
+	url = https://github.com/status-im/nim-chronicles
+[submodule "vendor/nim-faststreams"]
+	path = vendor/nim-faststreams
+	url = https://github.com/status-im/nim-faststreams
+[submodule "vendor/nim-stint"]
+	path = vendor/nim-stint
+	url = https://github.com/status-im/nim-stint
+[submodule "vendor/nim-serialization"]
+	path = vendor/nim-serialization
+	url = https://github.com/status-im/nim-serialization
+[submodule "vendor/nim-chronos"]
+	path = vendor/nim-chronos
+	url = https://github.com/status-im/nim-chronos
+[submodule "vendor/nim-stew"]
+	path = vendor/nim-stew
+	url = https://github.com/status-im/nim-stew
+[submodule "vendor/nim-json-serialization"]
+	path = vendor/nim-json-serialization
+	url = https://github.com/status-im/nim-json-serialization/
