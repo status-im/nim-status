@@ -4,6 +4,8 @@ import types
 # All procs start with lowercase because the compiler will also need to import status-go,
 # and it will complain of duplication of function names
 
+export SignalCallback
+
 proc hashMessage*(message: cstring): cstring {.exportc.} =
   setupForeignThreadGc()
   result = status_go.HashMessage(message)
