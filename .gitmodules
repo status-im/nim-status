@@ -1,30 +1,30 @@
 [submodule "vendor/nimbus-build-system"]
 	path = vendor/nimbus-build-system
-	url = https://github.com/status-im/nimbus-build-system
+	url = https://github.com/status-im/nimbus-build-system.git
 [submodule "vendor/status-go"]
 	path = vendor/status-go
-	url = https://github.com/status-im/status-go
+	url = https://github.com/status-im/status-go.git
 [submodule "vendor/nimcrypto"]
 	path = vendor/nimcrypto
-	url = https://github.com/cheatfate/nimcrypto
+	url = https://github.com/cheatfate/nimcrypto.git
 [submodule "vendor/nim-chronicles"]
 	path = vendor/nim-chronicles
-	url = https://github.com/status-im/nim-chronicles
+	url = https://github.com/status-im/nim-chronicles.git
 [submodule "vendor/nim-faststreams"]
 	path = vendor/nim-faststreams
-	url = https://github.com/status-im/nim-faststreams
+	url = https://github.com/status-im/nim-faststreams.git
 [submodule "vendor/nim-stint"]
 	path = vendor/nim-stint
-	url = https://github.com/status-im/nim-stint
+	url = https://github.com/status-im/nim-stint.git
 [submodule "vendor/nim-serialization"]
 	path = vendor/nim-serialization
-	url = https://github.com/status-im/nim-serialization
+	url = https://github.com/status-im/nim-serialization.git
 [submodule "vendor/nim-chronos"]
 	path = vendor/nim-chronos
-	url = https://github.com/status-im/nim-chronos
+	url = https://github.com/status-im/nim-chronos.git
 [submodule "vendor/nim-stew"]
 	path = vendor/nim-stew
-	url = https://github.com/status-im/nim-stew
+	url = https://github.com/status-im/nim-stew.git
 [submodule "vendor/nim-json-serialization"]
 	path = vendor/nim-json-serialization
-	url = https://github.com/status-im/nim-json-serialization/
+	url = https://github.com/status-im/nim-json-serialization.git
