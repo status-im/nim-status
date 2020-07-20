@@ -5,6 +5,7 @@ import types
 # and it will complain of duplication of function names
 
 export SignalCallback
+export GoString
 
 proc hashMessage*(message: cstring): cstring {.exportc.} =
   setupForeignThreadGc()
