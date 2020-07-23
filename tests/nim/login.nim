@@ -1,19 +1,20 @@
 {.passL:"vendor/status-go/build/bin/libstatus.a"}
 when defined(macosx):
-  {.passl: "-framework Foundation".}
-  {.passl: "-framework Security".}
-  {.passl: "-framework IOKit".}
-  {.passl: "-framework CoreServices".}
+  {.passL: "-framework Foundation".}
+  {.passL: "-framework Security".}
+  {.passL: "-framework IOKit".}
+  {.passL: "-framework CoreServices".}
 
-import ../src/nim_status
+import ../../src/nim_status
 import utils
 import chronicles
 import os
 
-var onSignal: SignalCallback = proc(message: cstring) {.cdecl.} = 
+var onSignal: SignalCallback = proc(message: cstring) {.cdecl.} =
   setupForeignThreadGC()
   echo message
   tearDownForeignThreadGc()
+
 setSignalEventCallback(onSignal)
 
 resetDirectories() # Recreates the data and nobackup dir
@@ -35,6 +36,3 @@ while true:
 
   echo "..."
   sleep(1000)
-
-
-
