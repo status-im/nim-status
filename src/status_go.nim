@@ -28,9 +28,9 @@ proc SetSignalEventCallback*(callback: SignalCallback) {.importc: "SetSignalEven
 
 proc SendTransaction*(jsonArgs: cstring, password: cstring): cstring {.importc: "SendTransaction".}
 
-proc GenerateAlias*(pk: GoString): cstring {.importc: "GenerateAlias".}
+proc GenerateAlias*(pk: cstring): cstring {.importc: "GenerateAlias".}
 
-proc Identicon*(pk: GoString): cstring {.importc: "Identicon".}
+proc Identicon*(pk: cstring): cstring {.importc: "Identicon".}
 
 proc Login*(accountData: cstring, password: cstring): cstring {.importc: "Login".}
 

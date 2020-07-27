@@ -77,12 +77,12 @@ proc sendTransaction*(jsonArgs: cstring, password: cstring): cstring {.exportc.}
   result = status_go.SendTransaction(jsonArgs, password)
   tearDownForeignThreadGc()
 
-proc generateAlias*(pk: GoString): cstring {.exportc.} =
+proc generateAlias*(pk: cstring): cstring {.exportc.} =
   setupForeignThreadGc()
   result = status_go.GenerateAlias(pk)
   tearDownForeignThreadGc()
 
-proc identicon*(pk: GoString): cstring {.exportc.} =
+proc identicon*(pk: cstring): cstring {.exportc.} =
   setupForeignThreadGc()
   result = status_go.Identicon(pk)
   tearDownForeignThreadGc()
