@@ -252,7 +252,7 @@ proc multiAccountStoreAccount(paramsJSON: cstring): cstring {.exportc.} =
   result = status_go.MultiAccountStoreAccount(paramsJSON)
   tearDownForeignThreadGc()
 
-proc multiAccountLoadAccount(paramsJSON: cstring): cstring {.exportc.} =
+proc multiAccountLoadAccount*(paramsJSON: cstring): cstring {.exportc.} =
   setupForeignThreadGc()
   result = status_go.MultiAccountLoadAccount(paramsJSON)
   tearDownForeignThreadGc()
