@@ -12,10 +12,6 @@ if defined(macosx):
   --dynliboverrideall # don't use dlopen()
   --tlsEmulation:off
   switch("passL", "-lstdc++")
-  # statically linke these libs
-  switch("passL", "bottles/openssl/lib/libcrypto.a")
-  switch("passL", "bottles/openssl/lib/libssl.a")
-  switch("passL", "bottles/pcre/lib/libpcre.a")
   # https://code.videolan.org/videolan/VLCKit/-/issues/232
   switch("passL", "-Wl,-no_compact_unwind")
   # set the minimum supported macOS version to 10.13
@@ -25,9 +21,6 @@ elif defined(windows):
   switch("passL", "-Wl,-as-needed")
 else:
   --dynliboverrideall # don't use dlopen()
-  # dynamically link these libs, since we're opting out of dlopen()
-  switch("passL", "-lcrypto")
-  switch("passL", "-lssl")
   # don't link libraries we're not actually using
   switch("passL", "-Wl,-as-needed")
 
@@ -39,4 +32,3 @@ switch("warning", "ObservableStores:off")
 
 # Too many false positives for "Warning: method has lock level <unknown>, but another method has 0 [LockLevel]"
 switch("warning", "LockLevel:off")
-

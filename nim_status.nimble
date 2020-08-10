@@ -24,7 +24,12 @@ proc buildAndRunBinary(name: string, srcDir = "./", params = "", cmdParams = "",
   var extra_params = params
   for i in 2..<paramCount():
     extra_params &= " " & paramStr(i)
-  exec "nim " & lang & " --out:./tests/nim/build/" & name & " -r " & extra_params & " " & srcDir & name & ".nim" & " " & cmdParams
+  exec "nim " & lang & " --out:./tests/nim/build/" & name & " " & extra_params & " " & srcDir & name & ".nim" & " " & cmdParams
+  if defined(macosx):
+    exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIBDIR") & " tests/nim/build/" & name
+    exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib tests/nim/build/" & name
+  echo "Executing 'tests/nim/build/" & name & "'"
+  exec "tests/nim/build/" & name
 
 ### Tasks
 task test, "Run all tests":

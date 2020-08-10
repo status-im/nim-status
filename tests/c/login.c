@@ -15,12 +15,6 @@ int main(int argc, char* argv[]) {
   // in the compiled library
   NimMain();
 
-  char* pubKey = "0x0441ccda1563d69ac6b2e53718973c4e7280b4a5d8b3a09bb8bce9ebc5f082778243f1a04ec1f7995660482ca4b966ab0044566141ca48d7cdef8b7375cd5b7af5";
-
-  const char* theIdenticon = identicon(pubKey);
-
-  printf("Identicon: %s\n\n", theIdenticon);
-
   printf("Create an account, login and receive signals:\n");
 
   char* initKeystoreResult = initKeystore("./data");
