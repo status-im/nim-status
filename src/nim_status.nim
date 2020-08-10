@@ -2,7 +2,8 @@ from nim_status/types import
   SignalCallback
 
 from nim_status/lib/shim as nim_shim import
-  hashMessage
+  hashMessage,
+  generateAlias
 
 from nim_status/go/shim as go_shim import
   initKeystore,
@@ -18,7 +19,6 @@ from nim_status/go/shim as go_shim import
   addPeer,
   setSignalEventCallback,
   sendTransaction,
-  generateAlias,
   identicon,
   login,
   logout,

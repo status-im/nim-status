@@ -1,9 +1,18 @@
-{.passL:"vendor/status-go/build/bin/libstatus.a"}
+from os import getEnv
+{.passL: "-L" & getEnv("STATUSGO_LIBDIR")}
+{.passL: "-lstatus"}
+when defined(linux):
+  {.passL: "-lcrypto"}
+  {.passL: "-lssl"}
+  {.passL: "-lpcre"}
 when defined(macosx):
-  {.passL: "-framework Foundation".}
-  {.passL: "-framework Security".}
-  {.passL: "-framework IOKit".}
+  {.passL: "bottles/openssl/lib/libcrypto.a"}
+  {.passL: "bottles/openssl/lib/libssl.a"}
+  {.passL: "bottles/pcre/lib/libpcre.a"}
+  {.passL: "-framework CoreFoundation".}
   {.passL: "-framework CoreServices".}
+  {.passL: "-framework IOKit".}
+  {.passL: "-framework Security".}
 
 import ../../src/nim_status
 import utils

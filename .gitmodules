@@ -28,3 +28,6 @@
 [submodule "vendor/nim-json-serialization"]
 	path = vendor/nim-json-serialization
 	url = https://github.com/status-im/nim-json-serialization.git
+[submodule "vendor/nim-secp256k1"]
+	path = vendor/nim-secp256k1
+	url = https://github.com/status-im/nim-secp256k1.git
