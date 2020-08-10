@@ -26,8 +26,8 @@ BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 	nim_status \
 	status-go \
 	test \
-	test-shims-c \
-	test-login-c \
+	test-c-shims \
+	test-c-login \
 	tests \
 	tests-c \
 	tests-nim \
@@ -67,8 +67,12 @@ ifeq ($(detected_OS),Darwin)
  export CGO_CFLAGS
  CFLAGS := -mmacosx-version-min=10.13
  export CFLAGS
+ LIBSTATUS_EXT := dylib
+else ifeq ($(detected_OS),Windows)
+ LIBSTATUS_EXT := dll
 else
  BOTTLES_TARGET := bottles-dummy
+ LIBSTATUS_EXT := so
 endif
 
 bottles: $(BOTTLES_TARGET)
@@ -98,72 +102,144 @@ $(BOTTLE_PCRE):
 bottles-macos: | $(BOTTLE_OPENSSL) $(BOTTLE_PCRE)
 	rm -rf bottles/Downloads
 
-deps: | deps-common bottles
+ifeq ($(detected_OS),Darwin)
+ NIM_DEP_LIBS := bottles/openssl/lib/libcrypto.a \
+		 bottles/openssl/lib/libssl.a \
+		 bottles/pcre/lib/libpcre.a
+else ifeq ($(detected_OS),Linux)
+ NIM_DEP_LIBS := -lcrypto -lssl -lpcre
+endif
+
+NIM_WINDOWS_PREBUILT_DLLS ?= DLLs/pcre.dll
+NIM_WINDOWS_PREBUILT_DLLDIR := $(shell pwd)/$(shell dirname "$(NIM_WINDOWS_PREBUILT_DLLS)")
+
+$(NIM_WINDOWS_PREBUILT_DLLS):
+ifeq ($(detected_OS),Windows)
+	echo -e "\e[92mFetching:\e[39m prebuilt DLLs from nim-lang.org"
+	rm -rf DLLs
+	mkdir -p DLLs
+	cd DLLs && \
+	wget https://nim-lang.org/download/dlls.zip && \
+	unzip dlls.zip
+endif
+
+deps: | deps-common bottles $(NIM_WINDOWS_PREBUILT_DLLS)
 
 update: | update-common
 
 ifeq ($(detected_OS),Darwin)
- NIM_PARAMS := $(NIM_PARAMS) -L:"-framework Foundation -framework Security -framework IOKit -framework CoreServices"
+ FRAMEWORKS := -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security
+ NIM_PARAMS := $(NIM_PARAMS) -L:"$(FRAMEWORKS)"
 endif
 
 # TODO: control debug/release builds with a Make var
 # We need `-d:debug` to get Nim's default stack traces.
 NIM_PARAMS += -d:debug
 
-STATUSGO := vendor/status-go/build/bin/libstatus.a
+STATUSGO := vendor/status-go/build/bin/libstatus.$(LIBSTATUS_EXT)
+STATUSGO_LIBDIR := $(shell pwd)/$(shell dirname "$(STATUSGO)")
+export STATUSGO_LIBDIR
 
 status-go: $(STATUSGO)
 $(STATUSGO): | deps
 	echo -e $(BUILD_MSG) "status-go"
 	+ cd vendor/status-go && \
-	  $(MAKE) statusgo-library $(HANDLE_OUTPUT)
+	  $(MAKE) statusgo-shared-library $(HANDLE_OUTPUT)
 
 NIMSTATUS := build/nim_status.a
 
 nim_status: | $(NIMSTATUS)
 $(NIMSTATUS): | deps
 	echo -e $(BUILD_MSG) "$@" && \
-		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status/c/nim_status.nim
-		cp nimcache/nim_status/nim_status.h build/nim_status.h
-		mv nim_status.a build/
+	$(ENV_SCRIPT) nim c \
+		$(NIM_PARAMS) \
+		--app:staticLib \
+		--header \
+		--noMain \
+		-o:$@ \
+		src/nim_status/c/nim_status.nim
+	cp nimcache/debug/nim_status/nim_status.h build/nim_status.h
+	mv nim_status.a build/
 
 SHIMS := tests/c/build/shims.a
 
 shims: | $(SHIMS)
 $(SHIMS): | deps
 	echo -e $(BUILD_MSG) "$@" && \
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ tests/c/shims.nim
-	cp nimcache/nim_status/shims.h tests/c/build/shims.h
+	$(ENV_SCRIPT) nim c \
+		$(NIM_PARAMS) \
+		--app:staticLib \
+		--header \
+		--noMain \
+		-o:$@ \
+		tests/c/shims.nim
+	cp nimcache/debug/shims/shims.h tests/c/build/shims.h
 	mv shims.a tests/c/build/
 
-test-shims-c: | $(STATUSGO) clean-data-dirs create-data-dirs $(SHIMS)
+test-c-template: | $(STATUSGO) clean-data-dirs create-data-dirs
 	mkdir -p tests/c/build
-	echo "Compiling 'tests/c/shims'"
+	echo "Compiling 'tests/c/$(TEST_NAME)'"
+	$(ENV_SCRIPT) $(CC) \
+		$(TEST_INCLUDES) \
+		-I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" \
+		tests/c/$(TEST_NAME).c \
+		$(TEST_DEPS) \
+		$(NIM_DEP_LIBS) \
+		-L$(STATUSGO_LIBDIR) \
+		-lstatus \
+		$(FRAMEWORKS) \
+		-lm \
+		-pthread \
+		-o tests/c/build/$(TEST_NAME)
+	[[ $(detected_OS) = Darwin ]] && \
+	install_name_tool -add_rpath \
+		"$(STATUSGO_LIBDIR)" \
+		tests/c/build/$(TEST_NAME) && \
+	install_name_tool -change \
+		libstatus.dylib \
+		@rpath/libstatus.dylib \
+		tests/c/build/$(TEST_NAME) || true
+	echo "Executing 'tests/c/build/$(TEST_NAME)'"
 ifeq ($(detected_OS),Darwin)
-	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/tests/c/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/shims.c $(SHIMS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o tests/c/build/shims
+	./tests/c/build/$(TEST_NAME)
+else ifeq ($(detected_OS),Windows)
+	PATH="$(STATUSGO_LIBDIR)":"$(NIM_WINDOWS_PREBUILT_DLLDIR)":/usr/bin:/bin:"$(PATH)" \
+	./tests/c/build/$(TEST_NAME)
 else
-	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/tests/c/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/shims.c $(SHIMS) $(STATUSGO) -lm -pthread -o tests/c/build/shims
+	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
+	./tests/c/build/$(TEST_NAME)
 endif
-	echo "Executing 'tests/c/build/shims'"
-	$(ENV_SCRIPT) ./tests/c/build/shims
 
-test-login-c: | $(STATUSGO) clean-data-dirs create-data-dirs $(NIMSTATUS)
-	mkdir -p tests/c/build
-	echo "Compiling 'tests/c/login'"
-ifeq ($(detected_OS),Darwin)
-	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/login.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o tests/c/build/login
-else
-	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/login.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o tests/c/build/login
-endif
-	echo "Executing 'tests/c/build/login'"
-	$(ENV_SCRIPT) ./tests/c/build/login
+SHIMS_INCLUDES := -I\"$(CURDIR)/tests/c/build\"
+
+test-c-shims: | $(SHIMS)
+	$(MAKE) TEST_DEPS=$(SHIMS) \
+		TEST_INCLUDES=$(SHIMS_INCLUDES) \
+		TEST_NAME=shims \
+		test-c-template
+
+LOGIN_INCLUDES := -I\"$(CURDIR)/build\"
+
+test-c-login: | $(NIMSTATUS)
+	$(MAKE) TEST_DEPS=$(NIMSTATUS) \
+		TEST_INCLUDES=$(LOGIN_INCLUDES) \
+		TEST_NAME=login \
+		test-c-template
 
 tests-c:
-	$(MAKE) test-shims-c
-	$(MAKE) test-login-c
+	$(MAKE) test-c-shims
+	$(MAKE) test-c-login
 
 tests-nim: | $(STATUSGO)
+ifeq ($(detected_OS),Darwin)
 	$(ENV_SCRIPT) nimble test
+else ifeq ($(detected_OS),Windows)
+	PATH="$(STATUSGO_LIBDIR)":"$(NIM_WINDOWS_PREBUILT_DLLDIR)":/usr/bin:/bin:"$(PATH)" \
+	$(ENV_SCRIPT) nimble test
+else
+	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
+	$(ENV_SCRIPT) nimble test
+endif
 
 tests: tests-nim tests-c
 
@@ -172,6 +248,7 @@ test: tests
 clean: | clean-common clean-build-dirs clean-data-dirs
 	rm -rf $(STATUSGO)
 	rm -rf bottles
+	rm -rf DLLs
 
 clean-build-dirs:
 	rm -rf build/*

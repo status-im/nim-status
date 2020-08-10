@@ -2,6 +2,7 @@
 .vscode
 bin/
 /bottles/
+/DLLs/
 build/
 vendor/.nimble
 tmp
