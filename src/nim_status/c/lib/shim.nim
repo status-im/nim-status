@@ -12,3 +12,9 @@ proc generateAlias*(pubKey: cstring): cstring =
   result = cast[cstring](c_malloc(csize_t alias.len + 1))
   copyMem(result, alias.cstring, alias.len)
   result[alias.len] = '\0'
+
+proc identicon*(pubKey: cstring): cstring =
+  let icon = nim_shim.identicon($pubKey)
+  result = cast[cstring](c_malloc(csize_t icon.len + 1))
+  copyMem(result, icon.cstring, icon.len)
+  result[icon.len] = '\0'
