@@ -102,7 +102,7 @@ deps: | deps-common
 
 update: | update-common
 
-STATUSGO := vendor/status-go/build/bin/libstatus.a
+STATUSGO := vendor/status-go/build/bin/libstatus.so
 
 $(STATUSGO): | deps
 	echo -e $(BUILD_MSG) "status-go"
@@ -118,13 +118,13 @@ clean: | clean-common clean-build-dir
 clean-build-dir:
 	rm -rf build/*
 
-NIMSTATUS := build/nim_status.a
+NIMSTATUS := build/libnim_status.a
 
 $(NIMSTATUS): | build deps
 	echo -e $(BUILD_MSG) "$@" && \
-		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status.nim 
+		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --cpu:i386 --os:android --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status.nim 
 		cp nimcache/nim_status/nim_status.h build/.
-		mv nim_status.a build/.
+		mv libnim_status.a build/.
 
 nim_status: | clean-build-dir $(NIMSTATUS)
 
