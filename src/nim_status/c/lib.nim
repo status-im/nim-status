@@ -9,3 +9,5 @@ proc hashMessage*(message: cstring): cstring =
   result[hash.len] = '\0'
 
 let generateAlias* = nim_shim_c.generateAlias
+
+let identicon* = nim_shim_c.identicon

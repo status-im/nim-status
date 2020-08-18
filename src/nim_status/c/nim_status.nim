@@ -2,6 +2,7 @@ import lib/shim as nim_shim
 
 let hashMessage {.exportc.} = nim_shim.hashMessage
 let generateAlias {.exportc.} = nim_shim.generateAlias
+let identicon {.exportc.} = nim_shim.identicon
 
 import go/shim as go_shim
 
@@ -17,7 +18,6 @@ let callRPC {.exportc.} = go_shim.callRPC
 let callPrivateRPC {.exportc.} = go_shim.callPrivateRPC
 let addPeer {.exportc.} = go_shim.addPeer
 let sendTransaction {.exportc.} = go_shim.sendTransaction
-let identicon {.exportc.} = go_shim.identicon
 let login {.exportc.} = go_shim.login
 let logout {.exportc.} = go_shim.logout
 let verifyAccountPassword {.exportc.} = go_shim.verifyAccountPassword

@@ -13,6 +13,7 @@ when defined(macosx):
   {.passL: "-framework CoreServices".}
   {.passL: "-framework IOKit".}
   {.passL: "-framework Security".}
+  {.passL: "-headerpad_max_install_names".}
 
 import ../../src/nim_status
 import utils

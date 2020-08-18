@@ -8,16 +8,12 @@ type Lsfr* = ref object
   data*: uint64
 
 proc next*(self: Lsfr): uint64 =
-  const one: uint64 = 1
-  const limit: uint64 = 64
   var bit: uint64 = 0
-  var i: uint64 = 0
-  while i < limit:
-    if bitand(self.poly, one shl i) != 0:
+  for i in 0..64:
+    if bitand(self.poly, 1.uint64 shl i) != 0:
       bit = bitxor(bit, self.data shr i)
-    i += one
-  bit = bitand(bit, one)
-  self.data = bitor(self.data shl one, bit)
+  bit = bitand(bit, 1.uint64)
+  self.data = bitor(self.data shl 1, bit)
   result = self.data
 
 proc truncPubKey*(pubKey: string): uint64 =
