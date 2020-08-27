@@ -265,3 +265,23 @@ proc multiAccountReset(): cstring {.exportc.} =
   setupForeignThreadGc()
   result = status_go.MultiAccountReset()
   tearDownForeignThreadGc()
+
+proc deleteMultiaccount(keyUID: cstring, path: cstring): cstring {.exportc.} =
+  setupForeignThreadGc()
+  result = status_go.DeleteMultiaccount(keyUID, path)
+  tearDownForeignThreadGc()
+
+proc migrateKeyStoreDir(accountData: cstring, password: cstring, oldKeystoreDir: cstring, multiaccountKeystoreDir: cstring): cstring {.exportc.} =
+  setupForeignThreadGc()
+  result = status_go.MigrateKeyStoreDir(accountData, password, oldKeystoreDir, multiaccountKeystoreDir)
+  tearDownForeignThreadGc()
+
+proc startWallet() {.exportc.} =
+  setupForeignThreadGc()
+  status_go.StartWallet()
+  tearDownForeignThreadGc()
+
+proc stopWallet() {.exportc.} =
+  setupForeignThreadGc()
+  status_go.StopWallet()
+  tearDownForeignThreadGc()
