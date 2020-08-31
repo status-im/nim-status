@@ -123,7 +123,12 @@ ifeq ($(detected_OS),Windows)
 	unzip dlls.zip
 endif
 
-deps: | deps-common bottles $(NIM_WINDOWS_PREBUILT_DLLS)
+# Needed because currently nim-nat-traversal assumes the nat-libs are available
+# in its parent's vendor
+nat-libs-sub:
+	cd vendor/nim-waku && $(MAKE) nat-libs
+
+deps: | deps-common nat-libs nat-libs-sub bottles $(NIM_WINDOWS_PREBUILT_DLLS)
 
 update: | update-common
 

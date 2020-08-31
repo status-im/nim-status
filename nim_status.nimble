@@ -34,4 +34,5 @@ proc buildAndRunBinary(name: string, srcDir = "./", params = "", cmdParams = "",
 ### Tasks
 task test, "Run all tests":
   buildAndRunBinary "shims", "tests/nim/"
+  buildAndRunBinary "startNode", "tests/nim/"
   buildAndRunBinary "login", "tests/nim/"
