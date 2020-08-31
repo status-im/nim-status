@@ -8,3 +8,5 @@ proc hashMessage*(message: string): string =
 export generateAlias
 
 export identicon
+
+export saveAccountAndLogin

@@ -2,10 +2,13 @@ import lib/alias
 import lib/alias/data
 import lib/identicon
 import lib/util
+from lib/waku/config as wakuConfig import nil
+from lib/waku/node as wakuNode import nil
 import nimcrypto
 import strformat
 import strutils
 import unicode
+import json
 
 proc hashMessage*(message: string): string =
   ## hashMessage calculates the hash of a message to be safely signed by the keycard.
@@ -45,3 +48,14 @@ proc identicon*(str: string): string =
     result = generateBase64(str)
   except:
     discard
+
+proc saveAccountAndLogin*(accountData: string, password: string, settingsJSON: string, configJSON: string, subaccountData: string): string =
+  let jConfig = parseJson($configJSON)
+  let jSettings = parseJson($settingsJSON)
+
+  let config = wakuConfig.load(jConfig)
+  if(config.enabled):
+    wakuNode.start(config)
+
+  result = "{}" #TODO: set output
+  #result = status_go.SaveAccountAndLogin(accountData, password, settingsJSON, configJSON, subaccountData)
