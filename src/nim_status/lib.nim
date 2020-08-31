@@ -1,10 +1,13 @@
 import lib/alias
 import lib/alias/data
 import lib/util
+from lib/waku/config as wakuConfig import nil
+from lib/waku/node as wakuNode import nil
 import nimcrypto
 import strformat
 import strutils
 import unicode
+import json
 
 const END_OF_MEDIUM = Rune(0x19).toUTF8
 const prefix = END_OF_MEDIUM & "Ethereum Signed Message:\n"
@@ -37,3 +40,16 @@ proc generateAlias*(pubKey: string): string =
       result = fmt("{adjective1} {adjective2} {animal}")
     except:
       discard
+
+proc saveAccountAndLogin*(accountData: string, password: string, settingsJSON: string, configJSON: string, subaccountData: string): string =
+  let jConfig = parseJson($configJSON)
+  let jSettings = parseJson($settingsJSON)
+
+  let config = wakuConfig.load(jConfig)
+  if(config.enabled):
+    wakuNode.start(config)
+
+  result = "{}" #TODO: set output 
+  #result = status_go.SaveAccountAndLogin(accountData, password, settingsJSON, configJSON, subaccountData)
+  
+

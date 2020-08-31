@@ -123,7 +123,7 @@ ifeq ($(detected_OS),Windows)
 	unzip dlls.zip
 endif
 
-deps: | deps-common bottles $(NIM_WINDOWS_PREBUILT_DLLS)
+deps: | deps-common nat-libs bottles $(NIM_WINDOWS_PREBUILT_DLLS)
 
 update: | update-common
 

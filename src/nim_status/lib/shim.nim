@@ -6,3 +6,5 @@ proc hashMessage*(message: string): string =
   fmt("{{\"result\":\"{hash}\"}}")
 
 export generateAlias
+
+export saveAccountAndLogin

@@ -3,7 +3,8 @@ from nim_status/types import
 
 from nim_status/lib/shim as nim_shim import
   hashMessage,
-  generateAlias
+  generateAlias,
+  saveAccountAndLogin
 
 from nim_status/go/shim as go_shim import
   initKeystore,
@@ -13,7 +14,6 @@ from nim_status/go/shim as go_shim import
   multiAccountImportMnemonic,
   multiAccountImportPrivateKey,
   multiAccountDeriveAddresses,
-  saveAccountAndLogin,
   callRPC,
   callPrivateRPC,
   addPeer,
