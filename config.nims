@@ -1,6 +1,3 @@
-when defined(macosx):
-  import algorithm, strutils
-
 if defined(release):
   switch("nimcache", "nimcache/release/$projectName")
 else:
@@ -9,10 +6,10 @@ else:
 --threads:on
 --opt:speed # -O3
 --debugger:native # passes "-g" to the C compiler
---dynliboverrideall # don't use dlopen()
 --define:ssl # needed by the stdlib to enable SSL procedures
 
 if defined(macosx):
+  --dynliboverrideall # don't use dlopen()
   --tlsEmulation:off
   switch("passL", "-lstdc++")
   # statically linke these libs
@@ -23,7 +20,11 @@ if defined(macosx):
   switch("passL", "-Wl,-no_compact_unwind")
   # set the minimum supported macOS version to 10.13
   switch("passC", "-mmacosx-version-min=10.13")
+elif defined(windows):
+  --tlsEmulation:off
+  switch("passL", "-Wl,-as-needed")
 else:
+  --dynliboverrideall # don't use dlopen()
   # dynamically link these libs, since we're opting out of dlopen()
   switch("passL", "-lcrypto")
   switch("passL", "-lssl")

@@ -19,10 +19,19 @@ BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 	bottles-dummy \
 	bottles-macos \
 	clean \
+	clean-build-dirs \
+	clean-data-dirs \
+	create-data-dirs \
 	deps \
 	nim_status \
-	update \
-	tests
+	status-go \
+	test \
+	test-shims-c \
+	test-login-c \
+	tests \
+	tests-c \
+	tests-nim \
+	update
 
 ifeq ($(NIM_PARAMS),)
 # "variables.mk" was not included, so we update the submodules.
@@ -50,7 +59,7 @@ else
  detected_OS := $(strip $(shell uname))
 endif
 
-ifeq ($(detected_OS), Darwin)
+ifeq ($(detected_OS),Darwin)
  BOTTLES_TARGET := bottles-macos
  MACOSX_DEPLOYMENT_TARGET := 10.13
  export MACOSX_DEPLOYMENT_TARGET
@@ -89,8 +98,11 @@ $(BOTTLE_PCRE):
 bottles-macos: | $(BOTTLE_OPENSSL) $(BOTTLE_PCRE)
 	rm -rf bottles/Downloads
 
+deps: | deps-common bottles
 
-ifeq ($(detected_OS), Darwin)
+update: | update-common
+
+ifeq ($(detected_OS),Darwin)
  NIM_PARAMS := $(NIM_PARAMS) -L:"-framework Foundation -framework Security -framework IOKit -framework CoreServices"
 endif
 
@@ -98,55 +110,82 @@ endif
 # We need `-d:debug` to get Nim's default stack traces.
 NIM_PARAMS += -d:debug
 
-deps: | deps-common
-
-update: | update-common
-
 STATUSGO := vendor/status-go/build/bin/libstatus.a
 
+status-go: $(STATUSGO)
 $(STATUSGO): | deps
 	echo -e $(BUILD_MSG) "status-go"
 	+ cd vendor/status-go && \
 	  $(MAKE) statusgo-library $(HANDLE_OUTPUT)
 
-clean: | clean-common clean-build-dir
-	rm -rf $(STATUSGO)
-	rm -rf keystore
-	rm -rf data
-	rm -rf noBackup
-
-clean-build-dir:
-	rm -rf build/*
-
 NIMSTATUS := build/nim_status.a
 
-$(NIMSTATUS): | build deps
+nim_status: | $(NIMSTATUS)
+$(NIMSTATUS): | deps
 	echo -e $(BUILD_MSG) "$@" && \
-		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status.nim 
-		cp nimcache/nim_status/nim_status.h build/.
-		mv nim_status.a build/.
+		$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ src/nim_status/c/nim_status.nim
+		cp nimcache/nim_status/nim_status.h build/nim_status.h
+		mv nim_status.a build/
 
-nim_status: | clean-build-dir $(NIMSTATUS)
+SHIMS := tests/c/build/shims.a
 
-tests: | $(NIMSTATUS) $(STATUSGO)
-	rm -Rf keystore
-	rm -Rf data
-	rm -Rf noBackup
-	mkdir -p data
-	mkdir -p noBackup
-	mkdir -p keystore
-	echo "Compiling 'test/test'"
-ifeq ($(detected_OS), Darwin)
-		$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o test/test
+shims: | $(SHIMS)
+$(SHIMS): | deps
+	echo -e $(BUILD_MSG) "$@" && \
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --app:staticLib --header --noMain --nimcache:nimcache/nim_status -o:$@ tests/c/shims.nim
+	cp nimcache/nim_status/shims.h tests/c/build/shims.h
+	mv shims.a tests/c/build/
+
+test-shims-c: | $(STATUSGO) clean-data-dirs create-data-dirs $(SHIMS)
+	mkdir -p tests/c/build
+	echo "Compiling 'tests/c/shims'"
+ifeq ($(detected_OS),Darwin)
+	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/tests/c/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/shims.c $(SHIMS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o tests/c/build/shims
 else
-		$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" test/test.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o test/test
+	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/tests/c/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/shims.c $(SHIMS) $(STATUSGO) -lm -pthread -o tests/c/build/shims
 endif
-	echo "Executing 'test/test'"
-	$(ENV_SCRIPT) ./test/test
+	echo "Executing 'tests/c/build/shims'"
+	$(ENV_SCRIPT) ./tests/c/build/shims
+
+test-login-c: | $(STATUSGO) clean-data-dirs create-data-dirs $(NIMSTATUS)
+	mkdir -p tests/c/build
+	echo "Compiling 'tests/c/login'"
+ifeq ($(detected_OS),Darwin)
+	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/login.c $(NIMSTATUS) $(STATUSGO) -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security -lm -pthread -o tests/c/build/login
+else
+	$(ENV_SCRIPT) $(CC) -I"$(CURDIR)/build" -I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" tests/c/login.c $(NIMSTATUS) $(STATUSGO) -lm -pthread -o tests/c/build/login
+endif
+	echo "Executing 'tests/c/build/login'"
+	$(ENV_SCRIPT) ./tests/c/build/login
+
+tests-c:
+	$(MAKE) test-shims-c
+	$(MAKE) test-login-c
+
+tests-nim: | $(STATUSGO)
 	$(ENV_SCRIPT) nimble test
 
-nim-tests: | $(NIMSTATUS) $(STATUSGO)
-	rm -Rf build/*
-	$(ENV_SCRIPT) nimble test
+tests: tests-nim tests-c
+
+test: tests
+
+clean: | clean-common clean-build-dirs clean-data-dirs
+	rm -rf $(STATUSGO)
+	rm -rf bottles
+
+clean-build-dirs:
+	rm -rf build/*
+	rm -rf tests/c/build/*
+	rm -rf tests/nim/build/*
+
+clean-data-dirs:
+	rm -rf data
+	rm -rf keystore
+	rm -rf noBackup
+
+create-data-dirs:
+	mkdir -p data
+	mkdir -p keystore
+	mkdir -p noBackup
 
 endif # "variables.mk" was not included

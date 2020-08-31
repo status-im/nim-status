@@ -1,5 +1,5 @@
 import json
-import ../src/nim_status
+import ../../src/nim_status
 import nimcrypto
 import chronicles
 import os
@@ -21,7 +21,7 @@ proc init*() =
 
 proc AndLogin(account0: JsonNode, pwd: string) =
   let password = hashPassword(pwd)
-  
+
   let multiAccounts = parseJson($multiAccountStoreDerivedAccounts($ %* {
     "accountID": account0["id"].getStr,
     "paths": ["m/44'/60'/0'/0", "m/43'/60'/1581'", "m/43'/60'/1581'/0'/0", "m/44'/60'/0'/0/0"],
@@ -137,9 +137,9 @@ proc AndLogin(account0: JsonNode, pwd: string) =
     "networks/current-network": "mainnet_rpc",
     "installation-id": "5d6bc316-a97e-5b89-9541-ad01f8eb7397",
   }
-  
+
   let configJSON = %* {
-    "BrowsersConfig": { 
+    "BrowsersConfig": {
       "Enabled": true
     },
     "ClusterConfig": {
@@ -221,7 +221,7 @@ proc AndLogin(account0: JsonNode, pwd: string) =
       "Enabled": true
     }
   }
-  
+
   let subaccountData = %* [
     {
       "public-key": multiAccounts["m/44'/60'/0'/0/0"]["publicKey"],
@@ -240,29 +240,29 @@ proc AndLogin(account0: JsonNode, pwd: string) =
       "chat":true
     }
   ]
- 
+
   let saveResult = parseJson($saveAccountAndLogin($accountData, password, $settingsJSON, $configJSON, $subaccountData))
   assert saveResult["error"].getStr == ""
 
   debug "Login successful"
 
-proc createAccountAndLogin*(password: string = "qwerty"):string = 
+proc createAccountAndLogin*(password: string = "qwerty"):string =
   debug "Creating an account"
 
   let generatedAddresses = parseJson($multiAccountGenerateAndDeriveAddresses($ %* {
     "n": 5,
     "mnemonicPhraseLength": 12,
-    "bip39Passphrase": "", 
+    "bip39Passphrase": "",
     "paths": ["m/43'/60'/1581'/0'/0", "m/44'/60'/0'/0/0"]
   }))
 
   result = generatedAddresses[0]["publicKey"].getStr
   debug "Account created", result
-  
+
   AndLogin(generatedAddresses[0], password)
 
-  
- 
+
+
 proc restoreAccountAndLogin*(mnemonic: string, password: string = "qwerty"):string =
   let importedAddress = parseJson($ multiAccountImportMnemonic($ %* {
     "mnemonicPhrase": mnemonic,
