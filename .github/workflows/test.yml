@@ -1,0 +1,90 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  tests:
+    strategy:
+      matrix:
+        env:
+          - { NPROC: 2 }
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    env: ${{ matrix.env }}
+
+    name: ${{ matrix.platform }} - ${{ matrix.env.NPROC }} processes
+
+    steps:
+      - name: Install Scoop
+        if: startsWith(matrix.platform, 'windows')
+        shell: powershell
+        run: |
+            iwr -useb get.scoop.sh | iex
+
+      - name: Install tools with Scoop
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        run: |
+          export PATH="${PATH}:${HOME}/scoop/shims"
+          scoop install wget
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # We need to do this because of how github cache works
+      - name: Initialize Submodules
+        shell: bash
+        run: |
+          git submodule update --init --recursive
+
+      - name: Cache Nim compiler and status-go builds
+        uses: actions/cache@v2
+        with:
+          path: |
+            vendor/nimbus-build-system/vendor/Nim/bin
+            vendor/status-go/build/bin
+          key: ${{ runner.os }}-${{ matrix.env.NPROC }}-nim-${{ hashFiles('.gitmodules') }}
+
+      - name: Install dependencies and make default target
+        shell: bash
+        run: |
+          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          export M="$(which mingw32-make || echo make)"
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1
+
+      - name: Run Nim tests
+        shell: bash
+        run: |
+          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          export M="$(which mingw32-make || echo make)"
+          tester() {
+            "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-nim
+          }
+          tester &
+          sleep 600
+          if [[ ${{ matrix.platform }} = windows* ]]; then
+            taskkill -IM login.exe -F
+          else
+            kill $!
+          fi
+
+      - name: Run C tests
+        shell: bash
+        run: |
+          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          export M="$(which mingw32-make || echo make)"
+          tester() {
+            "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-c
+          }
+          tester &
+          sleep 600
+          if [[ ${{ matrix.platform }} = windows* ]]; then
+            taskkill -IM login.exe -F
+          else
+            kill $!
+          fi
