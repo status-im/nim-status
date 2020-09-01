@@ -203,7 +203,7 @@ test-c-template: | $(STATUSGO) clean-data-dirs create-data-dirs
 ifeq ($(detected_OS),Darwin)
 	./tests/c/build/$(TEST_NAME)
 else ifeq ($(detected_OS),Windows)
-	PATH="$(STATUSGO_LIBDIR)":"$(NIM_WINDOWS_PREBUILT_DLLDIR)":/usr/bin:/bin:"$(PATH)" \
+	PATH="$(STATUSGO_LIBDIR):$(NIM_WINDOWS_PREBUILT_DLLDIR):/usr/bin:/bin:$$PATH" \
 	./tests/c/build/$(TEST_NAME)
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
@@ -234,7 +234,7 @@ tests-nim: | $(STATUSGO)
 ifeq ($(detected_OS),Darwin)
 	$(ENV_SCRIPT) nimble test
 else ifeq ($(detected_OS),Windows)
-	PATH="$(STATUSGO_LIBDIR)":"$(NIM_WINDOWS_PREBUILT_DLLDIR)":/usr/bin:/bin:"$(PATH)" \
+	PATH="$(STATUSGO_LIBDIR):$(NIM_WINDOWS_PREBUILT_DLLDIR):/usr/bin:/bin:$$PATH" \
 	$(ENV_SCRIPT) nimble test
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
