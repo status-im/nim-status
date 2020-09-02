@@ -1,5 +1,7 @@
 # status-nim
 
+[![Tests (GitHub Actions)](https://github.com/status-im/nim-status/workflows/Tests/badge.svg?branch=master)](https://github.com/status-im/nim-status/actions?query=workflow%3ATests)
+
 Nim implementation of the Status protocol: https://github.com/status-im/specs
 
 Corresponds roughly to status-go: https://github.com/status-im/status-go which is consumed by status-react: https://github.com/status-im/status-react/
