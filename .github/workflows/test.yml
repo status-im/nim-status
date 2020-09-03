@@ -69,8 +69,10 @@ jobs:
           sleep 600
           if [[ ${{ matrix.platform }} = windows* ]]; then
             taskkill -IM login.exe -F
+          elif [[ ${{ matrix.platform }} = macos* ]]; then
+            killall -u "${USER}" -c login
           else
-            kill $!
+            killall -e login
           fi
 
       - name: Run C tests
@@ -85,6 +87,8 @@ jobs:
           sleep 600
           if [[ ${{ matrix.platform }} = windows* ]]; then
             taskkill -IM login.exe -F
+          elif [[ ${{ matrix.platform }} = macos* ]]; then
+            killall -u "${USER}" -c login
           else
-            kill $!
+            killall -e login
           fi
