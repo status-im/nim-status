@@ -54,6 +54,8 @@ let multiAccountStoreAccount {.exportc.} = go_shim.multiAccountStoreAccount
 let multiAccountLoadAccount {.exportc.} = go_shim.multiAccountLoadAccount
 let multiAccountGenerate {.exportc.} = go_shim.multiAccountGenerate
 let multiAccountReset {.exportc.} = go_shim.multiAccountReset
+let startWallet {.exportc.} = go_shim.startWallet
+let stopWallet {.exportc.} = go_shim.stopWallet
 
 type SignalCallback {.exportc: "SignalCallback".} = proc(eventMessage: cstring): void {.cdecl.}
 

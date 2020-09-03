@@ -161,3 +161,9 @@ proc multiAccountGenerate*(paramsJSON: string): string =
 
 proc multiAccountReset*(): string =
   $go_shim.multiAccountReset()
+
+proc startWallet*(): string =
+  $go_shim.startWallet()
+
+proc stopWallet*(): string =
+  $go_shim.stopWallet()

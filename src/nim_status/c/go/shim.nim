@@ -106,3 +106,7 @@ proc multiAccountLoadAccount*(paramsJSON: cstring): cstring {.importc: "MultiAcc
 proc multiAccountGenerate*(paramsJSON: cstring): cstring {.importc: "MultiAccountGenerate".}
 
 proc multiAccountReset*(): cstring {.importc: "MultiAccountReset".}
+
+proc startWallet*(): cstring {.importc: "StartWallet".}
+
+proc stopWallet*(): cstring {.importc: "StopWallet".}

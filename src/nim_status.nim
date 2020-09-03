@@ -55,7 +55,9 @@ from nim_status/go/shim as go_shim import
   multiAccountStoreAccount,
   multiAccountLoadAccount,
   multiAccountGenerate,
-  multiAccountReset
+  multiAccountReset,
+  startWallet,
+  stopWallet
 
 export
   SignalCallback,
@@ -110,4 +112,6 @@ export
   multiAccountStoreAccount,
   multiAccountLoadAccount,
   multiAccountGenerate,
-  multiAccountReset
+  multiAccountReset,
+  startWallet,
+  stopWallet
