@@ -191,14 +191,15 @@ test-c-template: | $(STATUSGO) clean-data-dirs create-data-dirs
 		-lm \
 		-pthread \
 		-o tests/c/build/$(TEST_NAME)
-	[[ $(detected_OS) = Darwin ]] && \
+	[[ $$? = 0 ]] && \
+	(([[ $(detected_OS) = Darwin ]] && \
 	install_name_tool -add_rpath \
 		"$(STATUSGO_LIBDIR)" \
 		tests/c/build/$(TEST_NAME) && \
 	install_name_tool -change \
 		libstatus.dylib \
 		@rpath/libstatus.dylib \
-		tests/c/build/$(TEST_NAME) || true
+		tests/c/build/$(TEST_NAME)) || true)
 	echo "Executing 'tests/c/build/$(TEST_NAME)'"
 ifeq ($(detected_OS),Darwin)
 	./tests/c/build/$(TEST_NAME)
