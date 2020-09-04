@@ -1,6 +1,6 @@
 # status-nim
 
-[![Tests (GitHub Actions)](https://github.com/status-im/nim-status/workflows/Tests/badge.svg?branch=master)](https://github.com/status-im/nim-status/actions?query=workflow%3ATests)
+[![Tests (GitHub Actions)](https://github.com/status-im/nim-status/workflows/Tests/badge.svg?branch=master)](https://github.com/status-im/nim-status/actions?query=workflow%3ATests+branch%3Amaster)
 
 Nim implementation of the Status protocol: https://github.com/status-im/specs
 
