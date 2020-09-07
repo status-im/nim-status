@@ -1,22 +1,36 @@
 import
-  chronicles, chronos,
+  confutils, chronicles, chronos,
   eth/[keys, p2p],
+  stew/byteutils, stew/shims/net as stewNet,
   waku/protocol/v1/waku_protocol,
   waku/node/v1/waku_helpers,
+  waku/node/common,
   config
 
 const clientId = "nim-status/v0.0.1/linux-amd64" # TODO
 
+var node*: EthereumNode
+var rng* = keys.newRng()
+
 proc start*(config: WakuNodeConf) =
   let
-    rng = keys.newRng()
     # Set up the address according to NAT information.
-    (ip, tcpPort, udpPort) = setupNat(config.nat, clientId, config.tcpPort,
-      config.udpPort, config.portsShift)
-    address = Address(ip: ip, tcpPort: tcpPort, udpPort: udpPort)
+    (ipExt, tcpPortExt, udpPortExt) = setupNat(config.nat, clientId,
+    Port(config.tcpPort + config.portsShift),
+    Port(config.udpPort + config.portsShift))
+    # TODO: EthereumNode should have a better split of binding address and
+    # external address. Also, can't have different ports as it stands now.
+    address = if ipExt.isNone():
+                Address(ip: parseIpAddress("0.0.0.0"),
+                  tcpPort: Port(config.tcpPort + config.portsShift),
+                  udpPort: Port(config.udpPort + config.portsShift))
+              else:
+                Address(ip: ipExt.get(),
+                  tcpPort: Port(config.tcpPort + config.portsShift),
+                  udpPort: Port(config.udpPort + config.portsShift))
 
   # Create Ethereum Node
-  var node = newEthereumNode(config.nodekey, # Node identifier
+  node = newEthereumNode(config.nodekey, # Node identifier
     address, # Address reachable for incoming requests
     1, # Network Id, only applicable for ETH protocol
     nil, # Database, not required for Waku
@@ -56,3 +70,21 @@ proc start*(config: WakuNodeConf) =
       if connectedFut.failed:
         fatal "connectToNetwork failed", msg = connectedFut.readError.msg
         quit(1)
+
+
+
+# ==============================================================================
+# TEST - Send / Receive Messages - START
+
+export FilterMsgHandler
+
+proc subscribe*(filter: Filter, cb: FilterMsgHandler) =
+  discard node.subscribeFilter(filter, cb)
+
+proc post*(symKey: SymKey, signKeyPair: KeyPair, topic: Topic, message: string) =
+  let posted = node.postMessage(
+    symKey = some(symKey), src = some(signKeyPair.seckey),
+    ttl = 30, topic = topic, payload = message.toBytes)
+
+# TEST - Send / Receive Messages - END
+# ==============================================================================
