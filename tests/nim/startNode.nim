@@ -25,5 +25,8 @@ discard saveAccountAndLogin("", "", "{}", """{
   }
 }""", "")
 
+test_subscribe()
+test_sendMessage("Hello")
+test_sendMessage("World")
 
 runForever()
