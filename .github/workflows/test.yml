@@ -62,33 +62,11 @@ jobs:
         run: |
           [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
           export M="$(which mingw32-make || echo make)"
-          tester() {
-            "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-nim
-          }
-          tester &
-          sleep 600
-          if [[ ${{ matrix.platform }} = windows* ]]; then
-            taskkill -IM login.exe -F
-          elif [[ ${{ matrix.platform }} = macos* ]]; then
-            killall -u "${USER}" -c login
-          else
-            killall -e login
-          fi
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-nim
 
       - name: Run C tests
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
           export M="$(which mingw32-make || echo make)"
-          tester() {
-            "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-c
-          }
-          tester &
-          sleep 600
-          if [[ ${{ matrix.platform }} = windows* ]]; then
-            taskkill -IM login.exe -F
-          elif [[ ${{ matrix.platform }} = macos* ]]; then
-            killall -u "${USER}" -c login
-          else
-            killall -e login
-          fi
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-c
