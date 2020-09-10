@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -5,9 +6,13 @@
 #include "nim_status.h"
 #include "nxjson.c"
 
+bool success = false;
 
 void eventCallback(char *event) {
   printf("SIGNAL RECEIVED:\n%s\n", event);
+  if (strcmp(event, "{\"type\":\"node.login\",\"event\":{}}") == 0) {
+    success = true;
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -90,11 +95,17 @@ int main(int argc, char* argv[]) {
 
   setSignalEventCallback(&eventCallback);
 
-  while(1) {
-    printf("...\n");
+  int seconds = 0;
+
+  while(seconds < 300) {
     fflush(stdout);
+    if (success) {
+      return 0;
+    }
+    printf("...\n");
     sleep(1);
+    seconds += 1;
   }
 
-  return 0;
+  return 1;
 }

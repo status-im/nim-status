@@ -16,33 +16,46 @@ when defined(macosx):
   {.passL: "-headerpad_max_install_names".}
 
 import ../../src/nim_status
+import test_helpers
 import utils
-import chronicles
+
+import chronos
 import os
+import unittest
 
-var onSignal: SignalCallback = proc(message: cstring) {.cdecl.} =
-  setupForeignThreadGC()
-  echo message
-  tearDownForeignThreadGc()
+var success = false
 
-setSignalEventCallback(onSignal)
+proc checkMessage(message: string): void =
+  echo "SIGNAL RECEIVED:\n" & message
+  if message == """{"type":"node.login","event":{}}""":
+    success = true
 
-resetDirectories() # Recreates the data and nobackup dir
+procSuite "nim_status":
+  asyncTest "login":
+    var onSignal = proc(message: cstring) {.cdecl.} =
+      setupForeignThreadGC()
+      checkMessage($message)
+      tearDownForeignThreadGc()
 
-init()
+    setSignalEventCallback(onSignal)
+    resetDirectories() # Recreates the data and nobackup dir
+    init()
 
-# Call either createAccountAndLogin("somePassword") to create a new random account
-# or restoreAccountAndLogin("cattle act enable unable own music material canvas either shoe must junior", "somePassword")
-# if no password is specified, it will use "qwerty"
+    # Call either `createAccountAndLogin("somePassword")` to create a new random account
+    # Or: `restoreAccountAndLogin("cattle act enable unable own music material canvas either shoe must junior", "somePassword")`
+    # If no password is specified, it will use "qwerty"
+    # There's a `login("somePassword")` function that will login the first
+    # account. It assumes the directories have been already set.
+    discard createAccountAndLogin("somePassword")
 
-let publicKey = createAccountAndLogin("somePassword")
+    var seconds = 0
 
+    while seconds < 300:
+      if success:
+        break
+      echo "..."
+      sleep 1000
+      seconds += 1
 
-# There's a login("somePassword") function that will login the first account. It assumes the directories have been already set.
-
-
-# TODO: wait for a {"type":"node.login" signal to know that you have already logged in. These signals are available in onSignal ^
-while true:
-
-  echo "..."
-  sleep(1000)
+    check:
+      success == true
