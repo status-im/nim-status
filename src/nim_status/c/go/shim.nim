@@ -21,6 +21,8 @@ proc multiAccountDeriveAddresses*(paramsJSON: cstring): cstring {.importc: "Mult
 
 proc saveAccountAndLogin*(accountData: cstring, password: cstring, settingsJSON: cstring, configJSON: cstring, subaccountData: cstring): cstring {.importc: "SaveAccountAndLogin".}
 
+proc deleteMultiAccount*(keyUID: cstring, keyStoreDir: cstring): cstring {.importc: "DeleteMultiaccount".}
+
 proc callRPC*(inputJSON: cstring): cstring {.importc: "CallRPC".}
 
 proc callPrivateRPC*(inputJSON: cstring): cstring {.importc: "CallPrivateRPC".}

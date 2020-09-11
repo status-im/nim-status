@@ -33,6 +33,9 @@ proc multiAccountDeriveAddresses*(paramsJSON: string): string =
 proc saveAccountAndLogin*(accountData: string, password: string, settingsJSON: string, configJSON: string, subaccountData: string): string =
   $go_shim.saveAccountAndLogin(accountData.cstring, password.cstring, settingsJSON.cstring, configJSON.cstring, subaccountData.cstring)
 
+proc deleteMultiAccount*(keyUID: string, keyStoreDir: string): string =
+  $go_shim.deleteMultiAccount(keyUID.cstring, keyStoreDir.cstring)
+
 proc callRPC*(inputJSON: string): string =
   $go_shim.callRPC(inputJSON.cstring)
 

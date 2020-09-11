@@ -14,6 +14,7 @@ let multiAccountImportMnemonic {.exportc.} = go_shim.multiAccountImportMnemonic
 let multiAccountImportPrivateKey {.exportc.} = go_shim.multiAccountImportPrivateKey
 let multiAccountDeriveAddresses {.exportc.} = go_shim.multiAccountDeriveAddresses
 let saveAccountAndLogin {.exportc.} = go_shim.saveAccountAndLogin
+let deleteMultiAccount {.exportc.} = go_shim.deleteMultiAccount
 let callRPC {.exportc.} = go_shim.callRPC
 let callPrivateRPC {.exportc.} = go_shim.callPrivateRPC
 let addPeer {.exportc.} = go_shim.addPeer
