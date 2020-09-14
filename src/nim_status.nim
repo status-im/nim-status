@@ -4,8 +4,7 @@ from nim_status/types import
 from nim_status/lib/shim as nim_shim import
   hashMessage,
   generateAlias,
-  identicon,
-  saveAccountAndLogin
+  identicon
 
 from nim_status/go/shim as go_shim import
   initKeystore,

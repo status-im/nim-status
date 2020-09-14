@@ -8,12 +8,3 @@ proc hashMessage*(message: string): string =
 export generateAlias
 
 export identicon
-
-export saveAccountAndLogin
-
-# ==============================================================================
-# TEST - Send / Receive Messages - START
-export test_subscribe
-export test_sendMessage
-# TEST - Send / Receive Messages - END
-# ==============================================================================

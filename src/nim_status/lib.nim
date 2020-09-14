@@ -59,37 +59,3 @@ proc saveAccountAndLogin*(accountData: string, password: string, settingsJSON: s
 
   result = "{}" #TODO: set output
   #result = status_go.SaveAccountAndLogin(accountData, password, settingsJSON, configJSON, subaccountData)
-
-# ==============================================================================
-# TEST - Send / Receive Messages - START
-
-import
-  chronicles, chronos, stew/shims/net as stewNet, stew/byteutils,
-  eth/[keys, p2p],
-  waku/protocol/v1/waku_protocol
-
-# Using a hardcoded symmetric key for encryption of the payload for the sake of
-# simplicity.
-var symKey: SymKey
-symKey[31] = 1
-
-# Asymmetric keypair to sign the payload.
-let signKeyPair = KeyPair.random(wakuNode.rng[])
-
-let
-  topic = [byte 0, 0, 0, 0]
-  filter = initFilter(symKey = some(symKey), topics = @[topic])
-
-proc test_subscribe*() =
-  proc handler(msg: ReceivedMessage) =
-    if msg.decoded.src.isSome():
-      echo "Received message from ", $msg.decoded.src.get(), ": ",
-        string.fromBytes(msg.decoded.payload)
-
-  wakuNode.subscribe(filter, handler)
-
-proc test_sendMessage*(message: string) =
-  wakuNode.post(symKey, signKeyPair, topic, message)
-
-# TEST - Send / Receive Messages - END
-# ==============================================================================
