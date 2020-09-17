@@ -73,3 +73,6 @@
 [submodule "vendor/news"]
 	path = vendor/news
 	url = https://github.com/tormund/news.git
+[submodule "vendor/nimPNG"]
+	path = vendor/nimPNG
+	url = https://github.com/status-im/nimPNG
