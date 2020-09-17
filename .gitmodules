@@ -37,9 +37,6 @@
 [submodule "vendor/nimage"]
 	path = vendor/nimage
 	url = https://github.com/Ethosa/nimage.git
-[submodule "vendor/nimPNG"]
-	path = vendor/nimPNG
-	url = https://github.com/jangko/nimPNG.git
 [submodule "vendor/nim-waku"]
 	path = vendor/nim-waku
 	url = https://github.com/status-im/nim-waku.git
