@@ -13,20 +13,20 @@ else:
 --define:ssl # needed by the stdlib to enable SSL procedures
 
 #--cc:"/clang"
-put "i386.android.clang.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-put "i386.android.clang.exe", "clang"
+# put "i386.android.clang.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
+# put "i386.android.clang.exe", "clang"
 
-put "i386.android.ar.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-put "i386.android.ar.exe", "i686-linux-android-ar"
+# put "i386.android.ar.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
+# put "i386.android.ar.exe", "i686-linux-android-ar"
 
-put "i386.android.ranlib.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-put "i386.android.ranlib.exe", "i686-linux-android-ranlib"
+# put "i386.android.ranlib.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
+# put "i386.android.ranlib.exe", "i686-linux-android-ranlib"
 
-put "amd64.android.ld.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-put "amd64.android.ld.exe", "i686-linux-android-ld"
-switch("passC", "-isysroot " & getEnv("ANDROID_NDK") & "/sysroot -target i686-linux-android23")
-switch("passL", "--sysroot " & getEnv("ANDROID_NDK") & "/platforms/android-23/arch-x86")
-switch("passL", "-target i686-linux-android")
+# put "amd64.android.ld.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
+# put "amd64.android.ld.exe", "i686-linux-android-ld"
+# switch("passC", "-isysroot " & getEnv("ANDROID_NDK") & "/sysroot -target i686-linux-android23")
+# switch("passL", "--sysroot " & getEnv("ANDROID_NDK") & "/platforms/android-23/arch-x86")
+# switch("passL", "-target i686-linux-android")
 
 if defined(macosx):
   --tlsEmulation:off
