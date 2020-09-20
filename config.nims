@@ -24,9 +24,9 @@ else:
 
 # put "amd64.android.ld.path", getEnv("ANDROID_NDK") & "/toolchains/llvm/prebuilt/darwin-x86_64/bin"
 # put "amd64.android.ld.exe", "i686-linux-android-ld"
-# switch("passC", "-isysroot " & getEnv("ANDROID_NDK") & "/sysroot -target i686-linux-android23")
-# switch("passL", "--sysroot " & getEnv("ANDROID_NDK") & "/platforms/android-23/arch-x86")
-# switch("passL", "-target i686-linux-android")
+#switch("passC", "-isysroot " & getEnv("ANDROID_NDK") & "/sysroot -target i686-linux-android23")
+#switch("passL", "--sysroot " & getEnv("ANDROID_NDK") & "/platforms/android-23/arch-x86")
+#switch("passL", "-target i686-linux-android")
 
 if defined(macosx):
   --tlsEmulation:off
@@ -38,7 +38,7 @@ if defined(macosx):
   # https://code.videolan.org/videolan/VLCKit/-/issues/232
   switch("passL", "-Wl,-no_compact_unwind")
   # set the minimum supported macOS version to 10.13
-  switch("passC", "-mmacosx-version-min=10.13")
+  # switch("passC", "-mmacosx-version-min=10.13")
 else:
   # dynamically link these libs, since we're opting out of dlopen()
   switch("passL", "-lcrypto")
