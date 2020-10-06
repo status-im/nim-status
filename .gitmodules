@@ -49,9 +49,6 @@
 [submodule "vendor/nim-eth"]
 	path = vendor/nim-eth
 	url = https://github.com/status-im/nim-eth.git
-[submodule "vendor/nim-secp256k1"]
-	path = vendor/nim-secp256k1
-	url = https://github.com/status-im/nim-secp256k1.git
 [submodule "vendor/nim-bearssl"]
 	path = vendor/nim-bearssl
 	url = https://github.com/status-im/nim-bearssl.git
