@@ -76,3 +76,6 @@
 [submodule "vendor/news"]
 	path = vendor/news
 	url = https://github.com/tormund/news.git
+[submodule "vendor/nim-sqlcipher"]
+	path = vendor/nim-sqlcipher
+	url = https://github.com/status-im/nim-sqlcipher.git
