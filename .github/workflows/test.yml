@@ -25,23 +25,36 @@ jobs:
         run: |
             iwr -useb get.scoop.sh | iex
 
-      - name: Install tools with Scoop
+      - name: Install external dependencies with Scoop
         if: startsWith(matrix.platform, 'windows')
         shell: bash
         run: |
           export PATH="${PATH}:${HOME}/scoop/shims"
-          scoop install wget
+          scoop install 7zip openssl-mingw wget
+
+      - name: Fetch mingw build of libpcre
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        run: |
+          export PATH="${PATH}:${HOME}/scoop/shims"
+          mkdir -p "${HOME}/Downloads/mingw64"
+          cd "${HOME}/Downloads"
+          wget https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-pcre-8.44-1-any.pkg.tar.xz
+          7z x mingw64*
+          mv mingw64*.tar mingw64/
+          cd mingw64
+          tar xvf mingw64*
 
       - name: Checkout code
         uses: actions/checkout@v2
 
       # We need to do this because of how github cache works
-      - name: Initialize Submodules
+      - name: Initialize submodules
         shell: bash
         run: |
           git submodule update --init --recursive
 
-      - name: Cache Nim compiler and status-go builds
+      - name: Cache Nim compiler, status-go
         uses: actions/cache@v2
         with:
           path: |
@@ -49,24 +62,50 @@ jobs:
             vendor/status-go/build/bin
           key: ${{ runner.os }}-${{ matrix.env.NPROC }}-nim-${{ hashFiles('.gitmodules') }}
 
-      - name: Install dependencies and make default target
+      - name: Install and build dependencies
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
           export M="$(which mingw32-make || echo make)"
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
       - name: Run Nim tests
         shell: bash
         run: |
-          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
+            SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
+            SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
+          [[ ${{ matrix.platform }} = windows* ]] && \
+            export PATH="${PATH}:${HOME}/scoop/shims" && \
+            PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
+            SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-nim
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
+                            PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
+                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
+                            V=1 \
+                            test-nim
 
       - name: Run C tests
         shell: bash
         run: |
-          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
+            SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
+            SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
+          [[ ${{ matrix.platform }} = windows* ]] && \
+            export PATH="${PATH}:${HOME}/scoop/shims" && \
+            PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
+            SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-c
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
+                            PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
+                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
+                            V=1 \
+                            test-c

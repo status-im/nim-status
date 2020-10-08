@@ -26,11 +26,10 @@ BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 	nim_status \
 	status-go \
 	test \
+	test-c \
 	test-c-shims \
 	test-c-login \
-	tests \
-	tests-c \
-	tests-nim \
+	test-nim \
 	update
 
 ifeq ($(NIM_PARAMS),)
@@ -166,7 +165,7 @@ $(NIMSTATUS): | deps
 	cp nimcache/debug/nim_status/nim_status.h build/nim_status.h
 	mv nim_status.a build/
 
-SHIMS := tests/c/build/shims.a
+SHIMS := test/c/build/shims.a
 
 shims: | $(SHIMS)
 $(SHIMS): | deps
@@ -177,17 +176,17 @@ $(SHIMS): | deps
 		--header \
 		--noMain \
 		-o:$@ \
-		tests/c/shims.nim
-	cp nimcache/debug/shims/shims.h tests/c/build/shims.h
-	mv shims.a tests/c/build/
+		test/c/shims.nim
+	cp nimcache/debug/shims/shims.h test/c/build/shims.h
+	mv shims.a test/c/build/
 
 test-c-template: | $(STATUSGO) clean-data-dirs create-data-dirs
-	mkdir -p tests/c/build
-	echo "Compiling 'tests/c/$(TEST_NAME)'"
+	mkdir -p test/c/build
+	echo "Compiling 'test/c/$(TEST_NAME)'"
 	$(ENV_SCRIPT) $(CC) \
 		$(TEST_INCLUDES) \
 		-I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" \
-		tests/c/$(TEST_NAME).c \
+		test/c/$(TEST_NAME).c \
 		$(TEST_DEPS) \
 		$(NIM_DEP_LIBS) \
 		-L$(STATUSGO_LIBDIR) \
@@ -195,28 +194,28 @@ test-c-template: | $(STATUSGO) clean-data-dirs create-data-dirs
 		$(FRAMEWORKS) \
 		-lm \
 		-pthread \
-		-o tests/c/build/$(TEST_NAME)
+		-o test/c/build/$(TEST_NAME)
 	[[ $$? = 0 ]] && \
 	(([[ $(detected_OS) = Darwin ]] && \
 	install_name_tool -add_rpath \
 		"$(STATUSGO_LIBDIR)" \
-		tests/c/build/$(TEST_NAME) && \
+		test/c/build/$(TEST_NAME) && \
 	install_name_tool -change \
 		libstatus.dylib \
 		@rpath/libstatus.dylib \
-		tests/c/build/$(TEST_NAME)) || true)
-	echo "Executing 'tests/c/build/$(TEST_NAME)'"
+		test/c/build/$(TEST_NAME)) || true)
+	echo "Executing 'test/c/build/$(TEST_NAME)'"
 ifeq ($(detected_OS),Darwin)
-	./tests/c/build/$(TEST_NAME)
+	./test/c/build/$(TEST_NAME)
 else ifeq ($(detected_OS),Windows)
 	PATH="$(STATUSGO_LIBDIR):$(NIM_WINDOWS_PREBUILT_DLLDIR):/usr/bin:/bin:$$PATH" \
-	./tests/c/build/$(TEST_NAME)
+	./test/c/build/$(TEST_NAME)
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
-	./tests/c/build/$(TEST_NAME)
+	./test/c/build/$(TEST_NAME)
 endif
 
-SHIMS_INCLUDES := -I\"$(CURDIR)/tests/c/build\"
+SHIMS_INCLUDES := -I\"$(CURDIR)/test/c/build\"
 
 test-c-shims: | $(SHIMS)
 	$(MAKE) TEST_DEPS=$(SHIMS) \
@@ -232,24 +231,22 @@ test-c-login: | $(NIMSTATUS)
 		TEST_NAME=login \
 		test-c-template
 
-tests-c:
+test-c:
 	$(MAKE) test-c-shims
 	$(MAKE) test-c-login
 
-tests-nim: | $(STATUSGO)
+test-nim: | $(STATUSGO)
 ifeq ($(detected_OS),Darwin)
-	$(ENV_SCRIPT) nimble test
+	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	PATH="$(STATUSGO_LIBDIR):$(NIM_WINDOWS_PREBUILT_DLLDIR):/usr/bin:/bin:$$PATH" \
-	$(ENV_SCRIPT) nimble test
+	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
-	$(ENV_SCRIPT) nimble test
+	$(ENV_SCRIPT) nimble tests
 endif
 
-tests: tests-nim tests-c
-
-test: tests
+test: test-nim test-c
 
 clean: | clean-common clean-build-dirs clean-data-dirs
 	rm -rf $(STATUSGO)
@@ -258,8 +255,8 @@ clean: | clean-common clean-build-dirs clean-data-dirs
 
 clean-build-dirs:
 	rm -rf build/*
-	rm -rf tests/c/build/*
-	rm -rf tests/nim/build/*
+	rm -rf test/c/build/*
+	rm -rf test/nim/build/*
 
 clean-data-dirs:
 	rm -rf data

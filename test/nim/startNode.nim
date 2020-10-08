@@ -15,8 +15,8 @@ when defined(macosx):
   {.passL: "-framework Security".}
   {.passL: "-headerpad_max_install_names".}
 
-import ../../src/nim_status/lib
-from ../../src/nim_status/lib/waku/node as wakuNode import nil
+import ../../nim_status/lib
+from ../../nim_status/lib/waku/node as wakuNode import nil
 import test_helpers
 
 import

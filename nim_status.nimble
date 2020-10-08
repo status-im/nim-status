@@ -39,7 +39,7 @@ proc buildAndRunTest(name: string, srcDir = "tests/nim/", outDir = "tests/nim/bu
   echo "Executing '" & outDir & name & "'"
   exec outDir & name
 
-task test, "Run all tests":
+task tests, "Run all tests":
   buildAndRunTest "shims"
   buildAndRunTest "startNode"
   buildAndRunTest "login"

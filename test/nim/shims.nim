@@ -15,8 +15,8 @@ when defined(macosx):
   {.passL: "-framework Security".}
   {.passL: "-headerpad_max_install_names".}
 
-import ../../src/nim_status/lib/shim as nim_shim
-import ../../src/nim_status/go/shim as go_shim
+import ../../nim_status/lib/shim as nim_shim
+import ../../nim_status/go/shim as go_shim
 import base64
 import nimPNG
 import strutils

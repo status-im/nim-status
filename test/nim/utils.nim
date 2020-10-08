@@ -1,5 +1,5 @@
 import json
-import ../../src/nim_status
+import ../../nim_status
 import nimcrypto
 import chronicles
 import os

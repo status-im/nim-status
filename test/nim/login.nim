@@ -15,7 +15,7 @@ when defined(macosx):
   {.passL: "-framework Security".}
   {.passL: "-headerpad_max_install_names".}
 
-import ../../src/nim_status
+import ../../nim_status
 import test_helpers
 import utils
 
