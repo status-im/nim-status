@@ -1,38 +1,74 @@
-### Package
+mode = ScriptMode.Verbose
+
 version       = "0.1.0"
 author        = "Status Research & Development GmbH"
 description   = "Nim implementation of the Status protocol"
 license       = "MIT"
-srcDir        = "src"
-bin           = @[""]
-skipDirs       = @["test"]
+skipDirs      = @["test"]
 
-### Deps
-requires "nim >= 1.0.0"
+requires "nim >= 1.2.0",
+  "chroma",
+  "chronicles",
+  "chronos",
+  "confutils",
+  "eth",
+  "nimPNG",
+  "nimage",
+  "nimcrypto",
+  "secp256k1",
+  "stew",
+  "waku"
 
-### Helper functions
-proc buildAndRunBinary(name: string, srcDir = "./", params = "", cmdParams = "", lang = "c") =
+import strutils
+
+proc buildAndRunTest(name: string,
+                     srcDir = "test/nim/",
+                     outDir = "test/nim/build/",
+                     params = "",
+                     cmdParams = "",
+                     lang = "c") =
   rmDir "data"
   rmDir "keystore"
   rmDir "noBackup"
   mkDir "data"
   mkDir "keystore"
   mkDir "noBackup"
-  if not dirExists "tests/nim/build":
-    mkDir "tests/nim/build"
+  rmDir outDir
+  mkDir outDir
   # allow something like "nim test --verbosity:0 --hints:off beacon_chain.nims"
   var extra_params = params
   for i in 2..<paramCount():
     extra_params &= " " & paramStr(i)
-  exec "nim " & lang & " --out:./tests/nim/build/" & name & " " & extra_params & " " & srcDir & name & ".nim" & " " & cmdParams
+  exec "nim " &
+    lang &
+    " --debugger:native" &
+    " --define:chronicles_line_numbers" &
+    " --define:debug" &
+    (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" else: "") &
+    " --define:ssl" &
+    (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
+    " --nimcache:nimcache/test/" & name &
+    " --out:" & outDir & name &
+    (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &
+    (if getEnv("PCRE_LDFLAGS").strip != "": " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" else: "") &
+    (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
+    " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" &
+    (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
+    " --threads:on" &
+    " --tlsEmulation:off" &
+    " " &
+    extra_params &
+    " " &
+    srcDir & name & ".nim" &
+    " " &
+    cmdParams
   if defined(macosx):
-    exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIBDIR") & " tests/nim/build/" & name
-    exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib tests/nim/build/" & name
-  echo "Executing 'tests/nim/build/" & name & "'"
-  exec "tests/nim/build/" & name
+    exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIB_DIR") & " " & outDir & name
+    exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib " & outDir & name
+  exec outDir & name
 
-### Tasks
-task test, "Run all tests":
-  buildAndRunBinary "shims", "tests/nim/"
-  buildAndRunBinary "startNode", "tests/nim/"
-  buildAndRunBinary "login", "tests/nim/"
+task tests, "Run all tests":
+  buildAndRunTest "shims"
+  buildAndRunTest "startNode"
+  buildAndRunTest "login"
+  buildAndRunTest "db_smoke"

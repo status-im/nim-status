@@ -10,63 +10,135 @@ jobs:
   tests:
     strategy:
       matrix:
-        env:
-          - { NPROC: 2 }
         platform: [macos-latest, ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
-    env: ${{ matrix.env }}
 
-    name: ${{ matrix.platform }} - ${{ matrix.env.NPROC }} processes
+    runs-on: ${{ matrix.platform }}
+
+    name: ${{ matrix.platform }}
 
     steps:
+      - name: Link Homebrew OpenSSL 1.1 to /usr/local/opt/openssl
+        if: startsWith(matrix.platform, 'macos')
+        shell: bash
+        run: |
+            rm -f /usr/local/opt/openssl
+            ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
+
       - name: Install Scoop
         if: startsWith(matrix.platform, 'windows')
         shell: powershell
         run: |
             iwr -useb get.scoop.sh | iex
 
-      - name: Install tools with Scoop
+      - name: Install external dependencies with Scoop
         if: startsWith(matrix.platform, 'windows')
         shell: bash
         run: |
           export PATH="${PATH}:${HOME}/scoop/shims"
-          scoop install wget
+          scoop install 7zip openssl-mingw wget
+
+      - name: Fetch mingw build of libpcre
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        run: |
+          export PATH="${PATH}:${HOME}/scoop/shims"
+          cd "${HOME}/Downloads"
+          wget https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-pcre-8.44-1-any.pkg.tar.xz
+          7z x mingw*
+          tar xvf mingw*.tar
+
+      - name: Fetch prebuilt DLLs from nim-lang.org
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        run: |
+          export PATH="${PATH}:${HOME}/scoop/shims"
+          cd "${HOME}/Downloads"
+          mkdir -p dlls
+          cd dlls
+          wget https://nim-lang.org/download/dlls.zip
+          unzip dlls.zip
 
       - name: Checkout code
         uses: actions/checkout@v2
 
       # We need to do this because of how github cache works
-      - name: Initialize Submodules
+      - name: Initialize submodules
         shell: bash
         run: |
           git submodule update --init --recursive
 
-      - name: Cache Nim compiler and status-go builds
+      - name: Cache Nim compiler, status-go
         uses: actions/cache@v2
         with:
           path: |
             vendor/nimbus-build-system/vendor/Nim/bin
             vendor/status-go/build/bin
-          key: ${{ runner.os }}-${{ matrix.env.NPROC }}-nim-${{ hashFiles('.gitmodules') }}
+          key: ${{ runner.os }}-nim-statusgo-${{ hashFiles('.gitmodules') }}
 
-      - name: Install dependencies and make default target
+      - name: Install and build dependencies
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
           export M="$(which mingw32-make || echo make)"
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1
+          "${M}" V=1 update
+          "${M}" V=1 deps
 
-      - name: Run Nim tests
+      - name: Build and run tests (static)
         shell: bash
         run: |
-          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            cd "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
+            export PATH="$(pwd):${PATH}" && \
+            cd - && \
+            export PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
+            export PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
+            export SSL_INCLUDE_DIR=/usr/local/opt/openssl/include && \
+            export SSL_LIB_DIR=/usr/local/opt/openssl/lib
+          [[ ${{ matrix.platform }} = windows* ]] && \
+            export PATH="${PATH}:${HOME}/scoop/shims" && \
+            export PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
+            export PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            export SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
+            export SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-nim
+          "${M}" \
+             PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
+             PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
+             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+             SSL_LIB_DIR="${SSL_LIB_DIR}" \
+             V=1 \
+             test
 
-      - name: Run C tests
+      - name: Build and run tests (shared)
         shell: bash
         run: |
-          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          rm -rf build nimcache test/c/build test/nim/build \
+            vendor/nim-sqlcipher/nimcache \
+            vendor/nim-sqlcipher/sqlcipher \
+            vendor/nim-sqlcipher/sqlite
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            cd "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
+            export PATH="$(pwd):${PATH}" && \
+            cd - && \
+            export PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
+            export SSL_INCLUDE_DIR=/usr/local/opt/openssl/include && \
+            export SSL_LIB_DIR=/usr/local/opt/openssl/lib
+          [[ ${{ matrix.platform }} = windows* ]] && \
+            export PATH="${PATH}:${HOME}/scoop/shims:${HOME}/Downloads/dlls" && \
+            export PCRE_LIB_DIR="${HOME}/Downloads/dlls" && \
+            export SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
+            export SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
-          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 tests-c
+          "${M}" \
+            PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
+            PCRE_STATIC=false \
+            SQLITE_STATIC=false \
+            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+            SSL_LIB_DIR="${SSL_LIB_DIR}" \
+            SSL_STATIC=false \
+            V=1 \
+            test

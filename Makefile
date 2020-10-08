@@ -10,27 +10,31 @@ SHELL := bash # the shell used internally by Make
 # used inside the included makefiles
 BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 
+# Deactivate nimbus-build-system LINK_PCRE logic in favor of PCRE variables
+# defined later in this Makefile.
+export LINK_PCRE := 0
+
 # we don't want an error here, so we can handle things later, in the ".DEFAULT" target
 -include $(BUILD_SYSTEM_DIR)/makefiles/variables.mk
 
 .PHONY: \
 	all \
-	bottles \
-	bottles-dummy \
-	bottles-macos \
 	clean \
 	clean-build-dirs \
 	clean-data-dirs \
+	clean-sqlcipher \
+	clean-status-go \
 	create-data-dirs \
 	deps \
+	nat-libs-sub \
 	nim_status \
+	shims-for-test-c \
 	status-go \
+	sqlcipher \
 	test \
-	test-c-shims \
-	test-c-login \
-	tests \
-	tests-c \
-	tests-nim \
+	test-c \
+	test-c-template \
+	test-nim \
 	update
 
 ifeq ($(NIM_PARAMS),)
@@ -53,222 +57,275 @@ all: nim_status
 # must be included after the default target
 -include $(BUILD_SYSTEM_DIR)/makefiles/targets.mk
 
-ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
+ifeq ($(OS),Windows_NT) # is Windows_NT on XP, 2000, 7, Vista, 10...
  detected_OS := Windows
+else ifeq ($(strip $(shell uname)),Darwin)
+ detected_OS := macOS
 else
+ # e.g. Linux
  detected_OS := $(strip $(shell uname))
 endif
 
-ifeq ($(detected_OS),Darwin)
- BOTTLES_TARGET := bottles-macos
- MACOSX_DEPLOYMENT_TARGET := 10.13
- export MACOSX_DEPLOYMENT_TARGET
- CGO_CFLAGS := -mmacosx-version-min=10.13
- export CGO_CFLAGS
- CFLAGS := -mmacosx-version-min=10.13
- export CFLAGS
- LIBSTATUS_EXT := dylib
-else ifeq ($(detected_OS),Windows)
- LIBSTATUS_EXT := dll
-else
- BOTTLES_TARGET := bottles-dummy
- LIBSTATUS_EXT := so
-endif
+clean: | clean-common clean-build-dirs clean-data-dirs clean-sqlcipher clean-status-go
 
-bottles: $(BOTTLES_TARGET)
+clean-build-dirs:
+	rm -rf \
+		build \
+		test/c/build \
+		test/nim/build
 
-bottles-dummy: ;
+clean-data-dirs:
+	rm -rf \
+		data \
+		keystore \
+		noBackup
 
-BOTTLE_OPENSSL := bottles/openssl/INSTALL_RECEIPT.json
+clean-sqlcipher:
+	rm -rf \
+		$(shell dirname $(SQLCIPHER))/nimcache \
+		$(shell dirname $(SQLCIPHER))/sqlcipher \
+		$(shell dirname $(SQLCIPHER))/sqlite
 
-$(BOTTLE_OPENSSL):
-	rm -rf bottles/Downloads/openssl* bottles/openssl*
-	mkdir -p bottles/Downloads
-	cd bottles/Downloads && \
-	wget -O openssl.tar.gz "https://bintray.com/homebrew/bottles/download_file?file_path=openssl%401.1-1.1.1g.high_sierra.bottle.tar.gz" && \
-	tar xzf openssl* && \
-	mv openssl@1.1/1.1.1g ../openssl
+clean-status-go:
+	rm -rf $(shell dirname $(STATUSGO))/*
 
-BOTTLE_PCRE := bottles/pcre/INSTALL_RECEIPT.json
+create-data-dirs:
+	mkdir -p \
+		data \
+		keystore \
+		noBackup
 
-$(BOTTLE_PCRE):
-	rm -rf bottles/Downloads/pcre* bottles/pcre*
-	mkdir -p bottles/Downloads
-	cd bottles/Downloads && \
-	wget -O pcre.tar.gz "https://bintray.com/homebrew/bottles/download_file?file_path=pcre-8.44.high_sierra.bottle.tar.gz" && \
-	tar xzf pcre* && \
-	mv pcre/8.44 ../pcre
-
-bottles-macos: | $(BOTTLE_OPENSSL) $(BOTTLE_PCRE)
-	rm -rf bottles/Downloads
-
-ifeq ($(detected_OS),Darwin)
- NIM_DEP_LIBS := bottles/openssl/lib/libcrypto.a \
-		 bottles/openssl/lib/libssl.a \
-		 bottles/pcre/lib/libpcre.a
-else ifeq ($(detected_OS),Linux)
- NIM_DEP_LIBS := -lcrypto -lssl -lpcre
-endif
-
-NIM_WINDOWS_PREBUILT_DLLS ?= DLLs/pcre.dll
-NIM_WINDOWS_PREBUILT_DLLDIR := $(shell pwd)/$(shell dirname "$(NIM_WINDOWS_PREBUILT_DLLS)")
-
-$(NIM_WINDOWS_PREBUILT_DLLS):
-ifeq ($(detected_OS),Windows)
-	echo -e "\e[92mFetching:\e[39m prebuilt DLLs from nim-lang.org"
-	rm -rf DLLs
-	mkdir -p DLLs
-	cd DLLs && \
-	wget https://nim-lang.org/download/dlls.zip && \
-	unzip dlls.zip
-endif
-
-# Needed because currently nim-nat-traversal assumes the nat-libs are available
-# in its parent's vendor
+# nim-nat-traversal assumes nat-libs are available in its parent's vendor
 nat-libs-sub:
-	cd vendor/nim-waku && $(MAKE) nat-libs
+	cd vendor/nim-waku && \
+		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 nat-libs
 
-deps: | deps-common nat-libs nat-libs-sub bottles $(NIM_WINDOWS_PREBUILT_DLLS)
+deps: | deps-common nat-libs nat-libs-sub
 
 update: | update-common
 
-ifeq ($(detected_OS),Darwin)
- FRAMEWORKS := -framework CoreFoundation -framework CoreServices -framework IOKit -framework Security
- NIM_PARAMS := $(NIM_PARAMS) -L:"$(FRAMEWORKS)"
+ifndef SHARED_LIB_EXT
+ ifeq ($(detected_OS),macOS)
+   SHARED_LIB_EXT := dylib
+ else ifeq ($(detected_OS),Windows)
+   SHARED_LIB_EXT := dll
+ else
+   SHARED_LIB_EXT := so
+ endif
 endif
 
-# TODO: control debug/release builds with a Make var
-# We need `-d:debug` to get Nim's default stack traces.
-NIM_PARAMS += -d:debug
+# should be an absolute path when supplied by user
+ifndef STATUSGO
+ STATUSGO := vendor/status-go/build/bin/libstatus.$(SHARED_LIB_EXT)
+ STATUSGO_LIB_DIR := $(shell pwd)/$(shell dirname $(STATUSGO))
+else
+ STATUSGO_LIB_DIR := $(shell dirname $(STATUSGO))
+endif
 
-STATUSGO := vendor/status-go/build/bin/libstatus.$(LIBSTATUS_EXT)
-STATUSGO_LIBDIR := $(shell pwd)/$(shell dirname "$(STATUSGO)")
-export STATUSGO_LIBDIR
-
-status-go: $(STATUSGO)
 $(STATUSGO): | deps
 	echo -e $(BUILD_MSG) "status-go"
 	+ cd vendor/status-go && \
-	  $(MAKE) statusgo-shared-library $(HANDLE_OUTPUT)
+		$(MAKE) statusgo-shared-library $(HANDLE_OUTPUT)
 
-NIMSTATUS := build/nim_status.a
+status-go: $(STATUSGO)
 
-nim_status: | $(NIMSTATUS)
-$(NIMSTATUS): | deps
-	echo -e $(BUILD_MSG) "$@" && \
-	$(ENV_SCRIPT) nim c \
-		$(NIM_PARAMS) \
+# These SSL variables and logic work like those in nim-sqlcipher's Makefile
+SSL_STATIC ?= true
+SSL_INCLUDE_DIR ?= /usr/include
+ifeq ($(SSL_INCLUDE_DIR),)
+ override SSL_INCLUDE_DIR = /usr/include
+endif
+SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ifeq ($(SSL_LIB_DIR),)
+ override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
+endif
+ifndef SSL_LDFLAGS
+ ifeq ($(SSL_STATIC),false)
+  SSL_LDFLAGS := -L$(SSL_LIB_DIR) -lssl -lcrypto
+ else
+  SSL_LDFLAGS := $(SSL_LIB_DIR)/libssl.a $(SSL_LIB_DIR)/libcrypto.a
+ endif
+ ifeq ($(detected_OS),Windows)
+  SSL_LDFLAGS += -lws2_32
+ endif
+endif
+NIM_PARAMS += --define:ssl
+ifneq ($(SSL_STATIC),false)
+ NIM_PARAMS += --dynlibOverride:ssl
+endif
+
+SQLCIPHER ?= vendor/nim-sqlcipher/sqlcipher/sqlite.nim
+
+$(SQLCIPHER): | deps
+	echo -e $(BUILD_MSG) "Nim wrapper for SQLCipher"
+	+ cd vendor/nim-sqlcipher && \
+		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlite.nim
+
+sqlcipher: $(SQLCIPHER)
+
+PCRE_STATIC ?= true
+PCRE_INCLUDE_DIR ?= /usr/include
+ifeq ($(PCRE_INCLUDE_DIR),)
+ override PCRE_INCLUDE_DIR = /usr/include
+endif
+PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ifeq ($(PCRE_LIB_DIR),)
+ override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
+endif
+ifndef PCRE_LDFLAGS
+ ifeq ($(PCRE_STATIC),false)
+  ifeq ($(detected_OS),Windows)
+   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre64
+  else
+   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
+  endif
+ else
+  PCRE_LDFLAGS := $(PCRE_LIB_DIR)/libpcre.a
+ endif
+endif
+ifneq ($(PCRE_STATIC),false)
+ NIM_PARAMS += --define:usePcreHeader --dynlibOverride:pcre
+endif
+
+ifndef NIMSTATUS_CFLAGS
+ ifneq ($(PCRE_STATIC),false)
+  ifeq ($(detected_OS),Windows)
+   NIMSTATUS_CFLAGS := -DPCRE_STATIC -I$(PCRE_INCLUDE_DIR)
+  else
+   NIMSTATUS_CFLAGS := -I$(PCRE_INCLUDE_DIR)
+  endif
+ endif
+endif
+ifneq ($(NIMSTATUS_CFLAGS),)
+ NIM_PARAMS += --passC:"$(NIMSTATUS_CFLAGS)"
+endif
+
+NIMSTATUS ?= build/nim_status.a
+
+$(NIMSTATUS): $(SQLCIPHER)
+	echo -e $(BUILD_MSG) "$@"
+	+ mkdir -p build
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
 		--app:staticLib \
 		--header \
+		--nimcache:nimcache/nim_status \
 		--noMain \
+		--threads:on \
+		--tlsEmulation:off \
 		-o:$@ \
-		src/nim_status/c/nim_status.nim
-	cp nimcache/debug/nim_status/nim_status.h build/nim_status.h
+		nim_status/c/nim_status.nim
+	cp nimcache/nim_status/nim_status.h build/nim_status.h
 	mv nim_status.a build/
 
-SHIMS := tests/c/build/shims.a
+nim_status: $(NIMSTATUS)
 
-shims: | $(SHIMS)
-$(SHIMS): | deps
-	echo -e $(BUILD_MSG) "$@" && \
-	$(ENV_SCRIPT) nim c \
-		$(NIM_PARAMS) \
+SHIMS_FOR_TEST_C ?= test/c/build/shims.a
+
+$(SHIMS_FOR_TEST_C): $(SQLCIPHER)
+	echo -e $(BUILD_MSG) "$@"
+	+ mkdir -p test/c/build
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
 		--app:staticLib \
 		--header \
+		--nimcache:nimcache/shims \
 		--noMain \
+		--threads:on \
+		--tlsEmulation:off \
 		-o:$@ \
-		tests/c/shims.nim
-	cp nimcache/debug/shims/shims.h tests/c/build/shims.h
-	mv shims.a tests/c/build/
+		test/c/shims.nim
+	cp nimcache/shims/shims.h test/c/build/shims.h
+	mv shims.a test/c/build/
 
-test-c-template: | $(STATUSGO) clean-data-dirs create-data-dirs
-	mkdir -p tests/c/build
-	echo "Compiling 'tests/c/$(TEST_NAME)'"
+shims-for-test-c: $(SHIMS_FOR_TEST_C)
+
+ifeq ($(detected_OS),Linux)
+ PLATFORM_FLAGS_TEST_C ?= -ldl
+endif
+
+test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
+	echo "Compiling 'test/c/$(TEST_NAME)'"
+	+ mkdir -p test/c/build
 	$(ENV_SCRIPT) $(CC) \
 		$(TEST_INCLUDES) \
-		-I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" \
-		tests/c/$(TEST_NAME).c \
+		-I"$(shell pwd)/vendor/nimbus-build-system/vendor/Nim/lib" \
+		test/c/$(TEST_NAME).c \
 		$(TEST_DEPS) \
-		$(NIM_DEP_LIBS) \
-		-L$(STATUSGO_LIBDIR) \
+		$(PCRE_LDFLAGS) \
+		$(SSL_LDFLAGS) \
+		-L$(STATUSGO_LIB_DIR) \
 		-lstatus \
-		$(FRAMEWORKS) \
 		-lm \
 		-pthread \
-		-o tests/c/build/$(TEST_NAME)
+		$(PLATFORM_FLAGS_TEST_C) \
+		-o test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT)
 	[[ $$? = 0 ]] && \
-	(([[ $(detected_OS) = Darwin ]] && \
+	(([[ $(detected_OS) = macOS ]] && \
 	install_name_tool -add_rpath \
-		"$(STATUSGO_LIBDIR)" \
-		tests/c/build/$(TEST_NAME) && \
+		"$(STATUSGO_LIB_DIR)" \
+		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT) && \
 	install_name_tool -change \
 		libstatus.dylib \
 		@rpath/libstatus.dylib \
-		tests/c/build/$(TEST_NAME)) || true)
-	echo "Executing 'tests/c/build/$(TEST_NAME)'"
-ifeq ($(detected_OS),Darwin)
-	./tests/c/build/$(TEST_NAME)
+		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT)) || true)
+	echo "Executing 'test/c/build/$(TEST_NAME)'"
+ifeq ($(detected_OS),macOS)
+	./test/c/build/$(TEST_NAME)
 else ifeq ($(detected_OS),Windows)
-	PATH="$(STATUSGO_LIBDIR):$(NIM_WINDOWS_PREBUILT_DLLDIR):/usr/bin:/bin:$$PATH" \
-	./tests/c/build/$(TEST_NAME)
+	PATH="$(shell dirname $(PCRE_LIB_DIR)):$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(shell dirname $(SSL_LIB_DIR)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR):$${PATH}" \
+	./test/c/build/$(TEST_NAME)
 else
-	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
-	./tests/c/build/$(TEST_NAME)
+	LD_LIBRARY_PATH="$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
+	./test/c/build/$(TEST_NAME)
 endif
 
-SHIMS_INCLUDES := -I\"$(CURDIR)/tests/c/build\"
+SHIMS_FOR_TEST_C_INCLUDES ?= -I\"$(shell pwd)/test/c/build\"
 
-test-c-shims: | $(SHIMS)
-	$(MAKE) TEST_DEPS=$(SHIMS) \
-		TEST_INCLUDES=$(SHIMS_INCLUDES) \
+LOGIN_TEST_INCLUDES ?= -I\"$(shell pwd)/build\"
+
+test-c:
+	rm -rf test/c/build
+	$(MAKE) $(SHIMS_FOR_TEST_C)
+	$(MAKE) TEST_DEPS=$(SHIMS_FOR_TEST_C) \
+		TEST_INCLUDES=$(SHIMS_FOR_TEST_C_INCLUDES) \
 		TEST_NAME=shims \
 		test-c-template
 
-LOGIN_INCLUDES := -I\"$(CURDIR)/build\"
-
-test-c-login: | $(NIMSTATUS)
+	rm -rf test/c/build
+	$(MAKE) $(NIMSTATUS)
 	$(MAKE) TEST_DEPS=$(NIMSTATUS) \
-		TEST_INCLUDES=$(LOGIN_INCLUDES) \
+		TEST_INCLUDES=$(LOGIN_TEST_INCLUDES) \
 		TEST_NAME=login \
 		test-c-template
 
-tests-c:
-	$(MAKE) test-c-shims
-	$(MAKE) test-c-login
-
-tests-nim: | $(STATUSGO)
-ifeq ($(detected_OS),Darwin)
-	$(ENV_SCRIPT) nimble test
+test-nim: $(STATUSGO) $(SQLCIPHER)
+ifeq ($(detected_OS),macOS)
+	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
+	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
+	PCRE_STATIC="$(PCRE_STATIC)" \
+	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
+	SSL_STATIC="$(SSL_STATIC)" \
+	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
+	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
-	PATH="$(STATUSGO_LIBDIR):$(NIM_WINDOWS_PREBUILT_DLLDIR):/usr/bin:/bin:$$PATH" \
-	$(ENV_SCRIPT) nimble test
+	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
+	PATH="$(shell dirname $(PCRE_LIB_DIR)):$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(shell dirname $(SSL_LIB_DIR)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR):$${PATH}" \
+	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
+	PCRE_STATIC="$(PCRE_STATIC)" \
+	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
+	SSL_STATIC="$(SSL_STATIC)" \
+	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
+	$(ENV_SCRIPT) nimble tests
 else
-	LD_LIBRARY_PATH="$(STATUSGO_LIBDIR)" \
-	$(ENV_SCRIPT) nimble test
+	LD_LIBRARY_PATH="$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
+	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
+	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
+	PCRE_STATIC="$(PCRE_STATIC)" \
+	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
+	SSL_STATIC="$(SSL_STATIC)" \
+	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
+	$(ENV_SCRIPT) nimble tests
 endif
 
-tests: tests-nim tests-c
-
-test: tests
-
-clean: | clean-common clean-build-dirs clean-data-dirs
-	rm -rf $(STATUSGO)
-	rm -rf bottles
-	rm -rf DLLs
-
-clean-build-dirs:
-	rm -rf build/*
-	rm -rf tests/c/build/*
-	rm -rf tests/nim/build/*
-
-clean-data-dirs:
-	rm -rf data
-	rm -rf keystore
-	rm -rf noBackup
-
-create-data-dirs:
-	mkdir -p data
-	mkdir -p keystore
-	mkdir -p noBackup
+test: test-nim test-c
 
 endif # "variables.mk" was not included
