@@ -115,5 +115,6 @@ export
   multiAccountLoadAccount,
   multiAccountGenerate,
   multiAccountReset,
+  migrateKeyStoreDir,
   startWallet,
   stopWallet

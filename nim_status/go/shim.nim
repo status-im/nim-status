@@ -165,6 +165,9 @@ proc multiAccountGenerate*(paramsJSON: string): string =
 proc multiAccountReset*(): string =
   $go_shim.multiAccountReset()
 
+proc migrateKeyStoreDir*(accountData: string, password: string, oldKeystoreDir: string, multiaccountKeystoreDir: string): string =
+  $go_shim.migrateKeyStoreDir(accountData.cstring, password.cstring, oldKeystoreDir.cstring, multiaccountKeystoreDir.cstring)
+
 proc startWallet*(): string =
   $go_shim.startWallet()
 
