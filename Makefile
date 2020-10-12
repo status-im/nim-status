@@ -131,7 +131,7 @@ else
  LIBSTATUS_EXT := so
 endif
 STATUSGO := vendor/status-go/build/bin/libstatus.$(LIBSTATUS_EXT)
-STATUSGO_LIB_DIR := $(CURDIR)/$(dir "$(STATUSGO)")
+STATUSGO_LIB_DIR := $(CURDIR)/$(dir $(STATUSGO))
 export STATUSGO_LIB_DIR
 
 $(STATUSGO): | deps

@@ -8,7 +8,7 @@
 /nimcache
 /noBackup
 /shims.a
-/tests/c/build
-/tests/nim/build
+/test/c/build
+/test/nim/build
 /vendor/.nimble
 TODO
