@@ -99,7 +99,7 @@ proc multiAccountGenerate*(paramsJSON: cstring): cstring {.importc: "MultiAccoun
 
 proc multiAccountReset*(): cstring {.importc: "MultiAccountReset".}
 
-proc migrateKeyStoreDir*(): cstring {.importc: "MigrateKeyStoreDir".}
+proc migrateKeyStoreDir*(accountData: cstring, password: cstring, oldKeystoreDir: cstring, multiaccountKeystoreDir: cstring): cstring {.importc: "MigrateKeyStoreDir".}
 
 proc startWallet*(): cstring {.importc: "StartWallet".}
 
