@@ -1,5 +1,5 @@
 from os import getEnv
-{.passL: "-L" & getEnv("STATUSGO_LIBDIR")}
+{.passL: "-L" & getEnv("STATUSGO_LIB_DIR")}
 {.passL: "-lstatus"}
 when defined(linux):
   {.passL: "-lcrypto"}

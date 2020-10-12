@@ -34,7 +34,7 @@ proc buildAndRunTest(name: string, srcDir = "tests/nim/", outDir = "tests/nim/bu
     extra_params &= " " & paramStr(i)
   exec "nim " & lang & " --out:" & outDir & name & " " & extra_params & " " & srcDir & name & ".nim" & " " & cmdParams
   if defined(macosx):
-    exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIBDIR") & " " & outDir & name
+    exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIB_DIR") & " " & outDir & name
     exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib " & outDir & name
   echo "Executing '" & outDir & name & "'"
   exec outDir & name
