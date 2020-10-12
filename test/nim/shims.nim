@@ -1,20 +1,3 @@
-from os import getEnv
-{.passL: "-L" & getEnv("STATUSGO_LIB_DIR")}
-{.passL: "-lstatus"}
-when defined(linux):
-  {.passL: "-lcrypto"}
-  {.passL: "-lssl"}
-  {.passL: "-lpcre"}
-when defined(macosx):
-  {.passL: "bottles/openssl/lib/libcrypto.a"}
-  {.passL: "bottles/openssl/lib/libssl.a"}
-  {.passL: "bottles/pcre/lib/libpcre.a"}
-  {.passL: "-framework CoreFoundation".}
-  {.passL: "-framework CoreServices".}
-  {.passL: "-framework IOKit".}
-  {.passL: "-framework Security".}
-  {.passL: "-headerpad_max_install_names".}
-
 import ../../nim_status/lib/shim as nim_shim
 import ../../nim_status/go/shim as go_shim
 import base64

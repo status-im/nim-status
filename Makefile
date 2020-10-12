@@ -10,6 +10,11 @@ SHELL := bash # the shell used internally by Make
 # used inside the included makefiles
 BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 
+# Deactivate nimbus-build-system LINK_PCRE logic in favor of PCRE_ variables
+# defined later in this Makefile.
+# ??? does this need an override ??? ...probably not given how e.g. V works
+LINK_PCRE := 0
+
 # we don't want an error here, so we can handle things later, in the ".DEFAULT" target
 -include $(BUILD_SYSTEM_DIR)/makefiles/variables.mk
 
@@ -23,7 +28,7 @@ BUILD_SYSTEM_DIR := vendor/nimbus-build-system
 	deps \
 	nat-libs-sub \
 	nim_status \
-	shims \
+	shims-for-c-tests \
 	status-go \
 	sqlcipher \
 	test \
@@ -60,9 +65,16 @@ else
  detected_OS := $(strip $(shell uname)) # e.g. Linux
 endif
 
-# TODO: control debug/release builds with a Make var
-# We need `-d:debug` to get Nim's default stack traces.
-NIM_PARAMS += --define:debug
+ifdef NIM_STATUS_DEV
+ # It should not be bempty to have an effect, e.g. `NIM_STATUS_DEV=t`
+ ifneq ($(NIM_STATUS_DEV),)
+  # We need `--define:debug` to get Nim's default stack traces.
+  NIM_PARAMS += --define:debug
+ endif
+ # Since this is a library it's not approrpiate in an `else` clause to set
+ # `--define:release` or `--define:danger`, but those can be passed in user
+ # supplied NIM_PARAMS
+endif
 
 # nim-nat-traversal assumes nat-libs are available in its parent's vendor
 nat-libs-sub: # could we just pub nat-libs in nim-status' vendor?
@@ -92,37 +104,6 @@ create-data-dirs:
 	mkdir -p keystore
 	mkdir -p noBackup
 
-# SQLITE_CDEFS ?= -DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=3
-# export SQLITE_CDEFS
-# SQLITE_CFLAGS ?= -pthread
-# export SQLITE_CFLAGS
-# SQLITE_LDFLAGS ?= -pthread
-# export SQLITE_LDFLAGS
-
-# SSL_INCLUDE_DIR ?= /usr/include
-# ifeq ($(SSL_INCLUDE_DIR),)
-#  override SSL_INCLUDE_DIR = /usr/include
-# endif
-# SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
-# ifeq ($(SSL_LIB_DIR),)
-#  override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
-# endif
-
-# SSL_STATIC ?= true
-# SSL_CFLAGS ?= -I$(SSL_INCLUDE_DIR)
-# export SSL_CFLAGS
-# ifndef SSL_LDFLAGS
-#  ifeq ($(SSL_STATIC),false)
-#   SSL_LDFLAGS := -L$(SSL_LIB_DIR) -lcrypto
-#  else
-#   SSL_LDFLAGS := -L$(SSL_LIB_DIR) $(SSL_LIB_DIR)/libcrypto.a
-#  endif
-#  ifeq ($(detected_OS),Windows)
-#   SSL_LDFLAGS += -lws2_32
-#  endif
-# endif
-# export SSL_LDFLAGS
-
 ifeq ($(detected_OS),macOS)
  LIBSTATUS_EXT := dylib
 else ifeq ($(detected_OS),Windows)
@@ -141,11 +122,37 @@ $(STATUSGO): | deps
 
 status-go: $(STATUSGO)
 
+# The following SSL_ variables and logic are lifted from nim-sqlcipher's
+# Makefile *only* because we want to reference SSL_CFLAGS and SSL_LDFLAGS in
+# the test-c target, preferring to provide (e.g. in GitHub Actions)
+# SSL_INCLUDE_DIR and SSL_LIB_DIR without manually constructing
+# SSL_CFLAGS/LDFLAGS.
+SSL_INCLUDE_DIR ?= /usr/include
+ifeq ($(SSL_INCLUDE_DIR),)
+ override SSL_INCLUDE_DIR = /usr/include
+endif
+SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ifeq ($(SSL_LIB_DIR),)
+ override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
+endif
+
+SSL_CFLAGS ?= -I$(SSL_INCLUDE_DIR)
+export SSL_CFLAGS
+SSL_STATIC ?= true
+ifndef SSL_LDFLAGS
+ ifeq ($(SSL_STATIC),false)
+  SSL_LDFLAGS := -L$(SSL_LIB_DIR) -lcrypto
+ else
+  SSL_LDFLAGS := -L$(SSL_LIB_DIR) $(SSL_LIB_DIR)/libcrypto.a
+ endif
+ ifeq ($(detected_OS),Windows)
+  SSL_LDFLAGS += -lws2_32
+ endif
+endif
+export SSL_LDFLAGS
+
 SQLCIPHER ?= vendor/nim-sqlcipher/sqlcipher/sqlite.nim
 
-# Are all the make variables (e.g. SSL_LIB_DIR) picked up by the submake
-# automatically or do we need to pass them explicitly here and set them up like
-# in nim-sqlcipher's Makefile?
 $(SQLCIPHER): | deps
 	echo -e $(BUILD_MSG) "Nim wrapper for SQLCipher"
 	+ cd vendor/nim-sqlcipher && \
@@ -160,11 +167,21 @@ sqlcipher: $(SQLCIPHER)
 #  NIM_PARAMS := $(NIM_PARAMS) -L:"$(FRAMEWORKS)"
 # endif
 
-PCRE_STATIC ?= true
+PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ifeq ($(PCRE_LIB_DIR),)
+ override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
+endif
+
 PCRE_CFLAGS ?=
 export PCRE_CFLAGS
+PCRE_STATIC ?= true
 ifndef PCRE_LDFLAGS
  ifeq ($(PCRE_STATIC),false)
+  ifneq ($(detected_OS),macOS)
+   ifneq ($(detected_OS),Windows)
+    NIM_PARAMS += --define:usePcreHeader
+   endif
+  endif
   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
  else
   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) $(PCRE_LIB_DIR)/libpcre.a
@@ -176,6 +193,7 @@ NIMSTATUS := build/nim_status.a
 
 $(NIMSTATUS): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@" && \
+	NIM_STATUS_DEV=$(NIM_STATUS_DEV) \
 	NIM_STATUS_MAKE=t \
 	$(ENV_SCRIPT) nim c \
 		$(NIM_PARAMS) \
@@ -190,10 +208,11 @@ $(NIMSTATUS): $(SQLCIPHER)
 
 nim_status: $(NIMSTATUS)
 
-SHIMS := test/c/build/shims.a
+SHIMS_FOR_C_TESTS := test/c/build/shims.a
 
-$(SHIMS): $(SQLCIPHER)
+$(SHIMS_FOR_C_TESTS): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@" && \
+	NIM_STATUS_DEV=$(NIM_STATUS_DEV) \
 	NIM_STATUS_MAKE=t \
 	$(ENV_SCRIPT) nim c \
 		$(NIM_PARAMS) \
@@ -206,7 +225,7 @@ $(SHIMS): $(SQLCIPHER)
 	cp nimcache/debug/shims/shims.h test/c/build/shims.h
 	mv shims.a test/c/build/
 
-shims: $(SHIMS)
+shims-for-c-tests: $(SHIMS_FOR_C_TESTS)
 
 test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	echo "Compiling 'test/c/$(TEST_NAME)'"
@@ -242,40 +261,35 @@ else
 	./test/c/build/$(TEST_NAME)
 endif
 
-SHIMS_INCLUDES := -I\"$(CURDIR)/test/c/build\"
+SHIMS_FOR_C_TESTS_INCLUDES := -I\"$(CURDIR)/test/c/build\"
 
-LOGIN_INCLUDES := -I\"$(CURDIR)/build\"
+LOGIN_TEST_INCLUDES := -I\"$(CURDIR)/build\"
 
 test-c:
-	NIM_STATUS_MAKE=t \
 	NIM_STATUS_MAKE_TEST=t \
-	$(MAKE) $(SHIMS)
-	$(MAKE) TEST_DEPS=$(SHIMS) \
-		TEST_INCLUDES=$(SHIMS_INCLUDES) \
+	$(MAKE) $(SHIMS_FOR_C_TESTS)
+	$(MAKE) TEST_DEPS=$(SHIMS_FOR_C_TESTS) \
+		TEST_INCLUDES=$(SHIMS_FOR_C_TESTS_INCLUDES) \
 		TEST_NAME=shims \
 		test-c-template
 
-	NIM_STATUS_MAKE=t \
 	NIM_STATUS_MAKE_TEST=t \
 	$(MAKE) $(NIMSTATUS)
 	$(MAKE) TEST_DEPS=$(NIMSTATUS) \
-		TEST_INCLUDES=$(LOGIN_INCLUDES) \
+		TEST_INCLUDES=$(LOGIN_TEST_INCLUDES) \
 		TEST_NAME=login \
 		test-c-template
 
 test-nim: $(STATUSGO)
 ifeq ($(detected_OS),macOS)
-	NIM_STATUS_MAKE=t \
 	NIM_STATUS_MAKE_TEST=t \
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
-	NIM_STATUS_MAKE=t \
 	NIM_STATUS_MAKE_TEST=t \
 	PATH="$(STATUSGO_LIB_DIR):$$PATH" \
 	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
-	NIM_STATUS_MAKE=t \
 	NIM_STATUS_MAKE_TEST=t \
 	$(ENV_SCRIPT) nimble tests
 endif
