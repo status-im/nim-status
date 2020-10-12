@@ -62,7 +62,7 @@ endif
 
 # TODO: control debug/release builds with a Make var
 # We need `-d:debug` to get Nim's default stack traces.
-NIM_PARAMS += -d:debug
+NIM_PARAMS += --define:debug
 
 # nim-nat-traversal assumes nat-libs are available in its parent's vendor
 nat-libs-sub: # could we just pub nat-libs in nim-status' vendor?
@@ -176,6 +176,7 @@ NIMSTATUS := build/nim_status.a
 
 $(NIMSTATUS): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@" && \
+	NIM_STATUS_MAKE=t \
 	$(ENV_SCRIPT) nim c \
 		$(NIM_PARAMS) \
 		--app:staticLib \
@@ -193,6 +194,7 @@ SHIMS := test/c/build/shims.a
 
 $(SHIMS): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@" && \
+	NIM_STATUS_MAKE=t \
 	$(ENV_SCRIPT) nim c \
 		$(NIM_PARAMS) \
 		--app:staticLib \
@@ -245,12 +247,16 @@ SHIMS_INCLUDES := -I\"$(CURDIR)/test/c/build\"
 LOGIN_INCLUDES := -I\"$(CURDIR)/build\"
 
 test-c:
+	NIM_STATUS_MAKE=t \
+	NIM_STATUS_MAKE_TEST=t \
 	$(MAKE) $(SHIMS)
 	$(MAKE) TEST_DEPS=$(SHIMS) \
 		TEST_INCLUDES=$(SHIMS_INCLUDES) \
 		TEST_NAME=shims \
 		test-c-template
 
+	NIM_STATUS_MAKE=t \
+	NIM_STATUS_MAKE_TEST=t \
 	$(MAKE) $(NIMSTATUS)
 	$(MAKE) TEST_DEPS=$(NIMSTATUS) \
 		TEST_INCLUDES=$(LOGIN_INCLUDES) \
@@ -259,12 +265,18 @@ test-c:
 
 test-nim: $(STATUSGO)
 ifeq ($(detected_OS),macOS)
+	NIM_STATUS_MAKE=t \
+	NIM_STATUS_MAKE_TEST=t \
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
+	NIM_STATUS_MAKE=t \
+	NIM_STATUS_MAKE_TEST=t \
 	PATH="$(STATUSGO_LIB_DIR):$$PATH" \
 	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
+	NIM_STATUS_MAKE=t \
+	NIM_STATUS_MAKE_TEST=t \
 	$(ENV_SCRIPT) nimble tests
 endif
 
