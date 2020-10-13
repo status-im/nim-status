@@ -145,7 +145,7 @@ SQLCIPHER ?= vendor/nim-sqlcipher/sqlcipher/sqlite.nim
 $(SQLCIPHER): | deps
 	echo -e $(BUILD_MSG) "Nim wrapper for SQLCipher"
 	+ cd vendor/nim-sqlcipher && \
-		$(MAKE) sqlite.nim $(HANDLE_OUTPUT)
+		$(ENV_SCRIPT) $(MAKE) sqlite.nim $(HANDLE_OUTPUT)
 
 sqlcipher: $(SQLCIPHER)
 
@@ -171,15 +171,16 @@ endif
 NIMSTATUS ?= build/nim_status.a
 
 $(NIMSTATUS): $(SQLCIPHER)
-	echo -e $(BUILD_MSG) "$@" && \
+	echo -e $(BUILD_MSG) "$@"
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
 		--app:staticLib \
 		--header \
 		--nimcache:nimcache/nim_status \
 		--noMain \
+		--threads:on \
+		--tlsEmulation:off \
 		-o:$@ \
-		src/nim_status/c/nim_status.nim
-	mkdir -p build
+		nim_status/c/nim_status.nim
 	cp nimcache/nim_status/nim_status.h build/nim_status.h
 	mv nim_status.a build/
 
@@ -188,24 +189,24 @@ nim_status: $(NIMSTATUS)
 SHIMS_FOR_C_TESTS ?= test/c/build/shims.a
 
 $(SHIMS_FOR_C_TESTS): $(SQLCIPHER)
-	echo -e $(BUILD_MSG) "$@" && \
+	echo -e $(BUILD_MSG) "$@"
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
 		--app:staticLib \
 		--header \
 		--nimcache:nimcache/shims \
 		--noMain \
+		--threads:on \
+		--tlsEmulation:off \
 		-o:$@ \
 		test/c/shims.nim
-	mkdir -p test/c/build
 	cp nimcache/shims/shims.h test/c/build/shims.h
 	mv shims.a test/c/build/
 
 shims-for-c-tests: $(SHIMS_FOR_C_TESTS)
 
 test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
-	rm -rf test/c/build
-	mkdir test/c/build
 	echo "Compiling 'test/c/$(TEST_NAME)'"
+	+ mkdir -p test/c/build
 	$(ENV_SCRIPT) $(CC) \
 		$(TEST_INCLUDES) \
 		-I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" \
@@ -243,12 +244,14 @@ SHIMS_FOR_C_TESTS_INCLUDES ?= -I\"$(CURDIR)/test/c/build\"
 LOGIN_TEST_INCLUDES ?= -I\"$(CURDIR)/build\"
 
 test-c:
+	rm -rf test/c/build
 	$(MAKE) $(SHIMS_FOR_C_TESTS)
 	$(MAKE) TEST_DEPS=$(SHIMS_FOR_C_TESTS) \
 		TEST_INCLUDES=$(SHIMS_FOR_C_TESTS_INCLUDES) \
 		TEST_NAME=shims \
 		test-c-template
 
+	rm -rf test/c/build
 	$(MAKE) $(NIMSTATUS)
 	$(MAKE) TEST_DEPS=$(NIMSTATUS) \
 		TEST_INCLUDES=$(LOGIN_TEST_INCLUDES) \

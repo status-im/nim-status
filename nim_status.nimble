@@ -48,7 +48,7 @@ proc buildAndRunTest(name: string,
     " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" &
     " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" &
     " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" &
-    if defined(macosx): " --passL:-headerpad_max_install_names" else: ""
+    (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
     " --threads:on" &
     " --tlsEmulation:off" &
     " " &
