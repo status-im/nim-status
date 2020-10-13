@@ -86,7 +86,8 @@ create-data-dirs:
 
 # nim-nat-traversal assumes nat-libs are available in its parent's vendor
 nat-libs-sub: # could we just pub nat-libs in nim-status' vendor?
-	cd vendor/nim-waku && $(MAKE) nat-libs
+	cd vendor/nim-waku && \
+		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 nat-libs
 
 deps: | deps-common nat-libs nat-libs-sub
 
@@ -145,7 +146,7 @@ SQLCIPHER ?= vendor/nim-sqlcipher/sqlcipher/sqlite.nim
 $(SQLCIPHER): | deps
 	echo -e $(BUILD_MSG) "Nim wrapper for SQLCipher"
 	+ cd vendor/nim-sqlcipher && \
-		$(ENV_SCRIPT) $(MAKE) sqlite.nim $(HANDLE_OUTPUT)
+		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlite.nim
 
 sqlcipher: $(SQLCIPHER)
 
@@ -218,16 +219,16 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 		-lstatus \
 		-lm \
 		-pthread \
-		-o test/c/build/$(TEST_NAME)
+		-o test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT)
 	[[ $$? = 0 ]] && \
 	(([[ $(detected_OS) = macOS ]] && \
 	install_name_tool -add_rpath \
 		"$(STATUSGO_LIB_DIR)" \
-		test/c/build/$(TEST_NAME) && \
+		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT) && \
 	install_name_tool -change \
 		libstatus.dylib \
 		@rpath/libstatus.dylib \
-		test/c/build/$(TEST_NAME)) || true)
+		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT)) || true)
 	echo "Executing 'test/c/build/$(TEST_NAME)'"
 ifeq ($(detected_OS),macOS)
 	./test/c/build/$(TEST_NAME)
