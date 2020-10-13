@@ -19,20 +19,44 @@ requires "nim >= 1.2.0",
   "stew",
   "waku"
 
-proc buildAndRunTest(name: string, srcDir = "test/nim/", outDir = "test/nim/build/", params = "", cmdParams = "", lang = "c") =
+proc buildAndRunTest(name: string,
+                     srcDir = "test/nim/",
+                     outDir = "test/nim/build/",
+                     params = "",
+                     cmdParams = "",
+                     lang = "c") =
   rmDir "data"
   rmDir "keystore"
   rmDir "noBackup"
   mkDir "data"
   mkDir "keystore"
   mkDir "noBackup"
-  if not dirExists outDir:
-    mkDir outDir
+  rmDir outDir
+  mkDir outDir
   # allow something like "nim test --verbosity:0 --hints:off beacon_chain.nims"
   var extra_params = params
   for i in 2..<paramCount():
     extra_params &= " " & paramStr(i)
-  exec "nim " & lang & " --define:debug" & " --out:" & outDir & name & " " & extra_params & " " & srcDir & name & ".nim" & " " & cmdParams
+  exec "nim " &
+    lang &
+    " --debugger:native" &
+    " --define:chronicles_line_numbers" &
+    " --define:debug" &
+    " --define:ssl" &
+    " --nimcache:nimcache/test/" & name &
+    " --out:" & outDir & name &
+    " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" &
+    " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" &
+    " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" &
+    if defined(macosx): " --passL:-headerpad_max_install_names" else: ""
+    " --threads:on" &
+    " --tlsEmulation:off" &
+    " " &
+    extra_params &
+    " " &
+    srcDir & name & ".nim" &
+    " " &
+    cmdParams
   if defined(macosx):
     exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIB_DIR") & " " & outDir & name
     exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib " & outDir & name
