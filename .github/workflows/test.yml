@@ -40,10 +40,13 @@ jobs:
           mkdir -p "${HOME}/Downloads/mingw64"
           cd "${HOME}/Downloads"
           wget https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-pcre-8.44-1-any.pkg.tar.xz
-          7z x mingw64*
-          mv mingw64*.tar mingw64/
+          ls -ladh *
+          7z x mingw*
+          ls -ladh *
+          mv mingw*.tar mingw64/
           cd mingw64
           tar xvf mingw64*
+          ls -ladh *
 
       - name: Checkout code
         uses: actions/checkout@v2
