@@ -12,7 +12,8 @@ jobs:
       matrix:
         env:
           - { NPROC: 2 }
-        platform: [macos-latest, ubuntu-latest, windows-latest]
+        # platform: [macos-latest, ubuntu-latest, windows-latest]
+        platform: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     env: ${{ matrix.env }}
 
