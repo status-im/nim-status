@@ -42,6 +42,12 @@ jobs:
           7z x mingw*
           tar xvf mingw*.tar
 
+      - name: Install external dependencies with Homebrew
+        if: startsWith(matrix.platform, 'macos')
+        shell: bash
+        run: |
+          brew install openssl pcre
+
       - name: Checkout code
         uses: actions/checkout@v2
 
