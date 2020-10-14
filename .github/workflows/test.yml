@@ -106,4 +106,9 @@ jobs:
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             V=1 \
-                            test-c
+                            test-c || true
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            echo "BEGIN shims_linkerArgs.txt BEGIN" && \
+            cat shims_linkerArgs.txt && \
+            echo "END shims_linkerArgs.txt END" && \
+            ar @shims_linkerArgs.txt || true
