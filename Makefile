@@ -60,8 +60,6 @@ ifeq ($(OS),Windows_NT) # is Windows_NT on XP, 2000, 7, Vista, 10...
  detected_OS := Windows
 else ifeq ($(strip $(shell uname)),Darwin)
  detected_OS := macOS
- override CC := clang
- export CC
 else
  detected_OS := $(strip $(shell uname)) # e.g. Linux
 endif
