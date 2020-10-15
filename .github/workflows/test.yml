@@ -108,10 +108,6 @@ jobs:
                             V=1 \
                             test-c || true
           [[ ${{ matrix.platform }} = macos* ]] && \
-            (gcc --version || true) && \
-            (man -P cat ar || true) && \
-            echo "BEGIN shims_linkerArgs.txt BEGIN" && \
-            cat shims_linkerArgs.txt && \
-            echo
-            echo "END shims_linkerArgs.txt END" && \
-            ar @shims_linkerArgs.txt || true
+            echo "??? WHERE IS LLVM-AR ???" && \
+            ls -ladh /usr/local/Cellar/llvm/*/bin/*ar* && \
+            echo "??? WHERE IS LLVM-AR ???"
