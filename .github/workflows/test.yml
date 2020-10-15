@@ -68,7 +68,7 @@ jobs:
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
-      - name: Run Nim tests
+      - name: Run Nim tests (static)
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = macos* ]] && \
@@ -77,23 +77,27 @@ jobs:
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
             export PATH="$(pwd):${PATH}" && \
             cd - && \
+            PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
             PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
             SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
             SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
           [[ ${{ matrix.platform }} = windows* ]] && \
             export PATH="${PATH}:${HOME}/scoop/shims" && \
+            PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
             PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
             SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
             SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
+          rm -rf nimcache
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
+                            PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
                             PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             V=1 \
                             test-nim
 
-      - name: Run C tests
+      - name: Run Nim tests (shared)
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = macos* ]] && \
@@ -102,18 +106,84 @@ jobs:
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
             export PATH="$(pwd):${PATH}" && \
             cd - && \
+            PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
             PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
             SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
             SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
           [[ ${{ matrix.platform }} = windows* ]] && \
             export PATH="${PATH}:${HOME}/scoop/shims" && \
+            PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
             PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
             SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
             SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
+          rm -rf nimcache
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
+                            PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
                             PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
+                            PCRE_STATIC=false \
+                            SSL_STATIC=false \
+                            V=1 \
+                            test-nim
+
+      - name: Run C tests (static)
+        shell: bash
+        run: |
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            cd "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
+            export PATH="$(pwd):${PATH}" && \
+            cd - && \
+            PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
+            PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
+            SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
+            SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
+          [[ ${{ matrix.platform }} = windows* ]] && \
+            export PATH="${PATH}:${HOME}/scoop/shims" && \
+            PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
+            PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
+            SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
+          rm -rf nimcache
+          export M="$(which mingw32-make || echo make)"
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
+                            PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
+                            PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
+                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
+                            V=1 \
+                            test-c
+
+      - name: Run C tests (shared)
+        shell: bash
+        run: |
+          [[ ${{ matrix.platform }} = macos* ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            cd "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
+            export PATH="$(pwd):${PATH}" && \
+            cd - && \
+            PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
+            PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
+            SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
+            SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
+          [[ ${{ matrix.platform }} = windows* ]] && \
+            export PATH="${PATH}:${HOME}/scoop/shims" && \
+            PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
+            PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
+            SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
+          rm -rf nimcache
+          export M="$(which mingw32-make || echo make)"
+          "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
+                            PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
+                            PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
+                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
+                            PCRE_STATIC=false \
+                            SSL_STATIC=false \
                             V=1 \
                             test-c

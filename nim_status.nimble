@@ -19,6 +19,8 @@ requires "nim >= 1.2.0",
   "stew",
   "waku"
 
+import strutils
+
 proc buildAndRunTest(name: string,
                      srcDir = "test/nim/",
                      outDir = "test/nim/build/",
@@ -43,10 +45,13 @@ proc buildAndRunTest(name: string,
     " --define:chronicles_line_numbers" &
     " --define:debug" &
     " --define:ssl" &
+    (if getEnv("PCRE_STATIC") != "false": " --define:usePcreHeader" else: "") &
     " --nimcache:nimcache/test/" & name &
     " --out:" & outDir & name &
-    " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" &
-    " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" &
+    (if getEnv("PCRE_CFLAGS").strip != "": " --passC:\"" & getEnv("PCRE_CFLAGS") & "\"" else: "") &
+    (if getEnv("SSL_CFLAGS").strip != "": " --passC:\"" & getEnv("SSL_CFLAGS") & "\"" else: "") &
+    (if getEnv("PCRE_LDFLAGS").strip != "": " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" else: "") &
+    (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
     " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" &
     (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
     " --threads:on" &

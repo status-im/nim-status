@@ -149,6 +149,8 @@ $(SQLCIPHER): | deps
 		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlite.nim
 	# USE_SYSTEM_NIM=1 results in one spurious and error-causing line at
 	# the top of vendor/nim-sqlcipher/sqlcipher/sqlite.nim
+	# !!! bump to latest nimbus-build-system to pick up a fix and drop
+	# usage of tail+mv below !!!
 	tail -n +2 vendor/nim-sqlcipher/sqlcipher/sqlite.nim \
 		> vendor/nim-sqlcipher/sqlcipher/sqlite.nim.2
 	mv vendor/nim-sqlcipher/sqlcipher/sqlite.nim.2 \
@@ -156,21 +158,32 @@ $(SQLCIPHER): | deps
 
 sqlcipher: $(SQLCIPHER)
 
+PCRE_INCLUDE_DIR ?= /usr/include
+ifeq ($(PCRE_INCLUDE_DIR),)
+ override PCRE_INCLUDE_DIR = /usr/include
+endif
 PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
 ifeq ($(PCRE_LIB_DIR),)
  override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
 endif
 
 PCRE_STATIC ?= true
+ifndef PCRE_CFLAGS
+ ifneq ($(PCRE_STATIC),false)
+  ifeq ($(detected_OS),Windows)
+   PCRE_CFLAGS := -DPCRE_STATIC -I$(PCRE_INCLUDE_DIR)
+  else
+   PCRE_CFLAGS := -I$(PCRE_INCLUDE_DIR)
+  endif
+ endif
+endif
 ifndef PCRE_LDFLAGS
  ifeq ($(PCRE_STATIC),false)
-  ifneq ($(detected_OS),macOS)
-   ifneq ($(detected_OS),Windows)
-    NIM_PARAMS += --define:usePcreHeader
-   endif
-  endif
+  # on Windows (at least) need to check if the libpcre being dynamically linked
+  # is the one spec'd here or something else that Nim has in mind
   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
  else
+  NIM_PARAMS += --define:usePcreHeader
   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) $(PCRE_LIB_DIR)/libpcre.a
  endif
 endif
@@ -215,6 +228,8 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	echo "Compiling 'test/c/$(TEST_NAME)'"
 	+ mkdir -p test/c/build
 	$(ENV_SCRIPT) $(CC) \
+		$(PCRE_CFLAGS) \
+		$(SSL_CFLAGS) \
 		$(TEST_INCLUDES) \
 		-I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" \
 		test/c/$(TEST_NAME).c \
@@ -267,18 +282,27 @@ test-c:
 
 test-nim: $(STATUSGO) $(SQLCIPHER)
 ifeq ($(detected_OS),macOS)
+	PCRE_STATIC="$(PCRE_STATIC)" \
+	PCRE_CFLAGS="$(PCRE_CFLAGS)" \
+	SSL_CFLAGS="$(SSL_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	PATH="$(STATUSGO_LIB_DIR):$$PATH" \
+	PCRE_STATIC="$(PCRE_STATIC)" \
+	PCRE_CFLAGS="$(PCRE_CFLAGS)" \
+	SSL_CFLAGS="$(SSL_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
 	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
+	PCRE_STATIC="$(PCRE_STATIC)" \
+	PCRE_CFLAGS="$(PCRE_CFLAGS)" \
+	SSL_CFLAGS="$(SSL_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
