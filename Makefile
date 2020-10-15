@@ -147,14 +147,6 @@ $(SQLCIPHER): | deps
 	echo -e $(BUILD_MSG) "Nim wrapper for SQLCipher"
 	+ cd vendor/nim-sqlcipher && \
 		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlite.nim
-	# USE_SYSTEM_NIM=1 results in one spurious and error-causing line at
-	# the top of vendor/nim-sqlcipher/sqlcipher/sqlite.nim
-	# !!! bump to latest nimbus-build-system to pick up a fix and drop
-	# usage of tail+mv below !!!
-	tail -n +2 vendor/nim-sqlcipher/sqlcipher/sqlite.nim \
-		> vendor/nim-sqlcipher/sqlcipher/sqlite.nim.2
-	mv vendor/nim-sqlcipher/sqlcipher/sqlite.nim.2 \
-		vendor/nim-sqlcipher/sqlcipher/sqlite.nim
 
 sqlcipher: $(SQLCIPHER)
 

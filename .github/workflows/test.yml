@@ -124,6 +124,7 @@ jobs:
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             PCRE_STATIC=false \
+                            SQLITE_STATIC=false \
                             SSL_STATIC=false \
                             V=1 \
                             test-nim
@@ -184,6 +185,7 @@ jobs:
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             PCRE_STATIC=false \
+                            SQLITE_STATIC=false \
                             SSL_STATIC=false \
                             V=1 \
                             test-c
