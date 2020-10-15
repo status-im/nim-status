@@ -27,7 +27,7 @@ LINK_PCRE := 0
 	deps \
 	nat-libs-sub \
 	nim_status \
-	shims-for-c-tests \
+	shims-for-test-c \
 	status-go \
 	sqlcipher \
 	test \
@@ -193,9 +193,9 @@ $(NIMSTATUS): $(SQLCIPHER)
 
 nim_status: $(NIMSTATUS)
 
-SHIMS_FOR_C_TESTS ?= test/c/build/shims.a
+SHIMS_FOR_TEST_C ?= test/c/build/shims.a
 
-$(SHIMS_FOR_C_TESTS): $(SQLCIPHER)
+$(SHIMS_FOR_TEST_C): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@"
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
 		--app:staticLib \
@@ -209,7 +209,7 @@ $(SHIMS_FOR_C_TESTS): $(SQLCIPHER)
 	cp nimcache/shims/shims.h test/c/build/shims.h
 	mv shims.a test/c/build/
 
-shims-for-c-tests: $(SHIMS_FOR_C_TESTS)
+shims-for-test-c: $(SHIMS_FOR_TEST_C)
 
 test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	echo "Compiling 'test/c/$(TEST_NAME)'"
@@ -246,15 +246,15 @@ else
 	./test/c/build/$(TEST_NAME)
 endif
 
-SHIMS_FOR_C_TESTS_INCLUDES ?= -I\"$(CURDIR)/test/c/build\"
+SHIMS_FOR_TEST_C_INCLUDES ?= -I\"$(CURDIR)/test/c/build\"
 
 LOGIN_TEST_INCLUDES ?= -I\"$(CURDIR)/build\"
 
 test-c:
 	rm -rf test/c/build
-	$(MAKE) $(SHIMS_FOR_C_TESTS)
-	$(MAKE) TEST_DEPS=$(SHIMS_FOR_C_TESTS) \
-		TEST_INCLUDES=$(SHIMS_FOR_C_TESTS_INCLUDES) \
+	$(MAKE) $(SHIMS_FOR_TEST_C)
+	$(MAKE) TEST_DEPS=$(SHIMS_FOR_TEST_C) \
+		TEST_INCLUDES=$(SHIMS_FOR_TEST_C_INCLUDES) \
 		TEST_NAME=shims \
 		test-c-template
 
