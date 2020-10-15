@@ -72,6 +72,11 @@ jobs:
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = macos* ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            cd "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
+            export PATH="$(pwd):${PATH}" && \
+            cd - && \
             PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
             SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
             SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
@@ -92,6 +97,11 @@ jobs:
         shell: bash
         run: |
           [[ ${{ matrix.platform }} = macos* ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            cd "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
+            export PATH="$(pwd):${PATH}" && \
+            cd - && \
             PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
             SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
             SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
@@ -106,8 +116,4 @@ jobs:
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             V=1 \
-                            test-c || true
-          [[ ${{ matrix.platform }} = macos* ]] && \
-            echo "??? WHERE IS LLVM-AR ???" && \
-            ls -ladh /usr/local/Cellar/llvm/*/bin/*ar* && \
-            echo "??? WHERE IS LLVM-AR ???"
+                            test-c
