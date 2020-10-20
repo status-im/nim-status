@@ -106,9 +106,9 @@ endif
 # should be an absolute path when supplied by user
 ifndef STATUSGO
  STATUSGO := vendor/status-go/build/bin/libstatus.$(SHARED_LIB_EXT)
- STATUSGO_LIB_DIR := $(CURDIR)/$(dir $(STATUSGO))
+ STATUSGO_LIB_DIR := $(shell pwd)/$(shell dirname $(STATUSGO))
 else
- STATUSGO_LIB_DIR := $(dir $(STATUSGO))
+ STATUSGO_LIB_DIR := $(shell dirname $(STATUSGO))
 endif
 
 $(STATUSGO): | deps
@@ -185,6 +185,7 @@ NIMSTATUS ?= build/nim_status.a
 $(NIMSTATUS): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@"
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
+		--passC:"$(PCRE_CFLAGS) $(SSL_CFLAGS)" \
 		--app:staticLib \
 		--header \
 		--nimcache:nimcache/nim_status \
@@ -203,6 +204,7 @@ SHIMS_FOR_TEST_C ?= test/c/build/shims.a
 $(SHIMS_FOR_TEST_C): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@"
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
+		--passC:"$(PCRE_CFLAGS) $(SSL_CFLAGS)" \
 		--app:staticLib \
 		--header \
 		--nimcache:nimcache/shims \
@@ -220,10 +222,8 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	echo "Compiling 'test/c/$(TEST_NAME)'"
 	+ mkdir -p test/c/build
 	$(ENV_SCRIPT) $(CC) \
-		$(PCRE_CFLAGS) \
-		$(SSL_CFLAGS) \
 		$(TEST_INCLUDES) \
-		-I"$(CURDIR)/vendor/nimbus-build-system/vendor/Nim/lib" \
+		-I"$(shell pwd)/vendor/nimbus-build-system/vendor/Nim/lib" \
 		test/c/$(TEST_NAME).c \
 		$(TEST_DEPS) \
 		$(PCRE_LDFLAGS) \
@@ -253,9 +253,9 @@ else
 	./test/c/build/$(TEST_NAME)
 endif
 
-SHIMS_FOR_TEST_C_INCLUDES ?= -I\"$(CURDIR)/test/c/build\"
+SHIMS_FOR_TEST_C_INCLUDES ?= -I\"$(shell pwd)/test/c/build\"
 
-LOGIN_TEST_INCLUDES ?= -I\"$(CURDIR)/build\"
+LOGIN_TEST_INCLUDES ?= -I\"$(shell pwd)/build\"
 
 test-c:
 	rm -rf test/c/build

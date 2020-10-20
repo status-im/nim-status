@@ -42,6 +42,17 @@ jobs:
           7z x mingw*
           tar xvf mingw*.tar
 
+      - name: Fetch prebuilt DLLs from nim-lang.org
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        run: |
+          export PATH="${PATH}:${HOME}/scoop/shims"
+          cd "${HOME}/Downloads"
+          mkdir -p dlls
+          cd dlls
+          wget https://nim-lang.org/download/dlls.zip
+          unzip dlls.zip
+
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -94,7 +105,7 @@ jobs:
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             V=1 \
-                            test-nim || true
+                            test-nim
 
       - name: Run Nim tests (shared)
         shell: bash
@@ -105,28 +116,26 @@ jobs:
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
             export PATH="$(pwd):${PATH}" && \
             cd - && \
-            PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
             PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
             SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
             SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
           [[ ${{ matrix.platform }} = windows* ]] && \
-            export PATH="${PATH}:${HOME}/scoop/shims" && \
-            PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
-            PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            export PATH="${PATH}:${HOME}/scoop/shims:${HOME}/Downloads/dlls" && \
+            PCRE_LIB_DIR="${HOME}/Downloads/dlls" && \
             SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
             SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           export M="$(which mingw32-make || echo make)"
           rm -rf nimcache
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
-                            PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
+                            PCRE_CFLAGS= \
                             PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
-                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
-                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             PCRE_STATIC=false \
                             SQLITE_STATIC=false \
+                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             SSL_STATIC=false \
                             V=1 \
-                            test-nim || true
+                            test-nim
 
       - name: Run C tests (static)
         shell: bash
@@ -155,7 +164,7 @@ jobs:
                             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
                             SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             V=1 \
-                            test-c || true
+                            test-c
 
       - name: Run C tests (shared)
         shell: bash
@@ -166,25 +175,23 @@ jobs:
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
             export PATH="$(pwd):${PATH}" && \
             cd - && \
-            PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
             PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
             SSL_INCLUDE_DIR=/usr/local/opt/openssl@1.1/include && \
             SSL_LIB_DIR=/usr/local/opt/openssl@1.1/lib
           [[ ${{ matrix.platform }} = windows* ]] && \
-            export PATH="${PATH}:${HOME}/scoop/shims" && \
-            PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
-            PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
+            export PATH="${PATH}:${HOME}/scoop/shims:${HOME}/Downloads/dlls" && \
+            PCRE_LIB_DIR="${HOME}/Downloads/dlls" && \
             SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
             SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
           rm -rf nimcache
           export M="$(which mingw32-make || echo make)"
           "${M}" -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" \
-                            PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
+                            PCRE_CFLAGS= \
                             PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
-                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
-                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             PCRE_STATIC=false \
                             SQLITE_STATIC=false \
+                            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
+                            SSL_LIB_DIR="${SSL_LIB_DIR}" \
                             SSL_STATIC=false \
                             V=1 \
-                            test-c || true
+                            test-c
