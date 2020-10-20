@@ -85,7 +85,7 @@ create-data-dirs:
 	mkdir -p noBackup
 
 # nim-nat-traversal assumes nat-libs are available in its parent's vendor
-nat-libs-sub: # could we just pub nat-libs in nim-status' vendor?
+nat-libs-sub:
 	cd vendor/nim-waku && \
 		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 nat-libs
 
@@ -171,9 +171,11 @@ ifndef PCRE_CFLAGS
 endif
 ifndef PCRE_LDFLAGS
  ifeq ($(PCRE_STATIC),false)
-  # on Windows (at least) need to check if the libpcre being dynamically linked
-  # is the one spec'd here or something else that Nim has in mind
-  PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
+  ifeq ($(detected_OS),Windows)
+   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre64
+  else
+   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
+  endif
  else
   NIM_PARAMS += --define:usePcreHeader
   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) $(PCRE_LIB_DIR)/libpcre.a
