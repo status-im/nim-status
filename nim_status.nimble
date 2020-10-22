@@ -72,3 +72,4 @@ task tests, "Run all tests":
   buildAndRunTest "login"
   buildAndRunTest "db_smoke"
   buildAndRunTest "waku_smoke"
+  buildAndRunTest "settings"

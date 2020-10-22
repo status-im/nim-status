@@ -79,3 +79,6 @@
 [submodule "vendor/nim-sqlcipher"]
 	path = vendor/nim-sqlcipher
 	url = https://github.com/status-im/nim-sqlcipher.git
+[submodule "vendor/nim-web3"]
+	path = vendor/nim-web3
+	url = https://github.com/status-im/nim-web3
