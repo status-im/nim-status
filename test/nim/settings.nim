@@ -29,6 +29,10 @@ createSettings(db, settingsObj, %* {})
 
 let s = getSettings(db)
 
+saveSetting(db, SettingsEnum.ChaosMode, "A")
+
+let s2 = getSettings(db)
+echo $s2
 
 db.close()
 removeFile(path)
