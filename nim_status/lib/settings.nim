@@ -1,18 +1,19 @@
-import settings/[types, utils]
+import settings/types
+import settings/utils
 import web3/conversions
 import sqlcipher
 import json
 import options
 
-export Settings, SettingsEnum, `$`, `toSettings`
 
-proc newSettingsError(key, value: string): ref SettingsError =
-  (ref SettingsError)(msg: "Invalid setting: " & key & ": " & value)
+export types
 
-proc newSettingsError(key: SettingsEnum, value: string): ref SettingsError =
-  newSettingsError($SettingsEnum, value)
 
-proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object
+proc checkType(setting: SettingsEnum, value: auto, typeExpected: type) =
+  if not (value is typeExpected): 
+    raise (ref SettingsError)(msg: "Invalid setting: '" & $setting & "', type " & "'" & $typeExpected & "' expected")
+
+proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object?
   let query = """INSERT INTO settings (
                   address, currency, current_network, dapps_address,
                   eip1581_address, installation_id, key_uid,
@@ -45,20 +46,31 @@ proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: repla
             s.signingPhrase,
             (if s.walletRootAddress.isSome(): $s.walletRootAddress.get() else: ""))
   
-proc saveSetting*(db:DbConn, setting: SettingsEnum, value: string) =
-  discard
+proc saveSetting*(db:DbConn, setting: SettingsEnum, value: auto) =
+  case setting
+  of SettingsEnum.ChaosMode:
+    checkType(setting, value, bool)
+    db.exec("UPDATE settings SET chaos_mode = ? WHERE synthetic_id = 'id'", value)
+  of SettingsEnum.Currency:
+    checkType(setting, value, string)
+    db.exec("UPDATE settings SET currency = ? WHERE synthetic_id = 'id'", $value)
+  else: 
+    raise (ref SettingsError)(msg: "Setting: '" & $setting & "'cannot be updated")
 
-proc saveSetting*(db:DbConn, setting: string, value: string) =
-  discard
-  #[try: 
-    parseEnum(setting)
-  catch
-    newSettingsError(setting, value)]#
+  # TODO: add missing settings
+
+
+proc saveSetting*(db:DbConn, setting: string, value: auto) =
+  try: 
+    let s = parseEnum[SettingsEnum](setting)
+    saveSetting(db, s, value)
+  except:
+    raise (ref SettingsError)(msg: "Unknown setting: '" & $setting)
 
 proc getNodeConfig*(db: DbConn): JsonNode =
-  # TODO:
-  # "SELECT node_config FROM settings WHERE synthetic_id = 'id'"
-  discard
+  let query = "SELECT node_config FROM settings WHERE synthetic_id = 'id'"
+  for r in rows(db, query):
+    return r[0].strVal.parseJson
 
 proc getSettings*(db: DbConn): Settings =
   let query = """SELECT address, chaos_mode, currency, current_network, custom_bootnodes, custom_bootnodes_enabled, dapps_address, eip1581_address, 
