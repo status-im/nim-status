@@ -69,6 +69,6 @@ proc buildAndRunTest(name: string,
 
 task tests, "Run all tests":
   buildAndRunTest "shims"
-  buildAndRunTest "startNode"
   buildAndRunTest "login"
   buildAndRunTest "db_smoke"
+  buildAndRunTest "waku_smoke"
