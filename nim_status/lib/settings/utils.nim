@@ -6,41 +6,24 @@ import sqlcipher
 proc parseAddress*(strAddress: string): Address =
   fromHex(Address, strAddress)
 
-proc getOptionInt*(self: JsonNode, key: string): Option[int] =
-  if not self.hasKey(key) or self{key}.getInt() == 0:
-    result = none(int)
+proc getOption*[T](self: JsonNode, key: string): Option[T] =
+  if not self.hasKey(key):
+    result = none(T)
   else:
-    result = some(self[key].getInt)
-
-proc getOptionInt64*(self: JsonNode, key: string): Option[int64] =
-  if not self.hasKey(key) or self{key}.getBiggestInt == 0.int64:
-    result = none(int64)
-  else:
-    result = some(self[key].getBiggestInt)
-
-proc getOptionBool*(self: JsonNode, key: string): Option[bool] =
-  if not self.hasKey(key) or not self{key}.getBool:
-    result = none(bool)
-  else:
-    result = some(self[key].getBool)
-
-proc getOptionString*(self: JsonNode, key: string): Option[string] =
-  if not self.hasKey(key) or self{key}.getStr == "":
-    result = none(string)
-  else:
-    result = some(self[key].getStr)
-
-proc getOptionAddress*(self: JsonNode, key: string): Option[Address] =
-  if not self.hasKey(key) or self{key}.getStr == "":
-    result = none(Address)
-  else:
-    result = some(parseAddress(self[key].getStr))
-
-proc getOptionJsonNode*(self: JsonNode, key: string): Option[JsonNode] =
-  if not self.hasKey(key) or self[key].kind == JNull:
-    result = none(JsonNode)
-  else:
-    result = some(self[key])
+    # handle special cases
+    when T is Address:
+      result = if self{key}.getStr == "": none(T) else: some(parseAddress(self[key].getStr))
+    when T is JsonNode:
+      result = if self[key].kind == JNull: none(T) else: some(self[key])
+    when T is int64:
+      result = if self[key].getBiggestInt == 0: none(T) else: some(self[key].getBiggestInt)
+    # for all other (default) cases
+    when T is string:
+      result = if self{key}.getStr == "": none(T) else: some(self[key].getStr)
+    when T is bool:
+      result = if not self{key}.getBool: none(T) else: some(self[key].getBool)
+    else:
+      result = some(self[key].to(T))
 
 proc addOptionalValue*[T](self: var JsonNode, key: string, value: Option[T]) =
   if value.isSome:
