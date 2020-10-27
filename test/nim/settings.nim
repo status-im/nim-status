@@ -1,5 +1,5 @@
 import sqlcipher
-import os, json
+import os, json, json_serialization
 import options
 import ../../nim_status/lib/settings
 import ../../nim_status/lib/database
@@ -9,7 +9,7 @@ let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
 let db = initializeDB(path, passwd)
 
-let settingsObj = """{
+let settingsStr = """{
     "address": "0x1122334455667788990011223344556677889900",
     "networks/current-network": "mainnet",
     "dapps-address": "0x1122334455667788990011223344556677889900",
@@ -22,7 +22,9 @@ let settingsObj = """{
     "preview-privacy?": false,
     "public-key": "0x123",
     "signing-phrase": "ABC DEF GHI"
-  }""".toSettings
+  }"""
+
+let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
 
 let nodeConfig = %* {"config": 1}
 
