@@ -42,7 +42,6 @@ proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: repla
             s.signingPhrase,
             (if s.walletRootAddress.isSome(): $s.walletRootAddress.get() else: ""))
 
-
 proc saveSetting*(db: DbConn, setting: SettingsType, value: bool) =
   case setting
   of SettingsType.ChaosMode:
@@ -197,50 +196,50 @@ proc getSettings*(db: DbConn): Settings =
 
   for r in rows(db, query):
     result.userAddress = r[0].strVal.parseAddress
-    result.chaosMode = r[1].optionBool
-    result.currency =  r[2].optionString
+    result.chaosMode = toOption[bool](r[1])
+    result.currency =  toOption[string](r[2])
     result.currentNetwork = r[3].strVal
-    result.customBootNodes = r[4].optionJsonNode
-    result.customBootNodesEnabled = r[5].optionJsonNode
+    result.customBootNodes = toOption[JsonNode](r[4])
+    result.customBootNodesEnabled = toOption[JsonNode](r[5])
     result.dappsAddress = r[6].strVal.parseAddress
     result.eip1581Address = r[7].strVal.parseAddress
-    result.fleet = r[8].optionString
-    result.hideHomeToolTip = r[9].optionBool
+    result.fleet = toOption[string](r[8])
+    result.hideHomeToolTip = toOption[bool](r[9])
     result.installationID = r[10].strVal
     result.keyUID = r[11].strVal
-    result.keycardInstanceUID = r[12].optionString
-    result.keycardPairedOn = r[13].optionInt
-    result.keycardPairing = r[14].optionString
-    result.lastUpdated = r[15].optionInt64
+    result.keycardInstanceUID = toOption[string](r[12])
+    result.keycardPairedOn = toOption[int64](r[13])
+    result.keycardPairing = toOption[string](r[14])
+    result.lastUpdated = toOption[int64](r[15])
     result.latestDerivedPath = r[16].intVal.uint
-    result.logLevel = r[17].optionString
-    result.mnemonic = r[18].optionString
-    result.name = r[19].optionString
+    result.logLevel = toOption[string](r[17])
+    result.mnemonic = toOption[string](r[18])
+    result.name = toOption[string](r[19])
     result.networks = r[20].strVal.parseJson
-    result.notificationsEnabled = r[21].optionBool
-    result.pushNotificationsServerEnabled = r[22].optionBool
-    result.pushNotificationsFromContactsOnly = r[23].optionBool
-    result.remotePushNotificationsEnabled = r[24].optionBool
-    result.sendPushNotifications = r[25].optionBool
-    result.pushNotificationsBlockMentions = r[26].optionBool
+    result.notificationsEnabled = toOption[bool](r[21])
+    result.pushNotificationsServerEnabled = toOption[bool](r[22])
+    result.pushNotificationsFromContactsOnly = toOption[bool](r[23])
+    result.remotePushNotificationsEnabled = toOption[bool](r[24])
+    result.sendPushNotifications = toOption[bool](r[25])
+    result.pushNotificationsBlockMentions = toOption[bool](r[26])
     result.photoPath = r[27].strVal
-    result.pinnedMailservers = r[28].optionJsonNode
-    result.preferredName = r[29].optionString
+    result.pinnedMailservers = toOption[JsonNode](r[28])
+    result.preferredName = toOption[string](r[29])
     result.previewPrivacy = r[30].intVal.bool
     result.publicKey = r[31].strVal
-    result.rememberSyncingChoice = r[32].optionBool
+    result.rememberSyncingChoice = toOption[bool](r[32])
     result.signingPhrase = r[33].strVal
-    result.stickerPacksInstalled = r[34].optionJsonNode
-    result.stickersPacksPending = r[35].optionJsonNode
-    result.stickersRecentStickers = r[36].optionJsonNode
-    result.syncingOnMobileNetwork = r[37].optionBool
+    result.stickerPacksInstalled = toOption[JsonNode](r[34])
+    result.stickersPacksPending = toOption[JsonNode](r[35])
+    result.stickersRecentStickers = toOption[JsonNode](r[36])
+    result.syncingOnMobileNetwork = toOption[bool](r[37])
     result.useMailservers = r[38].intVal.bool
-    result.usernames = r[39].optionJsonNode
+    result.usernames = toOption[JsonNode](r[39])
     result.appearance = r[40].intVal.uint
-    result.walletRootAddress = r[41].optionAddress
-    result.walletSetUpPassed = r[42].optionBool
-    result.walletVisibleTokens = r[43].optionJsonNode
-    result.wakuBloomFilterMode = r[44].optionBool
-    result.wakuEnabled = r[45].optionBool
-    result.webViewAllowPermissionRequests = r[46].optionBool
+    result.walletRootAddress = toOption[Address](r[41])
+    result.walletSetUpPassed = toOption[bool](r[42])
+    result.walletVisibleTokens = toOption[JsonNode](r[43])
+    result.wakuBloomFilterMode = toOption[bool](r[44])
+    result.wakuEnabled =toOption[bool](r[45])
+    result.webViewAllowPermissionRequests = toOption[bool](r[46])
     break
