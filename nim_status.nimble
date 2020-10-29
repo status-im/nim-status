@@ -69,7 +69,7 @@ proc buildAndRunTest(name: string,
 
 task tests, "Run all tests":
   buildAndRunTest "shims"
-  buildAndRunTest "login"
+  buildAndRunTest "login_and_logout"
   buildAndRunTest "db_smoke"
   buildAndRunTest "waku_smoke"
   buildAndRunTest "settings"

@@ -68,7 +68,10 @@ proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode): Respon
 
 
 proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response =
-  try:
+  if web3Conn == nil:
+    raise (ref Web3Error)(msg: "Web3 connection is not available")
+
+  try: 
     var m = parseEnum[RemoteMethod](rpcMethod)
   except:
     return (true, %* {"code": -32601, "message": "the method " & rpcMethod & " does not exist/is not available"})
