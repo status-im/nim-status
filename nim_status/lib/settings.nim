@@ -6,8 +6,9 @@ import json
 import options
 import strutils
 import locks
+import json_serialization
 
-export types, utils
+export types, utils, options
 
 proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object?
   let query = """INSERT INTO settings (
@@ -215,7 +216,7 @@ proc getSettings*(db: DbConn): Settings =
     result.logLevel = toOption[string](r[17])
     result.mnemonic = toOption[string](r[18])
     result.name = toOption[string](r[19])
-    result.networks = r[20].strVal.parseJson
+    result.networks = JSON.decode(r[20].strVal, seq[Network])
     result.notificationsEnabled = toOption[bool](r[21])
     result.pushNotificationsServerEnabled = toOption[bool](r[22])
     result.pushNotificationsFromContactsOnly = toOption[bool](r[23])

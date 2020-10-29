@@ -1,7 +1,7 @@
 
-import options, json, json_serialization
-import  json_serialization/[reader, writer, lexer]
-import utils
+import options, json, json_serialization, sugar
+import json_serialization/[reader, writer, lexer]
+import sequtils
 import web3/[conversions, ethtypes]
 
 
@@ -58,6 +58,21 @@ type
     WakuBloomFilterMode = "waku-bloom-filter-mode",
     WebviewAllowPermissionRequests = "webview-allow-permission-requests?"
  
+  UpstreamConfig* = object
+    enabled* {.serializedFieldName("Enabled").}: bool
+    url* {.serializedFieldName("URL").}: string
+
+  NetworkConfig* = object
+    dataDir* {.serializedFieldName("DataDir").}: string
+    networkId* {.serializedFieldName("NetworkId").}: int
+    upstreamConfig* {.serializedFieldName("UpstreamConfig").}: UpstreamConfig
+
+  Network* = object
+    config* {.serializedFieldName("config").}: NetworkConfig
+    etherscanLink* {.serializedFieldName("etherscan-link").}: Option[string]
+    id* {.serializedFieldName("id").}: string
+    name*: string
+
   Settings* = object
     userAddress* {.serializedFieldName($SettingsType.Address).}: Address 
     chaosMode* {.serializedFieldName($SettingsType.ChaosMode).}: Option[bool]
@@ -79,7 +94,7 @@ type
     logLevel* {.dontSerialize, serializedFieldName($SettingsType.LogLevel).}: Option[string]
     mnemonic* {.serializedFieldName($SettingsType.Mnemonic).}: Option[string]
     name* {.serializedFieldName($SettingsType.Name).}: Option[string]
-    networks* {.serializedFieldName($SettingsType.Networks).}: JsonNode
+    networks* {.serializedFieldName($SettingsType.Networks).}: seq[Network]
     # NotificationsEnabled indicates whether local notifications should be enabled (android only)
     notificationsEnabled* {.dontSerialize, serializedFieldName($SettingsType.NotificationsEnabled).}: Option[bool]
     photoPath* {.serializedFieldName($SettingsType.PhotoPath).}: string
@@ -137,5 +152,11 @@ proc readValue*[T](reader: var JsonReader, value: var Option[T]) =
     else:
       value = some v
 
+
 proc `$`*(self: Settings): string =
   return Json.encode(self)
+
+
+proc getNetwork*(self: Settings): Option[Network] =
+  let found = self.networks.filter(network => network.id == self.currentNetwork)
+  result = if found.len > 0: some found[0] else: none(Network)
