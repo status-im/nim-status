@@ -158,3 +158,10 @@ proc startWallet*(): string =
 
 proc stopWallet*(): string =
   $go_shim.stopWallet()
+
+proc startLocalNotifications*(): string =
+  $go_shim.startLocalNotifications()
+
+proc stopLocalNotifications*(): string =
+  $go_shim.stopLocalNotifications()
+

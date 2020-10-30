@@ -104,3 +104,7 @@ proc migrateKeyStoreDir*(accountData: cstring, password: cstring, oldKeystoreDir
 proc startWallet*(): cstring {.importc: "StartWallet".}
 
 proc stopWallet*(): cstring {.importc: "StopWallet".}
+
+proc startLocalNotifications*(): cstring {.importc: "StartLocalNotifications".}
+
+proc stopLocalNotifications*(): cstring {.importc: "StopLocalNotifications".}
