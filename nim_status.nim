@@ -53,7 +53,9 @@ from nim_status/go/shim as go_shim import
   multiAccountGenerate,
   multiAccountReset,
   startWallet,
-  stopWallet
+  stopWallet,
+  startLocalNotifications,
+  stopLocalNotifications
 
 export
   SignalCallback,
@@ -107,4 +109,6 @@ export
   multiAccountReset,
   migrateKeyStoreDir,
   startWallet,
-  stopWallet
+  stopWallet,
+  startLocalNotifications,
+  stopLocalNotifications
