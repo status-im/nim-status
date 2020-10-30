@@ -58,6 +58,8 @@ let multiAccountReset {.exportc.} = go_shim.multiAccountReset
 let migrateKeyStoreDir {.exportc.} = go_shim.migrateKeyStoreDir
 let startWallet {.exportc.} = go_shim.startWallet
 let stopWallet {.exportc.} = go_shim.stopWallet
+let startLocalNotifications {.exportc.} = go_shim.startLocalNotifications
+let stopLocalNotifications {.exportc.} = go_shim.stopLocalNotifications
 
 type SignalCallback {.exportc: "SignalCallback".} = proc(eventMessage: cstring): void {.cdecl.}
 
