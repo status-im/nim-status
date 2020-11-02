@@ -29,7 +29,7 @@ let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
 
 let web3Obj = newWeb3(settingsObj)
 
-let rGasPrice = callRPC(web3Obj, "eth_gasPrice", %[])
+let rGasPrice = callRPC(web3Obj, eth_gasPrice, %[])
 assert rGasPrice.error == false
 assert rGasPrice.result.getStr()[0..1] == "0x"
 
