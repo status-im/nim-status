@@ -65,3 +65,6 @@ type SignalCallback {.exportc: "SignalCallback".} = proc(eventMessage: cstring):
 
 proc setSignalEventCallback(callback: SignalCallback) {.exportc.} =
   go_shim.setSignalEventCallback(callback)
+
+let setupForeignThreadGc {.exportc.} = setupForeignThreadGc
+let tearDownForeignThreadGc {.exportc.} = tearDownForeignThreadGc
