@@ -74,3 +74,5 @@ task tests, "Run all tests":
   buildAndRunTest "waku_smoke"
   buildAndRunTest "settings"
   buildAndRunTest "callrpc"
+  buildAndRunTest "migrations"
+

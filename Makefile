@@ -210,9 +210,15 @@ ifneq ($(NIMSTATUS_CFLAGS),)
  NIM_PARAMS += --passC:"$(NIMSTATUS_CFLAGS)"
 endif
 
+
+migrations:
+	$(ENV_SCRIPT) nim c -r $(NIM_PARAMS) \
+		nim_status/lib/migrations/sql_generate.nim > nim_status/lib/migrations/sql_scripts.nim
+
+
 NIMSTATUS ?= build/nim_status.a
 
-$(NIMSTATUS): $(SQLCIPHER)
+$(NIMSTATUS): $(SQLCIPHER) migrations
 	echo -e $(BUILD_MSG) "$@"
 	+ mkdir -p build
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
@@ -360,7 +366,7 @@ test-c:
 		TEST_NAME=login \
 		test-c-template
 
-test-nim: $(STATUSGO) $(SQLCIPHER)
+test-nim: $(STATUSGO) $(SQLCIPHER) migrations
 ifeq ($(detected_OS),macOS)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \

@@ -13,3 +13,5 @@
 /test/nim/build
 /vendor/.nimble
 TODO
+sql_generate
+sql_scripts.nim
