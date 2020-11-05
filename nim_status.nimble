@@ -79,3 +79,4 @@ task tests, "Run all tests":
   buildAndRunTest "bip32"
   buildAndRunTest "contacts"
   buildAndRunTest "account"
+  buildAndRunTest "tokens"
