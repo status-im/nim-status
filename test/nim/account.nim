@@ -21,8 +21,13 @@ procSuite "nim_status":
 
     let account = createAccount(rng)
 
+
+    let pubKey = derivePubKeyFromPrivateKey(account.privateKey)
+
+
     check:
       account.address != ""
       account.publicKey != ""
       account.privateKey != ""
+      account.publicKey == pubKey
 
