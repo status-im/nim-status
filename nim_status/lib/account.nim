@@ -19,5 +19,12 @@ proc createAccount*(rng: ref BrHmacDrbgContext): Account =
   )
 
 proc derivePubKeyFromPrivateKey*(privateKey: string): string =
-  var privKey = PrivateKey.fromRaw(hexToSeqByte(privateKey)).get()
+  let privKey = PrivateKey.fromRaw(hexToSeqByte(privateKey)).get()
   return $privKey.toPublicKey()
+
+proc signMessage*(privateKey: string, message: string): string =
+  let privKey = PrivateKey.fromRaw(hexToSeqByte(privateKey)).get()
+
+  let bytesMsg = message.toBytes()
+
+  return $keys.sign(privKey, bytesMsg)
