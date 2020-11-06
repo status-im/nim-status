@@ -1,4 +1,5 @@
 import secp256k1
+import stew/byteutils
 import eth/keys
 import ../types
 
@@ -16,3 +17,7 @@ proc createAccount*(rng: ref BrHmacDrbgContext): Account =
     publicKey: $publicKey,
     privateKey: $privateKey
   )
+
+proc derivePubKeyFromPrivateKey*(privateKey: string): string =
+  var privKey = PrivateKey.fromRaw(hexToSeqByte(privateKey)).get()
+  return $privKey.toPublicKey()
