@@ -2,7 +2,7 @@ import
   std/[parseutils, strutils],
   normalize,
   secp256k1,
-  stew/[results],
+  stew/[results, byteutils],
   nimcrypto/[sha2, pbkdf2, hash, hmac],
   account/[types, paths],
   eth/keys
@@ -75,3 +75,7 @@ proc createAccount*(rng: ref BrHmacDrbgContext): Account =
     publicKey: $publicKey,
     privateKey: $privateKey
   )
+
+proc derivePubKeyFromPrivateKey*(privateKey: string): string =
+  var privKey = PrivateKey.fromRaw(hexToSeqByte(privateKey)).get()
+  return $privKey.toPublicKey()
