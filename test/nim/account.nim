@@ -25,9 +25,12 @@ procSuite "nim_status":
     let pubKey = derivePubKeyFromPrivateKey(account.privateKey)
 
 
+    let signature = signMessage(account.privateKey, "Hello world")
+
     check:
       account.address != ""
       account.publicKey != ""
       account.privateKey != ""
       account.publicKey == pubKey
+      signature != ""
 
