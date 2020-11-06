@@ -1,5 +1,5 @@
 import secp256k1
-import eth/[keys, p2p]
+import eth/keys
 import ../types
 
 # Creates a new random account with its private key, public key and address

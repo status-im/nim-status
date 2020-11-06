@@ -30,6 +30,7 @@ proc load*(settings: JsonNode): WakuNodeConf =
     minimumPoW: 0.002
   )
 
+  # TODO use a single instance of RNG
   result.nodekey = KeyPair.random(keys.newRng()[])
 
   if(settings.hasKey("ClusterConfig") and settings["ClusterConfig"].hasKey("StaticNodes") and settings["ClusterConfig"]["StaticNodes"].kind == JArray):
