@@ -78,3 +78,4 @@ task tests, "Run all tests":
   buildAndRunTest "mailservers"
   buildAndRunTest "bip32"
   buildAndRunTest "contacts"
+  buildAndRunTest "account"
