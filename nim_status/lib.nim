@@ -1,3 +1,4 @@
+import lib/accounts
 import lib/alias
 import lib/alias/data
 import lib/account
@@ -10,6 +11,11 @@ import unicode
 import json
 
 export createAccount 
+export getAccounts;
+export saveAccount;
+export updateAccount;
+export updateAccountTimestamp;
+export deleteAccount;
 
 proc hashMessage*(message: string): string =
   ## hashMessage calculates the hash of a message to be safely signed by the keycard.

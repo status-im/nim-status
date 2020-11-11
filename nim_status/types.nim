@@ -4,4 +4,3 @@ type Account* = ref object
   address*: string
   publicKey*: string
   privateKey*: string
-  
