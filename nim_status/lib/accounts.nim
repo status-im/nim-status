@@ -1,6 +1,11 @@
-import os, json
-import sqlcipher, web3, chronos, json_serialization
-import settings, database, conversions, callrpc
+import # nim libs
+  os, json, options, strutils, strformat
+import # vendor libs
+  web3, chronos, web3/conversions as web3_conversions, web3/ethtypes,
+  sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
+  stew/byteutils
+
+import conversions, settings/types, settings, database, conversions, callrpc
 
 var db_conn*: DbConn
 var web3_conn*: Web3
@@ -49,3 +54,64 @@ proc logout*() =
 proc test_removeDB*(accountData: string) = # TODO: remove this once proper db initialization is available
   let path =  getCurrentDir() / accountData & ".db"
   removeFile(path)
+
+type
+  AccountType* {.pure.} = enum
+    Name = "name",
+    PhotoPath = "photoPath",
+    KeycardPairing = "keycardPairing",
+    KeyUid = "keyUid",
+    LoginTimestamp = "loginTimestamp"
+
+  AccountCol* {.pure.} = enum
+    Name = "name",
+    PhotoPath = "photo_path",
+    KeycardPairing = "keycard_pairing",
+    KeyUid = "key_uid",
+    LoginTimestamp = "login_timestamp"
+
+  Account* = object
+    name* {.serializedFieldName($AccountType.Name), dbColumnName($AccountCol.Name).}: string
+    photoPath* {.serializedFieldName($AccountType.PhotoPath), dbColumnName($AccountCol.PhotoPath).}: string
+    keycardPairing* {.serializedFieldName($AccountType.KeycardPairing), dbColumnName($AccountCol.KeycardPairing).}: string
+    keyUid* {.serializedFieldName($AccountType.KeyUid), dbColumnName($AccountCol.KeyUid).}: string
+    loginTimestamp* {.serializedFieldName($AccountType.LoginTimestamp), dbColumnName($AccountCol.LoginTimestamp).}: int
+
+proc getAccounts*(db: DbConn): seq[Account] =
+  var accountList: seq[Account] = @[]
+  let query = fmt"""SELECT {$AccountCol.Name}, {$AccountCol.LoginTimestamp}, {$AccountCol.PhotoPath}, {$AccountCol.KeycardPairing}, {$AccountCol.KeyUid} 
+  from accounts ORDER BY {$AccountCol.LoginTimestamp} DESC"""
+  result = db.all(Account, query)
+
+proc saveAccount*(db: DbConn, account: Account) =
+  let query = fmt"""
+    INSERT OR REPLACE INTO accounts (
+    {$AccountCol.Name}, 
+    {$AccountCol.PhotoPath}, 
+    {$AccountCol.KeycardPairing}, 
+    {$AccountCol.KeyUid}
+    ) 
+    VALUES (?, ?, ?, ?)"""
+
+  db.exec(query, account.name, account.photoPath, account.keycardPairing, account.keyUid)
+
+proc updateAccount*(db: DbConn, account: Account) =
+  let query = fmt"""UPDATE accounts 
+  SET {$AccountCol.Name} = ?, 
+      {$AccountCol.PhotoPath} = ?, 
+      {$AccountCol.KeycardPairing} = ? 
+  WHERE {$AccountCol.KeyUid}= ?"""
+
+  db.exec(query, account.name, account.photoPath, account.keycardPairing, account.keyUid)
+
+proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string) =
+  let query = fmt"""UPDATE accounts 
+    SET {$AccountCol.LoginTimestamp} = ? 
+    WHERE {$AccountCol.KeyUid} = ?"""
+
+  db.exec(query, loginTimestamp, keyUid)
+
+proc deleteAccount*(db: DbConn, keyUid: string) =
+  let query = fmt"""DELETE FROM accounts WHERE {$AccountCol.KeyUid} = ?""" 
+
+  db.exec(query, keyUid)
