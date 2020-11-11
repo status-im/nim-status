@@ -4,7 +4,9 @@ import
   secp256k1,
   stew/[results],
   nimcrypto/[sha2, pbkdf2, hash, hmac],
-  account/[types, paths]
+  account/[types, paths],
+  eth/keys
+import ../types
 
 export KeySeed, Mnemonic, SecretKeyResult, KeyPath
 
@@ -59,4 +61,17 @@ proc derive*(seed: Keyseed, path: KeyPath): SecretKeyResult =
 
   ok(extPrivK.secretKey)
 
+# Creates a new random account with its private key, public key and address
+# rng: use a single RNG instance for the application - will be seeded on construction
+    # and avoid using system resources (such as urandom) after that
+    # To create, just do: `keys.newRng()`
+proc createAccount*(rng: ref BrHmacDrbgContext): Account =
+  let privateKey = PrivateKey.random(rng[])
+  let publicKey = privateKey.toPublicKey()
+  let address = publicKey.toAddress()
 
+  result = Account(
+    address: address,
+    publicKey: $publicKey,
+    privateKey: $privateKey
+  )

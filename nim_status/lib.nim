@@ -1,5 +1,6 @@
 import lib/alias
 import lib/alias/data
+import lib/account
 import lib/identicon
 import lib/util
 import nimcrypto
@@ -7,6 +8,8 @@ import strformat
 import strutils
 import unicode
 import json
+
+export createAccount 
 
 proc hashMessage*(message: string): string =
   ## hashMessage calculates the hash of a message to be safely signed by the keycard.
