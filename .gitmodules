@@ -88,3 +88,6 @@
 [submodule "vendor/nim-byteutils"]
 	path = vendor/nim-byteutils
 	url = https://github.com/status-im/nim-byteutils/
+[submodule "vendor/nim-normalize"]
+	path = vendor/nim-normalize
+	url = https://github.com/nitely/nim-normalize
