@@ -27,24 +27,23 @@ proc child(self: ExtendedPrivKey, child: PathLevel): ExtendedPrivKeyResult =
   let chainCode = hmacResult.data[32..63]
 
   var pk = self.secretKey.toRaw()[0..^1]
-
-  privKeyTweakAdd(secretKey, pk) # TODO check if errors or somethign
-
-  let sk = SkSecretKey.fromRaw(secretKey)
+  var sk = SkSecretKey.fromRaw(secretKey)
   if sk.isOk:
-    ExtendedPrivKeyResult.ok ExtendedPrivKey(
+    let tweakResult = tweakAdd(sk.get(), pk)
+    if tweakResult.isErr: return err($tweakResult.error())
+    return ok(ExtendedPrivKey(
       secretKey: sk.get(),
       chainCode: chainCode
-    )
-  else:
-    ExtendedPrivKeyResult.err($sk.error())
+    ))
+  
+  err($sk.error())
   
 proc derive*(seed: Keyseed, path: KeyPath): SecretKeyResult =
   let hmacResult = sha512.hmac("Bitcoin seed", seq[byte] seed)
   let secretKey = hmacResult.data[0..31]
   let chainCode = hmacResult.data[32..63]
   let sk = SkSecretKey.fromRaw(secretKey)
-  if sk.isErr(): return SecretKeyResult.err("Invalid secret key")
+  if sk.isErr(): return err("Invalid secret key")
 
   var extPrivK = ExtendedPrivKey(
     secretKey: sk.get(),
@@ -52,11 +51,12 @@ proc derive*(seed: Keyseed, path: KeyPath): SecretKeyResult =
   )
 
   for child in path.pathNodes:
-    if child.isErr(): return SecretKeyResult.err(child.error())
+    if child.isErr(): return err(child.error())
+      
     let r = extPrivK.child(child.get())
-    if r.isErr(): return SecretKeyResult.err(r.error())
+    if r.isErr(): return err(r.error())
     extPrivK = r.get()
 
-  SecretKeyResult.ok(extPrivK.secretKey)
+  ok(extPrivK.secretKey)
 
 
