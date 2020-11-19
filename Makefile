@@ -245,7 +245,7 @@ ifeq ($(PCRE_STATIC),false)
  ifeq ($(SQLITE_STATIC),false)
   ifeq ($(SSL_STATIC),false)
    LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   PATH_TEST ?= $(shell dirname $(PCRE_LIB_DIR)):$(PCRE_LIB_DIR):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(shell dirname $(SSL_LIB_DIR)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR):$${PATH}
+   PATH_TEST ?= $(shell cygpath $(shell dirname $(PCRE_LIB_DIR))):$(shell cygpath $(PCRE_LIB_DIR)):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(shell cygpath $(shell dirname $(SSL_LIB_DIR))):$(shell cygpath $(SSL_LIB_DIR)):$(STATUSGO_LIB_DIR):$${PATH}
   endif
  endif
 else
