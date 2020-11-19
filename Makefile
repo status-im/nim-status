@@ -238,6 +238,21 @@ $(SHIMS_FOR_TEST_C): $(SQLCIPHER)
 
 shims-for-test-c: $(SHIMS_FOR_TEST_C)
 
+# Currently assumes the _STATIC variables are all false or all not false
+# LD_LIBRARY_PATH is supplied when running tests on Linux
+# PATH is supplied when running tests on Windows
+ifeq ($(PCRE_STATIC),false)
+ ifeq ($(SQLITE_STATIC),false)
+  ifeq ($(SSL_STATIC),false)
+   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   PATH_TEST ?= $(shell dirname $(PCRE_LIB_DIR)):$(PCRE_LIB_DIR):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(shell dirname $(SSL_LIB_DIR)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR):$${PATH}
+  endif
+ endif
+else
+ LD_LIBRARY_PATH_TEST ?= $(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+ PATH_TEST ?= $(STATUSGO_LIB_DIR):$${PATH}
+endif
+
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
 endif
@@ -271,10 +286,10 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 ifeq ($(detected_OS),macOS)
 	./test/c/build/$(TEST_NAME)
 else ifeq ($(detected_OS),Windows)
-	PATH="$(shell dirname $(PCRE_LIB_DIR)):$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(shell dirname $(SSL_LIB_DIR)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR):$${PATH}" \
+	PATH="$(PATH_TEST)" \
 	./test/c/build/$(TEST_NAME)
 else
-	LD_LIBRARY_PATH="$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
+	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_TEST)" \
 	./test/c/build/$(TEST_NAME)
 endif
 
@@ -308,7 +323,7 @@ ifeq ($(detected_OS),macOS)
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
-	PATH="$(shell dirname $(PCRE_LIB_DIR)):$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(shell dirname $(SSL_LIB_DIR)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR):$${PATH}" \
+	PATH="$(PATH_TEST)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC="$(PCRE_STATIC)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
@@ -316,7 +331,7 @@ else ifeq ($(detected_OS),Windows)
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
 	$(ENV_SCRIPT) nimble tests
 else
-	LD_LIBRARY_PATH="$(PCRE_LIB_DIR):$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}" \
+	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_TEST)" \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC="$(PCRE_STATIC)" \
