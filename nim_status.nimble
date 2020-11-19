@@ -80,3 +80,5 @@ task tests, "Run all tests":
   buildAndRunTest "contacts"
   buildAndRunTest "account"
   buildAndRunTest "tokens"
+  buildAndRunTest "messages"
+  buildAndRunTest "chats"

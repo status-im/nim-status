@@ -2,6 +2,8 @@ import lib/alias
 import lib/alias/data
 import lib/account
 import lib/identicon
+import lib/messages
+import lib/chats
 import lib/util
 import nimcrypto
 import strformat
