@@ -6,18 +6,32 @@ import sqlcipher
 proc parseAddress*(strAddress: string): Address =
   fromHex(Address, strAddress)
 
-proc toOption*[T](self: DbValue): Option[T] =
-  if self.kind == sqliteNull:
-    result = none(T)
-  else:
-    when T is bool:
-      result = if self.intVal == 0: none(T) else: some(true)
-    when T is int64 or T is int:
-      result = if self.intVal == 0: none(T) else: some(self.intVal)
-    when T is JsonNode:
-      result = if self.strVal == "": none(T) else: some(self.strVal.parseJson)
-    when T is Address:
-      result = if self.strVal == "": none(T) else: some(self.strVal.parseAddress)
-    when T is string:
-      result = if self.strVal == "": none(T) else: some(self.strVal)
+proc optionBool*(self: DbValue): Option[bool] =
+  if self.kind == sqliteNull or self.intVal == 0:
+    return none(bool)
+  return some(true)
 
+proc optionInt64*(self: DbValue): Option[int64] =
+  if self.kind == sqliteNull or self.intVal == 0:
+    return none(int64)
+  return some(self.intVal)
+
+proc optionInt*(self: DbValue): Option[int64] =
+  if self.kind == sqliteNull or self.intVal == 0:
+    return none(int64)
+  return some(self.intVal)
+
+proc optionString*(self: DbValue): Option[string] =
+  if self.kind == sqliteNull or self.strVal == "":
+    return none(string)
+  return some(self.strVal)
+
+proc optionAddress*(self: DbValue): Option[Address] =
+  if self.kind == sqliteNull or self.strVal == "":
+    return none(Address)
+  return some(self.strVal.parseAddress)
+
+proc optionJsonNode*(self: DbValue): Option[JsonNode] =
+  if self.kind == sqliteNull or self.strVal == "":
+    return none(JsonNode)
+  return some(self.strVal.parseJson)
