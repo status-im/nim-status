@@ -4,7 +4,7 @@ from os import parentDir
 import strformat
 import times
 
-let db: DbConn = openDatabase(currentSourcePath.parentDir() & "/build/myDatabase")
+let db: DbConn = openDatabase(currentSourcePath.parentDir() & "/build/my.db")
 
 let passwd = "qwerty"
 
@@ -18,3 +18,5 @@ let time = getClockStr(now())
 execScript(db, &"""insert into Log values("{date}:{time}")""")
 
 echo rows(db, "select * from Log")
+
+close(db)
