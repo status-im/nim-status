@@ -1,9 +1,11 @@
 import # nim libs
-  json, options, strutils, strformat
+  json, options, strutils, strformat, marshal
 import # vendor libs
   web3/conversions as web3_conversions, web3/ethtypes,
   sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
   stew/byteutils
+
+import messages, contacts
 
 type
   ChatType* {.pure.} = enum
@@ -54,13 +56,12 @@ type
     publicKey* {.serializedFieldName($ChatType.PublicKey), dbColumnName($ChatCol.PublicKey).}: seq[byte]
     unviewedMessageCount* {.serializedFieldName($ChatType.UnviewedMessageCount), dbColumnName($ChatCol.UnviewedMessageCount).}: int
     lastClockValue* {.serializedFieldName($ChatType.LastClockValue), dbColumnName($ChatCol.LastClockValue).}: int
-    lastMessage* {.serializedFieldName($ChatType.LastMessage), dbColumnName($ChatCol.LastMessage).}: seq[byte]
+    lastMessage* {.serializedFieldName($ChatType.LastMessage), dbColumnName($ChatCol.LastMessage).}: Option[seq[byte]]
     members* {.serializedFieldName($ChatType.Members), dbColumnName($ChatCol.Members).}: seq[byte]
     membershipUpdates* {.serializedFieldName($ChatType.MembershipUpdates), dbColumnName($ChatCol.MembershipUpdates).}: seq[byte]
     profile* {.serializedFieldName($ChatType.Profile), dbColumnName($ChatCol.Profile).}: string
     invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
     muted* {.serializedFieldName($ChatType.Muted), dbColumnName($ChatCol.Muted).}: bool
-
 
 proc getChats*(db: DbConn): seq[Chat] = 
   let query = """SELECT * from chats"""
@@ -92,7 +93,6 @@ proc saveChat*(db: DbConn, chat: Chat) =
     {$ChatCol.Muted})
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) 
   """
-
   db.exec(query, 
     chat.id,
     chat.name,
@@ -111,7 +111,62 @@ proc saveChat*(db: DbConn, chat: Chat) =
     chat.invitationAdmin,
     chat.muted)
 
+proc muteChat*(db: DbConn, chatId: string) =
+  let query = fmt"""UPDATE chats SET muted = 1 WHERE id = ?"""
+
+  db.exec(query, chatId)
+
+proc unmuteChat*(db: DbConn, chatId: string) =
+  let query = fmt"""UPDATE chats SET muted = 0 WHERE id = ?"""
+
+  db.exec(query, chatId)
+
 proc deleteChat*(db: DbConn, chat: Chat) =
   let query = fmt"""DELETE FROM chats where id = ?"""
 
   db.exec(query, chat.id)
+
+# BlockContact updates a contact, deletes all the messages and 1-to-1 chat, updates the unread messages count and returns a map with the new count
+proc blockContact*(db: DbConn, contact: Contact): seq[Chat] =
+  var chats:seq[Chat] = @[]
+  # Delete messages
+  var query = fmt"""DELETE
+     FROM user_messages
+     WHERE source = ?"""
+
+  db.exec(query, contact.id)
+
+  # Update contact
+  saveContact(db, contact)
+
+  # Delete one-to-one chat
+  query = fmt"""DELETE FROM chats WHERE id = ?"""
+
+  db.exec(query, contact.id)
+
+  # Recalculate denormalized fields
+  query = fmt"""UPDATE chats
+    SET unviewed_message_count = (SELECT COUNT(1) 
+                                  FROM user_messages WHERE seen = 0 
+                                  AND local_chat_id = chats.id)"""
+  db.exec(query)
+
+  # return the updated chats
+  chats = getChats(db)
+  for chat in chats:
+    query = fmt"""SELECT * FROM user_messages WHERE local_chat_id = ? ORDER BY clock_value DESC LIMIT 1"""
+    var c = chat
+    let lastMessages = db.one(Message, query, c.id)
+    if lastMessages.isNone:
+      # Reset LastMessage
+      query = fmt"""UPDATE chats SET last_message = NULL WHERE id = ?"""
+      db.exec(query, c.id)
+      c.lastMessage = none(seq[byte])
+    else:
+      let lastMessage = lastMessages.get
+      let encodedMessage = $$lastMessage
+      query = fmt"""UPDATE chats SET last_message = ? WHERE id = ?"""
+      db.exec(query, encodedMessage, c.id)
+      c.lastMessage = some(cast[seq[byte]](encodedMessage))
+
+  chats

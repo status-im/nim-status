@@ -14,7 +14,7 @@ let db = initializeDB(path, passwd)
 var msg = Message(
   id: "msg1",
   whisperTimestamp: 0,
-  source: "default_source",
+  source: "ContactId",
   destination: cast[seq[byte]]("default_destination"),
   text: "text",
   contentType: 0,
@@ -83,7 +83,7 @@ var chat = Chat(
   publicKey: cast[seq[byte]]("public-key"),
   unviewedMessageCount: 3,
   lastClockValue: 18,
-  lastMessage: cast[seq[byte]]("lastMessage"),
+  lastMessage: some(cast[seq[byte]]("lastMessage")),
   members: cast[seq[byte]]("members"),
   membershipUpdates: cast[seq[byte]]("membershipUpdates"),
   profile: "profile",
