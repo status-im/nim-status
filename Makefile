@@ -82,9 +82,9 @@ clean-data-dirs:
 
 clean-sqlcipher:
 	rm -rf \
-		$(shell dirname $(SQLCIPHER))/nimcache \
-		$(shell dirname $(SQLCIPHER))/sqlcipher \
-		$(shell dirname $(SQLCIPHER))/sqlite
+		$(shell dirname $(shell dirname $(SQLCIPHER)))/nimcache \
+		$(shell dirname $(shell dirname $(SQLCIPHER)))/sqlcipher \
+		$(shell dirname $(shell dirname $(SQLCIPHER)))/sqlite
 
 clean-status-go:
 	rm -rf $(shell dirname $(STATUSGO))/*
