@@ -1,4 +1,3 @@
-
 import json, options
 import web3/ethtypes
 import sqlcipher
@@ -11,7 +10,11 @@ proc toOption*[T](self: DbValue): Option[T] =
     result = none(T)
   else:
     when T is bool:
-      result = if self.intVal == 0: none(T) else: some(true)
+      if self.kind == DbValueKind.sqliteInteger:
+        result = if self.intVal == 0: none(T) else: some(true)
+    when T is bool:
+      if self.kind == DbValueKind.sqliteText:
+         result = if self.strVal == "": none(T) else: some(self.strVal.parseBool)
     when T is int64 or T is int:
       result = if self.intVal == 0: none(T) else: some(self.intVal)
     when T is JsonNode:
@@ -20,4 +23,3 @@ proc toOption*[T](self: DbValue): Option[T] =
       result = if self.strVal == "": none(T) else: some(self.strVal.parseAddress)
     when T is string:
       result = if self.strVal == "": none(T) else: some(self.strVal)
-
