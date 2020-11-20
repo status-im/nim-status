@@ -58,6 +58,16 @@ jobs:
           wget https://nim-lang.org/download/dlls.zip
           unzip dlls.zip
 
+      # Temporary workaround for: https://github.com/golang/go/issues/42565
+      - name: Fetch Go v1.14.11
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        run: |
+          export PATH="${PATH}:${HOME}/scoop/shims"
+          cd "${HOME}/Downloads"
+          wget https://golang.org/dl/go1.14.11.windows-amd64.zip
+          unzip go1.14.11.windows-amd64.zip
+
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -78,7 +88,7 @@ jobs:
       - name: Install and build dependencies
         shell: bash
         run: |
-          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${PATH}:${HOME}/scoop/shims"
+          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${HOME}/Downloads/go/bin:${PATH}:${HOME}/scoop/shims"
           export M="$(which mingw32-make || echo make)"
           "${M}" V=1 update
           "${M}" V=1 deps
@@ -97,7 +107,8 @@ jobs:
             export SSL_INCLUDE_DIR=/usr/local/opt/openssl/include && \
             export SSL_LIB_DIR=/usr/local/opt/openssl/lib
           [[ ${{ matrix.platform }} = windows* ]] && \
-            export PATH="${PATH}:${HOME}/scoop/shims" && \
+            export GOROOT="${HOME}/Downloads/go" && \
+            export PATH="${HOME}/Downloads/go/bin:${PATH}:${HOME}/scoop/shims" && \
             export PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
             export PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
             export SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
@@ -128,7 +139,8 @@ jobs:
             export SSL_INCLUDE_DIR=/usr/local/opt/openssl/include && \
             export SSL_LIB_DIR=/usr/local/opt/openssl/lib
           [[ ${{ matrix.platform }} = windows* ]] && \
-            export PATH="${PATH}:${HOME}/scoop/shims:${HOME}/Downloads/dlls" && \
+            export GOROOT="${HOME}/Downloads/go" && \
+            export PATH="${HOME}/Downloads/dlls:${HOME}/Downloads/go/bin:${PATH}:${HOME}/scoop/shims" && \
             export PCRE_LIB_DIR="${HOME}/Downloads/dlls" && \
             export SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
             export SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
