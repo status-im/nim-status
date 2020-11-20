@@ -195,6 +195,8 @@ proc getSettings*(db: DbConn): Settings =
   webview_allow_permission_requests FROM settings WHERE synthetic_id = 'id'"""
 
   for r in rows(db, query):
+    echo $r
+    
     result.userAddress = r[0].strVal.parseAddress
     result.chaosMode = r[1].optionBool
     result.currency =  r[2].optionString
