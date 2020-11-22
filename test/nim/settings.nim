@@ -1,9 +1,11 @@
-import sqlcipher
-import os, json, json_serialization
-import options
-import ../../nim_status/lib/settings
-import ../../nim_status/lib/database
-import web3/conversions
+import # nim libs
+  os, json, options
+
+import # vendor libs
+  sqlcipher, json_serialization, web3/conversions as web3_conversions
+
+import # nim-status libs
+  ../../nim_status/lib/[settings, database, conversions]
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"

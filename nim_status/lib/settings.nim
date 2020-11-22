@@ -1,13 +1,13 @@
-import settings/types
-import settings/utils
-import web3/[conversions, ethtypes]
-import sqlcipher
-import json
-import options
-import strutils
-import locks
+import # nim libs
+  json, options, strutils, locks
 
-export types, utils
+import # vendor libs
+  web3/conversions as web3_conversions, web3/ethtypes, sqlcipher
+
+import # nim-status libs
+  conversions, settings/types
+
+export types
 
 proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object?
   let query = """INSERT INTO settings (
@@ -181,67 +181,9 @@ proc getNodeConfig*(db: DbConn): JsonNode =
 
 
 proc getSettings*(db: DbConn): Settings =
-  let query = """SELECT address, chaos_mode, currency, current_network,
-  custom_bootnodes, custom_bootnodes_enabled, dapps_address, eip1581_address,
-  fleet, hide_home_tooltip, installation_id, key_uid, keycard_instance_uid,
-  keycard_paired_on, keycard_pairing, last_updated, latest_derived_path, log_level,
-  mnemonic, name, networks, notifications_enabled, push_notifications_server_enabled,
-  push_notifications_from_contacts_only, remote_push_notifications_enabled,
-  send_push_notifications, push_notifications_block_mentions, photo_path,
-  pinned_mailservers, preferred_name, preview_privacy, public_key, remember_syncing_choice,
-  signing_phrase, stickers_packs_installed, stickers_packs_pending, stickers_recent_stickers,
-  syncing_on_mobile_network, use_mailservers, usernames, appearance, wallet_root_address,
-  wallet_set_up_passed, wallet_visible_tokens, waku_bloom_filter_mode, waku_enabled,
-  webview_allow_permission_requests FROM settings WHERE synthetic_id = 'id'"""
+  let query = """SELECT * FROM settings WHERE synthetic_id = 'id'"""
 
-  for r in rows(db, query):
-    echo $r
-
-    result.userAddress = r[0].strVal.parseAddress
-    result.chaosMode = toOption[bool](r[1])
-    result.currency =  toOption[string](r[2])
-    result.currentNetwork = r[3].strVal
-    result.customBootNodes = toOption[JsonNode](r[4])
-    result.customBootNodesEnabled = toOption[JsonNode](r[5])
-    result.dappsAddress = r[6].strVal.parseAddress
-    result.eip1581Address = r[7].strVal.parseAddress
-    result.fleet = toOption[string](r[8])
-    result.hideHomeToolTip = toOption[bool](r[9])
-    result.installationID = r[10].strVal
-    result.keyUID = r[11].strVal
-    result.keycardInstanceUID = toOption[string](r[12])
-    result.keycardPairedOn = toOption[int64](r[13])
-    result.keycardPairing = toOption[string](r[14])
-    result.lastUpdated = toOption[int64](r[15])
-    result.latestDerivedPath = r[16].intVal.uint
-    result.logLevel = toOption[string](r[17])
-    result.mnemonic = toOption[string](r[18])
-    result.name = toOption[string](r[19])
-    result.networks = r[20].strVal.parseJson
-    result.notificationsEnabled = toOption[bool](r[21])
-    result.pushNotificationsServerEnabled = toOption[bool](r[22])
-    result.pushNotificationsFromContactsOnly = toOption[bool](r[23])
-    result.remotePushNotificationsEnabled = toOption[bool](r[24])
-    result.sendPushNotifications = toOption[bool](r[25])
-    result.pushNotificationsBlockMentions = toOption[bool](r[26])
-    result.photoPath = r[27].strVal
-    result.pinnedMailservers = toOption[JsonNode](r[28])
-    result.preferredName = toOption[string](r[29])
-    result.previewPrivacy = r[30].intVal.bool
-    result.publicKey = r[31].strVal
-    result.rememberSyncingChoice = toOption[bool](r[32])
-    result.signingPhrase = r[33].strVal
-    result.stickerPacksInstalled = toOption[JsonNode](r[34])
-    result.stickersPacksPending = toOption[JsonNode](r[35])
-    result.stickersRecentStickers = toOption[JsonNode](r[36])
-    result.syncingOnMobileNetwork = toOption[bool](r[37])
-    result.useMailservers = r[38].intVal.bool
-    result.usernames = toOption[JsonNode](r[39])
-    result.appearance = r[40].intVal.uint
-    result.walletRootAddress = toOption[Address](r[41])
-    result.walletSetUpPassed = toOption[bool](r[42])
-    result.walletVisibleTokens = toOption[JsonNode](r[43])
-    result.wakuBloomFilterMode = toOption[bool](r[44])
-    result.wakuEnabled =toOption[bool](r[45])
-    result.webViewAllowPermissionRequests = toOption[bool](r[46])
-    break
+  let settings = execQuery[Settings](db, query)
+  if settings.len == 0:
+    raise newException(ValueError, "No records found for settings")
+  settings[0]
