@@ -77,4 +77,4 @@ task tests, "Run all tests":
   buildAndRunTest "migrations"
   buildAndRunTest "mailservers"
   buildAndRunTest "bip32"
-
+  buildAndRunTest "contacts"
