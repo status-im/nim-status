@@ -68,8 +68,8 @@ proc buildAndRunTest(name: string,
   exec outDir & name
 
 task tests, "Run all tests":
-  # buildAndRunTest "shims"
-  # buildAndRunTest "login"
-  # buildAndRunTest "db_smoke"
-  # buildAndRunTest "waku_smoke"
+  buildAndRunTest "shims"
+  buildAndRunTest "login"
+  buildAndRunTest "db_smoke"
+  buildAndRunTest "waku_smoke"
   buildAndRunTest "settings"
