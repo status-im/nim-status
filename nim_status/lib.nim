@@ -5,6 +5,7 @@ import lib/account
 import lib/identicon
 import lib/messages
 import lib/chats
+import lib/permissions
 import lib/util
 import nimcrypto
 import strformat
@@ -12,12 +13,13 @@ import strutils
 import unicode
 import json
 
-export createAccount 
+export createAccount
 export getAccounts;
 export saveAccount;
 export updateAccount;
 export updateAccountTimestamp;
 export deleteAccount;
+export addPermissions, getPermissions, deletePermission
 
 proc hashMessage*(message: string): string =
   ## hashMessage calculates the hash of a message to be safely signed by the keycard.

@@ -82,3 +82,4 @@ task tests, "Run all tests":
   buildAndRunTest "tokens"
   buildAndRunTest "messages"
   buildAndRunTest "chats"
+  buildAndRunTest "permissions"
