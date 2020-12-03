@@ -82,6 +82,7 @@ type
     Name = "name",
     CurrentNetwork = "current_network",
     Networks = "networks",
+    NodeConfig = "node_config",
     NotificationsEnabled = "notifications_enabled",
     PhotoPath = "photo_path",
     PinnedMailservers = "pinned_mailservers",
@@ -109,7 +110,7 @@ type
     WakuBloomFilterMode = "waku_bloom_filter_mode",
     WebviewAllowPermissionRequests = "webview_allow_permission_requests"
 
-  Settings* = object
+  Settings* {.dbTableName("settings").} = object
     userAddress* {.serializedFieldName($SettingsType.Address), dbColumnName($SettingsCol.Address).}: Address 
     chaosMode* {.serializedFieldName($SettingsType.ChaosMode), dbColumnName($SettingsCol.ChaosMode).}: Option[bool]
     currency* {.serializedFieldName($SettingsType.Currency), dbColumnName($SettingsCol.Currency).}: Option[string]
@@ -131,6 +132,7 @@ type
     mnemonic* {.serializedFieldName($SettingsType.Mnemonic), dbColumnName($SettingsCol.Mnemonic).}: Option[string]
     name* {.serializedFieldName($SettingsType.Name), dbColumnName($SettingsCol.Name).}: Option[string]
     networks* {.serializedFieldName($SettingsType.Networks), dbColumnName($SettingsCol.Networks).}: JsonNode
+    nodeConfig* {.serializedFieldName($SettingsType.NodeConfig), dbColumnName($SettingsCol.NodeConfig).}: JsonNode
     # NotificationsEnabled indicates whether local notifications should be enabled (android only)
     notificationsEnabled* {.dontSerialize, serializedFieldName($SettingsType.NotificationsEnabled), dbColumnName($SettingsCol.NotificationsEnabled).}: Option[bool]
     photoPath* {.serializedFieldName($SettingsType.PhotoPath), dbColumnName($SettingsCol.PhotoPath).}: string
