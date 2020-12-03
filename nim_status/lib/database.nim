@@ -1,59 +1,64 @@
-import sqlcipher
+import # nim libs
+  strformat
+
+import # vendor libs
+  sqlcipher, settings/types
 
 proc migrate*(db: DbConn) =
   # TODO: implement proper migrations
   # Remove this query. Use status-go appdatabase/migrations/sql files instead
-  let settingSQL = """CREATE TABLE settings (
-                        address VARCHAR NOT NULL,
-                        chaos_mode BOOLEAN DEFAULT false,
-                        currency VARCHAR DEFAULT 'usd',
-                        current_network VARCHAR NOT NULL,
-                        custom_bootnodes BLOB,
-                        custom_bootnodes_enabled BLOB,
-                        dapps_address VARCHAR NOT NULL,
-                        eip1581_address VARCHAR,
-                        fleet VARCHAR,
-                        hide_home_tooltip BOOLEAN DEFAULT false,
-                        installation_id VARCHAR NOT NULL,
-                        key_uid VARCHAR NOT NULL,
-                        keycard_instance_uid VARCHAR,
-                        keycard_paired_on UNSIGNED BIGINT,
-                        keycard_pairing VARCHAR,
-                        last_updated UNSIGNED BIGINT,
-                        latest_derived_path UNSIGNED INT DEFAULT 0,
-                        log_level VARCHAR,
-                        mnemonic VARCHAR,
-                        name VARCHAR NOT NULL,
-                        networks BLOB NOT NULL,
-                        node_config BLOB,
-                        notifications_enabled BOOLEAN DEFAULT false,
-                        photo_path BLOB NOT NULL,
-                        pinned_mailservers BLOB,
-                        preferred_name VARCHAR,
-                        preview_privacy BOOLEAN DEFAULT false,
-                        public_key VARCHAR NOT NULL,
-                        remember_syncing_choice BOOLEAN DEFAULT false,
-                        signing_phrase VARCHAR NOT NULL,
-                        stickers_packs_installed BLOB,
-                        stickers_recent_stickers BLOB,
-                        syncing_on_mobile_network BOOLEAN DEFAULT false,
+  var settings: Settings
+  let settingSQL = fmt"""CREATE TABLE {settings.tableName} (
+                        {settings.userAddress.columnName} VARCHAR NOT NULL,
+                        {settings.chaosMode.columnName} BOOLEAN DEFAULT FALSE,
+                        {settings.currency.columnName} VARCHAR DEFAULT 'usd',
+                        {settings.currentNetwork.columnName} VARCHAR NOT NULL,
+                        {settings.customBootnodes.columnName} BLOB,
+                        {settings.customBootnodes_enabled.columnName} BLOB,
+                        {settings.dappsAddress.columnName} VARCHAR NOT NULL,
+                        {settings.eip1581Address.columnName} VARCHAR,
+                        {settings.fleet.columnName} VARCHAR,
+                        {settings.hideHomeTooltip.columnName} BOOLEAN DEFAULT FALSE,
+                        {settings.installationId.columnName} VARCHAR NOT NULL,
+                        {settings.keyUid.columnName} VARCHAR NOT NULL,
+                        {settings.keycardInstance_uid.columnName} VARCHAR,
+                        {settings.keycardPairedOn.columnName} UNSIGNED BIGINT,
+                        {settings.keycardPairing.columnName} VARCHAR,
+                        {settings.lastUpdated.columnName} UNSIGNED BIGINT,
+                        {settings.latestDerivedPath.columnName} UNSIGNED INT DEFAULT 0,
+                        {settings.logLevel.columnName} VARCHAR,
+                        {settings.mnemonic.columnName} VARCHAR,
+                        {settings.name.columnName} VARCHAR NOT NULL,
+                        {settings.networks.columnName} BLOB NOT NULL,
+                        {settings.nodeConfig.columnName} BLOB,
+                        {settings.notificationsEnabled.columnName} BOOLEAN DEFAULT FALSE,
+                        {settings.photoPath.columnName} BLOB NOT NULL,
+                        {settings.pinnedMailservers.columnName} BLOB,
+                        {settings.preferredName.columnName} VARCHAR,
+                        {settings.previewPrivacy.columnName} BOOLEAN DEFAULT FALSE,
+                        {settings.publicKey.columnName} VARCHAR NOT NULL,
+                        {settings.rememberSyncing_choice.columnName} BOOLEAN DEFAULT FALSE,
+                        {settings.signingPhrase.columnName} VARCHAR NOT NULL,
+                        {settings.stickerPacksInstalled.columnName} BLOB,
+                        {settings.stickersRecentStickers.columnName} BLOB,
+                        {settings.syncingOnMobileNetwork.columnName} BOOLEAN DEFAULT FALSE,
                         synthetic_id VARCHAR DEFAULT 'id' PRIMARY KEY,
-                        usernames BLOB,
-                        wallet_root_address VARCHAR NOT NULL,
-                        wallet_set_up_passed BOOLEAN DEFAULT false,
-                        wallet_visible_tokens VARCHAR
+                        {settings.usernames.columnName} BLOB,
+                        {settings.walletRootAddress.columnName} VARCHAR NOT NULL,
+                        {settings.walletSetUpPassed.columnName} BOOLEAN DEFAULT FALSE,
+                        {settings.walletVisibleTokens.columnName} VARCHAR
                       ) WITHOUT ROWID;
-                      ALTER TABLE settings ADD COLUMN stickers_packs_pending BLOB;
-                      ALTER TABLE settings ADD COLUMN waku_enabled BOOLEAN DEFAULT false;
-                      ALTER TABLE settings ADD COLUMN waku_bloom_filter_mode BOOLEAN DEFAULT false;
-                      ALTER TABLE settings ADD COLUMN appearance INT NOT NULL DEFAULT 0;
-                      ALTER TABLE settings ADD COLUMN remote_push_notifications_enabled BOOLEAN DEFAULT FALSE;
-                      ALTER TABLE settings ADD COLUMN send_push_notifications BOOLEAN DEFAULT TRUE;
-                      ALTER TABLE settings ADD COLUMN push_notifications_server_enabled BOOLEAN DEFAULT FALSE;
-                      ALTER TABLE settings ADD COLUMN push_notifications_from_contacts_only BOOLEAN DEFAULT FALSE;
-                      ALTER TABLE settings ADD COLUMN push_notifications_block_mentions BOOLEAN DEFAULT FALSE;
-                      ALTER TABLE settings ADD COLUMN webview_allow_permission_requests BOOLEAN DEFAULT FALSE;
-                      ALTER TABLE settings ADD COLUMN use_mailservers BOOLEAN DEFAULT TRUE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.stickersPacksPending.columnName} BLOB;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.wakuEnabled.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.wakuBloomFilterMode.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.appearance.columnName} INT NOT NULL DEFAULT 0;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.remotePushNotificationsEnabled.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.sendPushNotifications.columnName} BOOLEAN DEFAULT TRUE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.pushNotificationsServerEnabled.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.pushNotificationsFromContactsOnly.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.pushNotificationsBlockMentions.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.webviewAllowPermissionRequests.columnName} BOOLEAN DEFAULT FALSE;
+                      ALTER TABLE {settings.tableName} ADD COLUMN {settings.useMailservers.columnName} BOOLEAN DEFAULT TRUE;
                       """
   db.execScript(settingSQL)
 
