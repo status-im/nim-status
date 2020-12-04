@@ -1,6 +1,6 @@
 
 import # nim libs
-  options, json
+  options, json, sugar, sequtils
 
 import # vendor libs
   json_serialization, json_serialization/[reader, writer, lexer],
@@ -109,6 +109,21 @@ type
     WakuBloomFilterMode = "waku_bloom_filter_mode",
     WebviewAllowPermissionRequests = "webview_allow_permission_requests"
 
+  UpstreamConfig* = object
+    enabled* {.serializedFieldName("Enabled").}: bool
+    url* {.serializedFieldName("URL").}: string
+
+  NetworkConfig* = object
+    dataDir* {.serializedFieldName("DataDir").}: string
+    networkId* {.serializedFieldName("NetworkId").}: int
+    upstreamConfig* {.serializedFieldName("UpstreamConfig").}: UpstreamConfig
+
+  Network* = object
+    config* {.serializedFieldName("config").}: NetworkConfig
+    etherscanLink* {.serializedFieldName("etherscan-link").}: Option[string]
+    id* {.serializedFieldName("id").}: string
+    name*: string
+
   Settings* = object
     userAddress* {.serializedFieldName($SettingsType.Address), dbColumnName($SettingsCol.Address).}: Address 
     chaosMode* {.serializedFieldName($SettingsType.ChaosMode), dbColumnName($SettingsCol.ChaosMode).}: Option[bool]
@@ -130,7 +145,7 @@ type
     logLevel* {.dontSerialize, serializedFieldName($SettingsType.LogLevel), dbColumnName($SettingsCol.LogLevel).}: Option[string]
     mnemonic* {.serializedFieldName($SettingsType.Mnemonic), dbColumnName($SettingsCol.Mnemonic).}: Option[string]
     name* {.serializedFieldName($SettingsType.Name), dbColumnName($SettingsCol.Name).}: Option[string]
-    networks* {.serializedFieldName($SettingsType.Networks), dbColumnName($SettingsCol.Networks).}: JsonNode
+    networks* {.serializedFieldName($SettingsType.Networks), dbColumnName($SettingsCol.Networks).}: seq[Network]
     # NotificationsEnabled indicates whether local notifications should be enabled (android only)
     notificationsEnabled* {.dontSerialize, serializedFieldName($SettingsType.NotificationsEnabled), dbColumnName($SettingsCol.NotificationsEnabled).}: Option[bool]
     photoPath* {.serializedFieldName($SettingsType.PhotoPath), dbColumnName($SettingsCol.PhotoPath).}: string
@@ -165,14 +180,14 @@ type
     webViewAllowPermissionRequests* {.dontSerialize, serializedFieldName($SettingsType.WebviewAllowPermissionRequests), dbColumnName($SettingsCol.WebviewAllowPermissionRequests).}: Option[bool]
 
 
-proc writeValue*(writer: var JsonWriter, value: Settings) =
+proc writeValue*(writer: var JsonWriter, value: Settings|Network) =
   writer.beginRecord()
   for key, val in fieldPairs(value):
     when val is Option:
       if val.isSome:
-        writer.writeField $key, val.get()
+        writer.writeField key, val.get()
     else:
-      writer.writeField $key, $val
+      writer.writeField key, val
   writer.endRecord()
 
 
@@ -190,3 +205,7 @@ proc readValue*[T](reader: var JsonReader, value: var Option[T]) =
 
 proc `$`*(self: Settings): string =
   return Json.encode(self)
+
+proc getNetwork*(self: Settings): Option[Network] =
+  let found = self.networks.filter(network => network.id == self.currentNetwork)
+  result = if found.len > 0: some found[0] else: none(Network)

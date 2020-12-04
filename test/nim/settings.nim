@@ -13,13 +13,13 @@ let db = initializeDB(path, passwd)
 
 let settingsStr = """{
     "address": "0x1122334455667788990011223344556677889900",
-    "networks/current-network": "mainnet",
+    "networks/current-network": "ABCDE",
     "dapps-address": "0x1122334455667788990011223344556677889900",
     "eip1581-address": "0x1122334455667788990011223344556677889900",
     "installation-id": "ABC-DEF-GHI",
     "key-uid": "XYZ",
     "latest-derived-path": 0,
-    "networks/networks": [{"someNetwork": "1"}],
+    "networks/networks": [{"id":"mainnet_rpc","etherscan-link":"https://etherscan.io/address/","name":"Mainnet with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/mainnet_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://mainnet.infura.io/ws/v3/7230123556ec4a8aac8d89ccd0dd74d7"}}}],
     "photo-path": "ABXYZC",
     "preview-privacy?": false,
     "public-key": "0x123",
@@ -73,7 +73,6 @@ saveSetting(db, SettingsType.LogLevel, testString)
 saveSetting(db, SettingsType.Mnemonic, testString)
 saveSetting(db, SettingsType.Name, testString)
 saveSetting(db, SettingsType.CurrentNetwork, testString)
-saveSetting(db, SettingsType.Networks, testJSON)
 saveSetting(db, SettingsType.NodeConfig, testJSON)
 saveSetting(db, SettingsType.NotificationsEnabled, testBool)
 saveSetting(db, SettingsType.PhotoPath, testString)
@@ -116,7 +115,6 @@ assert dbSettings2.logLevel.get() == testString
 assert dbSettings2.mnemonic.get() == testString
 assert dbSettings2.name.get() == testString
 assert dbSettings2.currentNetwork == testString
-assert $dbSettings2.networks == $testJSON
 assert dbSettings2.notificationsEnabled.get() == testBool
 assert dbSettings2.photoPath == testString
 assert dbSettings2.pinnedMailservers.get() == testJSON
