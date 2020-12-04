@@ -2,12 +2,12 @@ import # nim libs
   json, options, strutils, locks
 
 import # vendor libs
-  web3/conversions as web3_conversions, web3/ethtypes, sqlcipher
+  web3/conversions as web3_conversions, web3/ethtypes, sqlcipher, json_serialization
 
 import # nim-status libs
   conversions, settings/types
 
-export types
+export types, options
 
 proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object?
   let query = """INSERT INTO settings (
@@ -34,7 +34,7 @@ proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: repla
             s.latestDerivedPath,
             s.mnemonic,
             (if s.name.isSome(): s.name.get() else: ""),
-            $s.networks,
+            JSON.encode(s.networks),
             $nodecfg,
             s.photoPath,
             s.previewPrivacy,

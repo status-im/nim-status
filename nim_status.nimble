@@ -73,3 +73,4 @@ task tests, "Run all tests":
   buildAndRunTest "db_smoke"
   buildAndRunTest "waku_smoke"
   buildAndRunTest "settings"
+  buildAndRunTest "callrpc"
