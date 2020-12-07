@@ -1,12 +1,13 @@
 import
-  chronicles,
-  confutils,
+  std/[os,options],
+  confutils, chronicles, chronos,
+  stew/shims/net as stewNet,
+  libp2p/crypto/[crypto,secp],
   eth/keys,
-  libp2p/crypto/crypto,
-  options,
-  stew/shims/net,
-  waku/node/common,
-  waku/node/v2/[config, waku_types, wakunode2]
+  json_rpc/[rpcclient, rpcserver],
+  waku/v2/node/[config, wakunode2],
+  waku/common/utils/nat,
+  waku/v2/waku_types
 
 # The initial implementation of initNode is by intention a minimum viable usage
 # of nim-waku v2 from within nim-status
