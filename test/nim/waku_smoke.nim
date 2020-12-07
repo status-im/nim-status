@@ -4,7 +4,8 @@ import
   confutils,
   stew/results,
   unittest,
-  waku/node/v2/[config, waku_types, wakunode2]
+  waku/v2/node/[config, wakunode2],
+  waku/v2/waku_types
 
 import
   ../../nim_status/lib/waku,
@@ -52,9 +53,9 @@ procSuite "waku node":
     await node.start()
     await node.mountRelay()
     await node.subscribe(topic, handler)
-    node.publish(topic, message1)
-    node.publish(topic, message2)
-    node.publish(topic, done)
+    await node.publish(topic, message1)
+    await node.publish(topic, message2)
+    await node.publish(topic, done)
 
     check:
       await allFutures(futures).withTimeout(timeout)
