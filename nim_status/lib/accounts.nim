@@ -12,7 +12,7 @@ proc login*(accountData, password: string) =
   # TODO: determine where will the DB connection live. In the meantime I'm storing it into a global variable
   # TODO: determine where the web3 conn will live
 
-  let path = currentSourcePath.parentDir().parentDir().parentDir() & "/build/" & accountData
+  let path = currentSourcePath.parentDir() / accountData & ".db"
   db_conn = initializeDB(path, password)
 
   # TODO: these settings should have been set when calling saveAccountAndLogin

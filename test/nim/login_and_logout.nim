@@ -11,6 +11,9 @@ import web3/conversions
 let accountData = "someAccount"
 let passwd = "qwerty"
 
+# Removing DB since we still dont have migration code
+removeFile(currentSourcePath.parentDir().parentDir().parentDir() / "nim_status/lib" / accountData  & ".db")
+
 
 try:
   assert web3_conn == nil
@@ -37,6 +40,5 @@ try:
 except:
   assert getCurrentExceptionMsg() == "Web3 connection is not available"
 
-
 # Removing DB to be able to run the test again
-removeFile(currentSourcePath.parentDir().parentDir().parentDir() & "/build/" & accountData)
+removeFile(currentSourcePath.parentDir().parentDir().parentDir() / "nim_status/lib" / accountData  & ".db")
