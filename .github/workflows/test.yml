@@ -8,149 +8,129 @@ on:
 
 jobs:
   tests:
+    env:
+      NPROC: 2
     strategy:
+      fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-latest, windows-latest]
-
-    runs-on: ${{ matrix.platform }}
-
-    name: ${{ matrix.platform }}
+        platform:
+          - {
+            icon: 🏁,
+            os: windows,
+            shell: msys2,
+            pcre_include: /mingw64/include,
+            pcre_lib: /mingw64/lib,
+            ssl_include: /mingw64/include/openssl,
+            ssl_lib: /mingw64/lib,
+          }
+          - {
+            icon: 🍎,
+            os: macos,
+            shell: bash --noprofile --norc -eo pipefail,
+            pcre_include: /usr/local/opt/pcre/include,
+            pcre_lib: /usr/local/opt/pcre/lib,
+            ssl_include: /usr/local/opt/openssl/include,
+            ssl_lib: /usr/local/opt/openssl/lib,
+          }
+          - {
+            icon: 🐧,
+            os: ubuntu,
+            shell: bash --noprofile --norc -eo pipefail,
+            pcre_include: ,
+            pcre_lib: ,
+            ssl_include: ,
+            ssl_lib: ,
+          }
+        pcre:    [ true, false ]
+        sqlite:  [ true, false ]
+        openssl: [ true, false ]
+    name: ${{ matrix.platform.icon }} - PCRE ${{ matrix.pcre }} | SQLITE ${{ matrix.sqlite }} | SSL ${{ matrix.openssl }}
+    runs-on: ${{ matrix.platform.os }}-latest
+    defaults:
+      run:
+        shell: ${{ matrix.platform.shell }} {0}
 
     steps:
+
       - name: Link Homebrew OpenSSL 1.1 to /usr/local/opt/openssl
-        if: startsWith(matrix.platform, 'macos')
-        shell: bash
+        if: matrix.platform.os == 'macos'
         run: |
             rm -f /usr/local/opt/openssl
             ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
 
-      - name: Install Scoop
-        if: startsWith(matrix.platform, 'windows')
-        shell: powershell
-        run: |
-            iwr -useb get.scoop.sh | iex
+      - uses: msys2/setup-msys2@v2
+        if: matrix.platform.os == 'windows'
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            base-devel
+            git
+            unzip
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-pcre
 
-      - name: Install external dependencies with Scoop
-        if: startsWith(matrix.platform, 'windows')
-        shell: bash
-        run: |
-          export PATH="${PATH}:${HOME}/scoop/shims"
-          scoop install 7zip openssl-mingw wget
-
-      - name: Fetch mingw build of libpcre
-        if: startsWith(matrix.platform, 'windows')
-        shell: bash
-        run: |
-          export PATH="${PATH}:${HOME}/scoop/shims"
-          cd "${HOME}/Downloads"
-          wget https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-pcre-8.44-1-any.pkg.tar.xz
-          7z x mingw*
-          tar xvf mingw*.tar
-
-      - name: Fetch prebuilt DLLs from nim-lang.org
-        if: startsWith(matrix.platform, 'windows')
-        shell: bash
-        run: |
-          export PATH="${PATH}:${HOME}/scoop/shims"
-          cd "${HOME}/Downloads"
-          mkdir -p dlls
-          cd dlls
-          wget https://nim-lang.org/download/dlls.zip
-          unzip dlls.zip
-
-      # Temporary workaround for: https://github.com/golang/go/issues/42565
+      # temporary workaround for: https://github.com/golang/go/issues/42565
       - name: Fetch Go v1.14.11
-        if: startsWith(matrix.platform, 'windows')
-        shell: bash
+        if: matrix.platform.os == 'windows'
         run: |
-          export PATH="${PATH}:${HOME}/scoop/shims"
+          mkdir -p "${HOME}/Downloads"
           cd "${HOME}/Downloads"
           wget https://golang.org/dl/go1.14.11.windows-amd64.zip
           unzip go1.14.11.windows-amd64.zip
 
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: recursive
 
-      # We need to do this because of how github cache works
-      - name: Initialize submodules
-        shell: bash
-        run: |
-          git submodule update --init --recursive
-
-      - name: Cache Nim compiler, status-go
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         with:
           path: |
             vendor/nimbus-build-system/vendor/Nim/bin
             vendor/status-go/build/bin
-          key: ${{ runner.os }}-nim-statusgo-${{ hashFiles('.gitmodules') }}
+          key: ${{ matrix.platform.os }}-${{ env.NPROC }}-nim-statusgo-${{ hashFiles('.gitmodules') }}
 
       - name: Install and build dependencies
-        shell: bash
         run: |
-          [[ ${{ matrix.platform }} = windows* ]] && export PATH="${HOME}/Downloads/go/bin:${PATH}:${HOME}/scoop/shims"
-          export M="$(which mingw32-make || echo make)"
-          "${M}" V=1 update
-          "${M}" V=1 deps
+          make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
+          make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
-      - name: Build and run tests (static)
-        shell: bash
+      - name: Build and run tests
+        if: matrix.platform.os != 'windows'
         run: |
-          [[ ${{ matrix.platform }} = macos* ]] && \
-            mkdir -p "${HOME}/.local/bin" && \
-            cd "${HOME}/.local/bin" && \
-            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
-            export PATH="$(pwd):${PATH}" && \
-            cd - && \
-            export PCRE_INCLUDE_DIR=/usr/local/opt/pcre/include && \
-            export PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
-            export SSL_INCLUDE_DIR=/usr/local/opt/openssl/include && \
-            export SSL_LIB_DIR=/usr/local/opt/openssl/lib
-          [[ ${{ matrix.platform }} = windows* ]] && \
-            export GOROOT="${HOME}/Downloads/go" && \
-            export PATH="${HOME}/Downloads/go/bin:${PATH}:${HOME}/scoop/shims" && \
-            export PCRE_INCLUDE_DIR="${HOME}/Downloads/mingw64/include" && \
-            export PCRE_LIB_DIR="${HOME}/Downloads/mingw64/lib" && \
-            export SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
-            export SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
-          export M="$(which mingw32-make || echo make)"
-          "${M}" \
-             PCRE_INCLUDE_DIR="${PCRE_INCLUDE_DIR}" \
-             PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
-             SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
-             SSL_LIB_DIR="${SSL_LIB_DIR}" \
-             V=1 \
-             test
+          # test-nim and test-c can interfere with each other if run in
+          # parallel so use `-j1` instead of `-j${NPROC}`
+          make -j1 \
+            NIMFLAGS="--parallelBuild:${NPROC}" \
+            PCRE_INCLUDE_DIR="${{ matrix.platform.pcre_include }}" \
+            PCRE_LIB_DIR="${{ matrix.platform.pcre_lib }}" \
+            PCRE_STATIC=${{ matrix.pcre }} \
+            SQLITE_STATIC=${{ matrix.sqlite }} \
+            SSL_INCLUDE_DIR="${{ matrix.platform.ssl_include }}" \
+            SSL_LIB_DIR="${{ matrix.platform.ssl_lib }}" \
+            SSL_STATIC=${{ matrix.openssl }} \
+            V=1 \
+            test
 
-      - name: Build and run tests (shared)
-        shell: bash
+      - name: Build and run tests (Windows)
+        if: matrix.platform.os == 'windows'
+        # specify `C:/msys64/` include/lib paths (via `cygpath -m`) to avoid
+        # problems with msys2 path conversion
         run: |
-          rm -rf build nimcache test/c/build test/nim/build \
-            vendor/nim-sqlcipher/nimcache \
-            vendor/nim-sqlcipher/sqlcipher \
-            vendor/nim-sqlcipher/sqlite
-          [[ ${{ matrix.platform }} = macos* ]] && \
-            mkdir -p "${HOME}/.local/bin" && \
-            cd "${HOME}/.local/bin" && \
-            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar ./ar && \
-            export PATH="$(pwd):${PATH}" && \
-            cd - && \
-            export PCRE_LIB_DIR=/usr/local/opt/pcre/lib && \
-            export SSL_INCLUDE_DIR=/usr/local/opt/openssl/include && \
-            export SSL_LIB_DIR=/usr/local/opt/openssl/lib
-          [[ ${{ matrix.platform }} = windows* ]] && \
-            export GOROOT="${HOME}/Downloads/go" && \
-            export PATH="${HOME}/Downloads/dlls:${HOME}/Downloads/go/bin:${PATH}:${HOME}/scoop/shims" && \
-            export PCRE_LIB_DIR="${HOME}/Downloads/dlls" && \
-            export SSL_INCLUDE_DIR="${HOME}/scoop/apps/openssl-mingw/current/include" && \
-            export SSL_LIB_DIR="${HOME}/scoop/apps/openssl-mingw/current/lib"
-          export M="$(which mingw32-make || echo make)"
-          "${M}" \
-            PCRE_LIB_DIR="${PCRE_LIB_DIR}" \
-            PCRE_STATIC=false \
-            SQLITE_STATIC=false \
-            SSL_INCLUDE_DIR="${SSL_INCLUDE_DIR}" \
-            SSL_LIB_DIR="${SSL_LIB_DIR}" \
-            SSL_STATIC=false \
+          export GOROOT="${HOME}/Downloads/go"
+          export PATH="${HOME}/Downloads/go/bin:${PATH}"
+          # test-nim and test-c can interfere with each other if run in
+          # parallel so use `-j1` instead of `-j${NPROC}`
+          make -j1 \
+            NIMFLAGS="--parallelBuild:${NPROC}" \
+            PCRE_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.pcre_include }})" \
+            PCRE_LIB_DIR="$(cygpath -m ${{ matrix.platform.pcre_lib }})" \
+            PCRE_STATIC=${{ matrix.pcre }} \
+            SQLITE_STATIC=${{ matrix.sqlite }} \
+            SSL_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.ssl_include }})" \
+            SSL_LIB_DIR="$(cygpath -m ${{ matrix.platform.ssl_lib }})" \
+            SSL_STATIC=${{ matrix.openssl }} \
             V=1 \
             test
