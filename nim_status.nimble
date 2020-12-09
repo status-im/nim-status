@@ -83,3 +83,4 @@ task tests, "Run all tests":
   buildAndRunTest "messages"
   buildAndRunTest "chats"
   buildAndRunTest "permissions"
+  buildAndRunTest "pendingtxs"
