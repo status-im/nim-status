@@ -5,6 +5,7 @@
 /data
 /keystore
 /nim_status.a
+/nim_status.nims
 /nimcache
 /noBackup
 /shims.a

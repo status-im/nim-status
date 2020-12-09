@@ -27,6 +27,7 @@ export LINK_PCRE := 0
 	create-data-dirs \
 	deps \
 	nat-libs-sub \
+	nats \
 	nim_status \
 	shims-for-test-c \
 	status-go \
@@ -100,7 +101,15 @@ nat-libs-sub:
 	cd vendor/nim-waku && \
 		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 nat-libs
 
-deps: | deps-common nat-libs nat-libs-sub
+# in msys2 environment miniupnpc's Makefile.mingw's invocation of
+# `wingenminiupnpcstrings.exe` will fail if containing directory is not in PATH
+nats:
+	PATH="$(shell pwd)/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc:$${PATH}" \
+	$(MAKE) nat-libs
+	PATH="$(shell pwd)/vendor/nim-waku/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc:$${PATH}" \
+	$(MAKE) nat-libs-sub
+
+deps: | deps-common nats
 
 update: | update-common
 
@@ -174,17 +183,16 @@ ifeq ($(PCRE_LIB_DIR),)
 endif
 ifndef PCRE_LDFLAGS
  ifeq ($(PCRE_STATIC),false)
-  ifeq ($(detected_OS),Windows)
-   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre64
-  else
-   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
-  endif
+  PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
  else
   PCRE_LDFLAGS := $(PCRE_LIB_DIR)/libpcre.a
  endif
 endif
 ifneq ($(PCRE_STATIC),false)
  NIM_PARAMS += --define:usePcreHeader --dynlibOverride:pcre
+else ifeq ($(detected_OS),Windows)
+ # to avoid Nim looking for pcre64.dll since we assume msys2 environment
+ NIM_PARAMS += --define:usePcreHeader
 endif
 
 ifndef NIMSTATUS_CFLAGS
@@ -238,23 +246,42 @@ $(SHIMS_FOR_TEST_C): $(SQLCIPHER)
 
 shims-for-test-c: $(SHIMS_FOR_TEST_C)
 
-# Currently assumes the _STATIC variables are all false or all not false
-# LD_LIBRARY_PATH is supplied when running tests on Linux
-# PATH is supplied when running tests on Windows
-ifeq ($(PCRE_STATIC),false)
- ifeq ($(SQLITE_STATIC),false)
+ifeq ($(SQLITE_STATIC),false)
+ PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR)::$${PATH}
+ ifeq ($(PCRE_STATIC),false)
   ifeq ($(SSL_STATIC),false)
-   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   PATH_TEST ?= $(shell cygpath $(shell dirname $(PCRE_LIB_DIR))):$(shell cygpath $(PCRE_LIB_DIR)):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$(shell cygpath $(shell dirname $(SSL_LIB_DIR))):$(shell cygpath $(SSL_LIB_DIR)):$(STATUSGO_LIB_DIR):$${PATH}
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  else
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  endif
+ else
+  ifeq ($(SSL_STATIC),false)
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  else
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   endif
  endif
 else
- LD_LIBRARY_PATH_TEST ?= $(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
  PATH_TEST ?= $(STATUSGO_LIB_DIR):$${PATH}
+ ifeq ($(PCRE_STATIC),false)
+  ifeq ($(SSL_STATIC),false)
+   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  else
+   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  endif
+ else
+  ifeq ($(SSL_STATIC),false)
+   LD_LIBRARY_PATH_TEST ?= $(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  else
+   LD_LIBRARY_PATH_TEST ?= :$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+  endif
+ endif
 endif
 
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
+else ifeq ($(detected_OS),macOS)
+ PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names
 endif
 
 test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs

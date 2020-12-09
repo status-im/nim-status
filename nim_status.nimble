@@ -44,7 +44,7 @@ proc buildAndRunTest(name: string,
     " --debugger:native" &
     " --define:chronicles_line_numbers" &
     " --define:debug" &
-    (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" else: "") &
+    (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
     " --define:ssl" &
     (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
     " --nimcache:nimcache/test/" & name &
