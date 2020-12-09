@@ -7,4 +7,3 @@ proc initializeDB*(path, password: string):DbConn =
   result.key(password)
   if not result.migrate().isOk:
     raise newException(SqliteError, "Failure executing migrations")
-
