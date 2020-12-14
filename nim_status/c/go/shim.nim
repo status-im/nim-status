@@ -101,7 +101,7 @@ proc multiAccountReset*(): cstring {.importc: "MultiAccountReset".}
 
 proc migrateKeyStoreDir*(accountData: cstring, password: cstring, oldKeystoreDir: cstring, multiaccountKeystoreDir: cstring): cstring {.importc: "MigrateKeyStoreDir".}
 
-proc startWallet*(): cstring {.importc: "StartWallet".}
+proc startWallet*(watchNewBlocks: bool): cstring {.importc: "StartWallet".}
 
 proc stopWallet*(): cstring {.importc: "StopWallet".}
 
