@@ -153,8 +153,8 @@ proc multiAccountReset*(): string =
 proc migrateKeyStoreDir*(accountData: string, password: string, oldKeystoreDir: string, multiaccountKeystoreDir: string): string =
   $go_shim.migrateKeyStoreDir(accountData.cstring, password.cstring, oldKeystoreDir.cstring, multiaccountKeystoreDir.cstring)
 
-proc startWallet*(): string =
-  $go_shim.startWallet()
+proc startWallet*(watchNewBlocks: bool): string =
+  $go_shim.startWallet(watchNewBlocks)
 
 proc stopWallet*(): string =
   $go_shim.stopWallet()
