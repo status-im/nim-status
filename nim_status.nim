@@ -52,6 +52,7 @@ from nim_status/go/shim as go_shim import
   multiAccountLoadAccount,
   multiAccountGenerate,
   multiAccountReset,
+  migrateKeyStoreDir,
   startWallet,
   stopWallet,
   startLocalNotifications,
