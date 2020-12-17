@@ -247,7 +247,7 @@ $(SHIMS_FOR_TEST_C): $(SQLCIPHER)
 shims-for-test-c: $(SHIMS_FOR_TEST_C)
 
 ifeq ($(SQLITE_STATIC),false)
- PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR)::$${PATH}
+ PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR):$${PATH}
  ifeq ($(PCRE_STATIC),false)
   ifeq ($(SSL_STATIC),false)
    LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
