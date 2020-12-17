@@ -82,10 +82,8 @@ clean-data-dirs:
 		noBackup
 
 clean-sqlcipher:
-	rm -rf \
-		$(shell dirname $(shell dirname $(SQLCIPHER)))/nimcache \
-		$(shell dirname $(shell dirname $(SQLCIPHER)))/sqlcipher \
-		$(shell dirname $(shell dirname $(SQLCIPHER)))/sqlite
+	cd vendor/nim-sqlcipher && $(MAKE) clean-build-dirs
+	cd vendor/nim-sqlcipher && $(MAKE) clean-sqlcipher
 
 clean-status-go:
 	rm -rf $(shell dirname $(STATUSGO))/*
@@ -132,7 +130,7 @@ else
 endif
 
 $(STATUSGO): | deps
-	echo -e $(BUILD_MSG) "status-go"
+	echo -e $(BUILD_MSG) "$@"
 	+ cd vendor/status-go && \
 		$(MAKE) statusgo-shared-library $(HANDLE_OUTPUT)
 
@@ -163,12 +161,16 @@ ifneq ($(SSL_STATIC),false)
  NIM_PARAMS += --dynlibOverride:ssl
 endif
 
-SQLCIPHER ?= vendor/nim-sqlcipher/sqlcipher/sqlite.nim
+ifeq ($(SQLCIPHER_STATIC),false)
+ SQLCIPHER ?= vendor/nim-sqlcipher/lib/libsqlcipher.$(SHARED_LIB_EXT)
+else
+ SQLCIPHER ?= vendor/nim-sqlcipher/lib/libsqlcipher.a
+endif
 
 $(SQLCIPHER): | deps
-	echo -e $(BUILD_MSG) "Nim wrapper for SQLCipher"
+	echo -e $(BUILD_MSG) "$@"
 	+ cd vendor/nim-sqlcipher && \
-		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlite.nim
+		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlcipher
 
 sqlcipher: $(SQLCIPHER)
 
@@ -246,7 +248,7 @@ $(SHIMS_FOR_TEST_C): $(SQLCIPHER)
 
 shims-for-test-c: $(SHIMS_FOR_TEST_C)
 
-ifeq ($(SQLITE_STATIC),false)
+ifeq ($(SQLCIPHER_STATIC),false)
  PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR):$${PATH}
  ifeq ($(PCRE_STATIC),false)
   ifeq ($(SSL_STATIC),false)
@@ -284,6 +286,12 @@ else ifeq ($(detected_OS),macOS)
  PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names
 endif
 
+ifeq ($(SQLCIPHER_STATIC),false)
+ SQLCIPHER_LDFLAGS_TEST := -L$(shell dirname $(SQLCIPHER)) -lsqlcipher
+else
+ SQLCIPHER_LDFLAGS_TEST := $(SQLCIPHER)
+endif
+
 test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	echo "Compiling 'test/c/$(TEST_NAME)'"
 	+ mkdir -p test/c/build
@@ -293,6 +301,7 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 		test/c/$(TEST_NAME).c \
 		$(TEST_DEPS) \
 		$(PCRE_LDFLAGS) \
+		$(SQLCIPHER_LDFLAGS_TEST) \
 		$(SSL_LDFLAGS) \
 		-L$(STATUSGO_LIB_DIR) \
 		-lstatus \
@@ -344,6 +353,7 @@ ifeq ($(detected_OS),macOS)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC="$(PCRE_STATIC)" \
+	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS_TEST)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
@@ -353,6 +363,7 @@ else ifeq ($(detected_OS),Windows)
 	PATH="$(PATH_TEST)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC="$(PCRE_STATIC)" \
+	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS_TEST)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
@@ -362,6 +373,7 @@ else
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC="$(PCRE_STATIC)" \
+	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS_TEST)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
 	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \

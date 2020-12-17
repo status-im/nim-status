@@ -41,10 +41,10 @@ jobs:
             ssl_include: ,
             ssl_lib: ,
           }
-        pcre:    [ true, false ]
-        sqlite:  [ true, false ]
-        openssl: [ true, false ]
-    name: ${{ matrix.platform.icon }} - PCRE ${{ matrix.pcre }} | SQLITE ${{ matrix.sqlite }} | SSL ${{ matrix.openssl }}
+        pcre:      [ true, false ]
+        sqlcipher: [ true, false ]
+        openssl:   [ true, false ]
+    name: ${{ matrix.platform.icon }} - PCRE ${{ matrix.pcre }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.openssl }}
     runs-on: ${{ matrix.platform.os }}-latest
     defaults:
       run:
@@ -107,7 +107,7 @@ jobs:
             PCRE_INCLUDE_DIR="${{ matrix.platform.pcre_include }}" \
             PCRE_LIB_DIR="${{ matrix.platform.pcre_lib }}" \
             PCRE_STATIC=${{ matrix.pcre }} \
-            SQLITE_STATIC=${{ matrix.sqlite }} \
+            SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_INCLUDE_DIR="${{ matrix.platform.ssl_include }}" \
             SSL_LIB_DIR="${{ matrix.platform.ssl_lib }}" \
             SSL_STATIC=${{ matrix.openssl }} \
@@ -128,7 +128,7 @@ jobs:
             PCRE_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.pcre_include }})" \
             PCRE_LIB_DIR="$(cygpath -m ${{ matrix.platform.pcre_lib }})" \
             PCRE_STATIC=${{ matrix.pcre }} \
-            SQLITE_STATIC=${{ matrix.sqlite }} \
+            SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.ssl_include }})" \
             SSL_LIB_DIR="$(cygpath -m ${{ matrix.platform.ssl_lib }})" \
             SSL_STATIC=${{ matrix.openssl }} \
