@@ -4,6 +4,7 @@ import # nim libs
 
 import # vendor libs
   json_serialization, json_serialization/[reader, writer, lexer],
+  json_serialization/std/options as json_options,
   web3/conversions as web3_conversions, web3/ethtypes, sqlcipher
 
 
@@ -146,7 +147,7 @@ type
     logLevel* {.dontSerialize, serializedFieldName($SettingsType.LogLevel), dbColumnName($SettingsCol.LogLevel).}: Option[string]
     mnemonic* {.serializedFieldName($SettingsType.Mnemonic), dbColumnName($SettingsCol.Mnemonic).}: Option[string]
     name* {.serializedFieldName($SettingsType.Name), dbColumnName($SettingsCol.Name).}: Option[string]
-    networks* {.serializedFieldName($SettingsType.Networks), dbColumnName($SettingsCol.Networks).}: JsonNode
+    networks* {.serializedFieldName($SettingsType.Networks), dbColumnName($SettingsCol.Networks).}: seq[Network]
     nodeConfig* {.serializedFieldName($SettingsType.NodeConfig), dbColumnName($SettingsCol.NodeConfig).}: JsonNode
     # NotificationsEnabled indicates whether local notifications should be enabled (android only)
     notificationsEnabled* {.dontSerialize, serializedFieldName($SettingsType.NotificationsEnabled), dbColumnName($SettingsCol.NotificationsEnabled).}: Option[bool]
@@ -180,30 +181,6 @@ type
     wakuEnabled* {.dontSerialize, serializedFieldName($SettingsType.WakuEnabled), dbColumnName($SettingsCol.WakuEnabled).}: Option[bool]
     wakuBloomFilterMode* {.dontSerialize, serializedFieldName($SettingsType.WakuBloomFilterMode), dbColumnName($SettingsCol.WakuBloomFilterMode).}: Option[bool]
     webViewAllowPermissionRequests* {.dontSerialize, serializedFieldName($SettingsType.WebviewAllowPermissionRequests), dbColumnName($SettingsCol.WebviewAllowPermissionRequests).}: Option[bool]
-
-
-proc writeValue*(writer: var JsonWriter, value: Settings|Network) =
-  writer.beginRecord()
-  for key, val in fieldPairs(value):
-    when val is Option:
-      if val.isSome:
-        writer.writeField key, val.get()
-    else:
-      writer.writeField key, val
-  writer.endRecord()
-
-
-proc readValue*[T](reader: var JsonReader, value: var Option[T]) =
-  let tok = reader.lexer.tok
-  if tok == tkNull:
-    reset value
-    reader.lexer.next()
-  else:
-    let v = reader.readValue(T)
-    if v == default(T):
-      reset value
-    else:
-      value = some v
 
 proc `$`*(self: Settings): string =
   return Json.encode(self)

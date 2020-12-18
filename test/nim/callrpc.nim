@@ -1,5 +1,5 @@
 import sqlcipher
-import os, json, json_serialization
+import os, json, json_serialization, json_serialization/std/options as json_options
 import options
 import ../../nim_status/lib/settings
 import ../../nim_status/lib/database

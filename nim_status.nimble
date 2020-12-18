@@ -51,9 +51,8 @@ proc buildAndRunTest(name: string,
     " --out:" & outDir & name &
     (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &
     (if getEnv("PCRE_LDFLAGS").strip != "": " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" else: "") &
-    (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") &
+    (if defined(windows): " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" & (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") else: (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") & " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"") &
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
-    " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" &
     (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
     " --threads:on" &
     " --tlsEmulation:off" &
