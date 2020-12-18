@@ -280,16 +280,30 @@ else
  endif
 endif
 
+ifeq ($(SQLCIPHER_STATIC),false)
+ ifeq ($(detected_OS),Windows)
+  SQLCIPHER_LDFLAGS_TEST := -L$(shell cygpath -m $(shell pwd)/$(shell dirname $(SQLCIPHER))) -lsqlcipher
+ else
+  SQLCIPHER_LDFLAGS_TEST := -L$(shell pwd)/$(shell dirname $(SQLCIPHER)) -lsqlcipher
+ endif
+else
+ ifeq ($(detected_OS),Windows)
+  SQLCIPHER_LDFLAGS_TEST := $(shell cygpath -m $(shell pwd)/$(SQLCIPHER))
+ else
+  SQLCIPHER_LDFLAGS_TEST := $(shell pwd)/$(SQLCIPHER)
+ endif
+endif
+
+ifeq ($(detected_OS),Windows)
+ STATUSGO_SQLCIPHER_LDFLAGS_TEST := -L$(STATUSGO_LIB_DIR) -lstatus $(SQLCIPHER_LDFLAGS_TEST)
+else
+ STATUSGO_SQLCIPHER_LDFLAGS_TEST := $(SQLCIPHER_LDFLAGS_TEST) -L$(STATUSGO_LIB_DIR) -lstatus
+endif
+
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
 else ifeq ($(detected_OS),macOS)
  PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names
-endif
-
-ifeq ($(SQLCIPHER_STATIC),false)
- SQLCIPHER_LDFLAGS_TEST := -L$(shell dirname $(SQLCIPHER)) -lsqlcipher
-else
- SQLCIPHER_LDFLAGS_TEST := $(SQLCIPHER)
 endif
 
 test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
@@ -297,14 +311,12 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	+ mkdir -p test/c/build
 	$(ENV_SCRIPT) $(CC) \
 		$(TEST_INCLUDES) \
-		-I"$(shell pwd)/vendor/nimbus-build-system/vendor/Nim/lib" \
+		-I$(shell pwd)/vendor/nimbus-build-system/vendor/Nim/lib \
 		test/c/$(TEST_NAME).c \
 		$(TEST_DEPS) \
 		$(PCRE_LDFLAGS) \
-		$(SQLCIPHER_LDFLAGS_TEST) \
+		$(STATUSGO_SQLCIPHER_LDFLAGS_TEST) \
 		$(SSL_LDFLAGS) \
-		-L$(STATUSGO_LIB_DIR) \
-		-lstatus \
 		-lm \
 		-pthread \
 		$(PLATFORM_FLAGS_TEST_C) \
@@ -312,7 +324,7 @@ test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
 	[[ $$? = 0 ]] && \
 	(([[ $(detected_OS) = macOS ]] && \
 	install_name_tool -add_rpath \
-		"$(STATUSGO_LIB_DIR)" \
+		$(STATUSGO_LIB_DIR) \
 		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT) && \
 	install_name_tool -change \
 		libstatus.dylib \
@@ -329,9 +341,9 @@ else
 	./test/c/build/$(TEST_NAME)
 endif
 
-SHIMS_FOR_TEST_C_INCLUDES ?= -I\"$(shell pwd)/test/c/build\"
+SHIMS_FOR_TEST_C_INCLUDES ?= -I$(shell pwd)/test/c/build
 
-LOGIN_TEST_INCLUDES ?= -I\"$(shell pwd)/build\"
+LOGIN_TEST_INCLUDES ?= -I$(shell pwd)/build
 
 test-c:
 	rm -rf test/c/build

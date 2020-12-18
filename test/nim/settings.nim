@@ -2,8 +2,8 @@ import # nim libs
   os, json, options
 
 import # vendor libs
-  sqlcipher, json_serialization, web3/conversions as web3_conversions,
-  web3/ethtypes
+  sqlcipher, json_serialization, json_serialization/std/options as json_options,
+  web3/conversions as web3_conversions, web3/ethtypes
 
 import # nim-status libs
   ../../nim_status/lib/[settings, database, conversions]
@@ -21,7 +21,7 @@ let settingsStr = """{
     "installation-id": "ABC-DEF-GHI",
     "key-uid": "XYZ",
     "latest-derived-path": 0,
-    "networks/networks": [{"someNetwork": "1"}],
+    "networks/networks": [{"id":"mainnet_rpc","etherscan-link":"https://etherscan.io/address/","name":"Mainnet with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/mainnet_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://mainnet.infura.io/ws/v3/7230123556ec4a8aac8d89ccd0dd74d7"}}}],
     "name": "test",
     "photo-path": "ABXYZC",
     "preview-privacy?": false,
@@ -59,6 +59,18 @@ let testJSON = %* { "abc": 123 }
 let testInt:int = 1
 let testInt64:int64 = 1
 let testUint:uint = 1
+let testUpstreamConfig = UpstreamConfig(enabled: true, url: "https://test.network")
+let testNetworkConfig = NetworkConfig(
+  dataDir: "/test",
+  networkId: 1,
+  upstreamConfig: testUpstreamConfig
+)
+let etherscanLink = some("https://test.etherscan.link")
+let testNetworks: seq[Network] = @[
+  Network(config: testNetworkConfig, etherscanLink: etherscanLink, id: "test1Id", name: "test1Name"),
+  Network(config: testNetworkConfig, etherscanLink: etherscanLink, id: "test2Id", name: "test2Name"),
+  Network(config: testNetworkConfig, etherscanLink: etherscanLink, id: "test3Id", name: "test3Name"),
+]
 var testAddress = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".parseAddress
 var setting: Settings
 
@@ -79,7 +91,7 @@ saveSetting(db, setting.logLevel.columnName, testString)
 saveSetting(db, setting.mnemonic.columnName, testString)
 saveSetting(db, setting.name.columnName, testString)
 saveSetting(db, setting.currentNetwork.columnName, testString)
-saveSetting(db, setting.networks.columnName, testJSON)
+saveSetting(db, setting.networks.columnName, testNetworks)
 saveSetting(db, setting.nodeConfig.columnName, testJSON)
 saveSetting(db, setting.notificationsEnabled.columnName, testBool)
 saveSetting(db, setting.photoPath.columnName, testString)
@@ -122,7 +134,7 @@ assert dbSettings2.logLevel.get() == testString
 assert dbSettings2.mnemonic.get() == testString
 assert dbSettings2.name.get() == testString
 assert dbSettings2.currentNetwork == testString
-assert dbSettings2.networks == testJSON
+assert dbSettings2.networks == testNetworks
 assert dbSettings2.notificationsEnabled.get() == testBool
 assert dbSettings2.photoPath == testString
 assert dbSettings2.pinnedMailservers.get() == testJSON
