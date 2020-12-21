@@ -10,15 +10,30 @@ import # nim-status libs
 export types, options
 
 proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object?
-  let query = """INSERT INTO settings (
-                  address, currency, current_network, dapps_address,
-                  eip1581_address, installation_id, key_uid,
-                  keycard_instance_uid, keycard_paired_on,
-                  keycard_pairing, latest_derived_path, mnemonic,
-                  name, networks, node_config, photo_path,
-                  preview_privacy, public_key, signing_phrase,
-                  wallet_root_address, synthetic_id)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'id')"""
+  var setting: Settings
+  let query = fmt"""INSERT INTO {setting.tableName} (
+                      {setting.userAddress.columnName},
+                      {setting.currency.columnName},
+                      {setting.currentNetwork.columnName},
+                      {setting.dappsAddress.columnName},
+                      {setting.eip1581Address.columnName},
+                      {setting.installationId.columnName},
+                      {setting.keyUid.columnName},
+                      {setting.keycardInstanceUid.columnName},
+                      {setting.keycardPairedOn.columnName},
+                      {setting.keycardPairing.columnName},
+                      {setting.latestDerivedPath.columnName},
+                      {setting.mnemonic.columnName},
+                      {setting.name.columnName},
+                      {setting.networks.columnName},
+                      {setting.nodeConfig.columnName},
+                      {setting.photoPath.columnName},
+                      {setting.previewPrivacy.columnName},
+                      {setting.publicKey.columnName},
+                      {setting.signingPhrase.columnName},
+                      {setting.walletRootAddress.columnName},
+                      synthetic_id)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'id')"""
 
   db.exec(query,
             s.userAddress,
