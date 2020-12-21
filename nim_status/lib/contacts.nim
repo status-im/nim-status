@@ -33,6 +33,7 @@ type
     Name = "name",
     EnsVerified = "ens_verified",
     EnsVerifiedAt = "ens_verified_at",
+    EnsVerificationRetries = "ens_verification_retries"
     Alias = "alias"
     Identicon = "identicon"
     Photo = "photo"
@@ -72,7 +73,7 @@ type
     # last clock value of when we received an ENS name for the user
     lastEnsClockValue* {.serializedFieldName($ContactType.LastEnsClockValue), dbColumnName($ContactsCol.LastEnsClockValue).}: int64
     # how many times we retried the ENS
-    ensVerificationRetries* {.serializedFieldName($ContactType.EnsVerificationRetries), dbIgnore.}: int64
+    ensVerificationRetries* {.serializedFieldName($ContactType.EnsVerificationRetries), dbColumnName($ContactsCol.EnsVerificationRetries).}: int64
     # Generated username name of the contact
     alias* {.serializedFieldName($ContactType.Alias), dbColumnName($ContactsCol.Alias).}: Option[string]
     # Identicon generated from public key
@@ -100,10 +101,11 @@ proc saveContact*(db: DbConn, contact: Contact) =
                       {$ContactsCol.DeviceInfo},
                       {$ContactsCol.EnsVerified},
                       {$ContactsCol.EnsVerifiedAt},
+                      {$ContactsCol.EnsVerificationRetries},
                       {$ContactsCol.TributeToTalk},
                       {$ContactsCol.LocalNickname},
                       {$ContactsCol.LastEnsClockValue})
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
   
   db.exec(query,
           contact.id,
@@ -117,6 +119,7 @@ proc saveContact*(db: DbConn, contact: Contact) =
           contact.deviceInfo,
           contact.ensVerified,
           contact.ensVerifiedAt,
+          contact.ensVerificationRetries,
           contact.tributeToTalk,
           contact.localNickname,
           contact.lastEnsClockValue)

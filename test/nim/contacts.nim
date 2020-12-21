@@ -72,19 +72,11 @@ let contact3 = Contact(
 db.saveContact(contact1)
 var dbContacts = db.getContacts()
 assert dbContacts.len == 1
-# `ensVerificationRetries` is not stored in the db, so this value won't be
-# comparable. By setting it here, we are effectively ignoring it for the tests.
-dbContacts[0].ensVerificationRetries = contact1.ensVerificationRetries
 assert dbContacts[0] == contact1
 
 db.saveContacts(@[contact2, contact3])
 dbContacts = db.getContacts()
 assert dbContacts.len == 3
-# `ensVerificationRetries` is not stored in the db, so this value won't be
-# comparable. By setting it here, we are effectively ignoring it for the tests.
-dbContacts[0].ensVerificationRetries = contact1.ensVerificationRetries
-dbContacts[1].ensVerificationRetries = contact2.ensVerificationRetries
-dbContacts[2].ensVerificationRetries = contact3.ensVerificationRetries
 assert dbContacts == @[contact1, contact2, contact3]
 
 echo dbContacts
