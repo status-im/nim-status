@@ -116,7 +116,6 @@ saveSetting(db, setting.wakuEnabled.columnName, testBool)
 saveSetting(db, setting.wakuBloomFilterMode.columnName, testBool)
 
 let dbSettings2 = getSettings(db)
-
 assert dbSettings2.chaosMode.get() == testBool
 assert dbSettings2.currency.get() == testString
 assert dbSettings2.customBootNodes.get() == testJson
@@ -160,4 +159,3 @@ assert dbSettings2.wakuBloomFilterMode.get() == testBool
 assert getNodeConfig(db) == testJSON
 
 db.close()
-removeFile(path)

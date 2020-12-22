@@ -24,8 +24,10 @@ export LINK_PCRE := 0
 	clean-data-dirs \
 	clean-sqlcipher \
 	clean-status-go \
+	clean-migration-file \
 	create-data-dirs \
 	deps \
+	migrations \
 	nat-libs-sub \
 	nats \
 	nim_status \
@@ -210,9 +212,22 @@ ifneq ($(NIMSTATUS_CFLAGS),)
  NIM_PARAMS += --passC:"$(NIMSTATUS_CFLAGS)"
 endif
 
+MIGRATIONS ?= nim_status/lib/migrations/sql_scripts.nim
+
+$(MIGRATIONS): | deps
+	$(ENV_SCRIPT) nim c -r $(NIM_PARAMS) \
+		--verbosity:0 \
+		nim_status/lib/migrations/sql_generate.nim > \
+		nim_status/lib/migrations/sql_scripts.nim 2> /dev/null
+
+clean-migration-file:
+	rm -f nim_status/lib/migrations/sql_scripts.nim
+
+migrations: clean-migration-file $(MIGRATIONS)
+
 NIMSTATUS ?= build/nim_status.a
 
-$(NIMSTATUS): $(SQLCIPHER)
+$(NIMSTATUS): $(SQLCIPHER) $(MIGRATIONS)
 	echo -e $(BUILD_MSG) "$@"
 	+ mkdir -p build
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
@@ -360,7 +375,7 @@ test-c:
 		TEST_NAME=login \
 		test-c-template
 
-test-nim: $(STATUSGO) $(SQLCIPHER)
+test-nim: $(STATUSGO) $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \

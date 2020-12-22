@@ -82,3 +82,9 @@
 [submodule "vendor/nim-web3"]
 	path = vendor/nim-web3
 	url = https://github.com/status-im/nim-web3
+[submodule "vendor/nim-result"]
+	path = vendor/nim-result
+	url = https://github.com/arnetheduck/nim-result
+[submodule "vendor/nim-byteutils"]
+	path = vendor/nim-byteutils
+	url = https://github.com/status-im/nim-byteutils/
