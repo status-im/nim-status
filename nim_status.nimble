@@ -75,4 +75,3 @@ task tests, "Run all tests":
   buildAndRunTest "settings"
   buildAndRunTest "callrpc"
   buildAndRunTest "migrations"
-
