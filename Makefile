@@ -217,6 +217,7 @@ MIGRATIONS ?= nim_status/lib/migrations/sql_scripts.nim
 $(MIGRATIONS): | deps
 	$(ENV_SCRIPT) nim c -r $(NIM_PARAMS) \
 		nim_status/lib/migrations/sql_generate.nim > nim_status/lib/migrations/sql_scripts.nim
+	cat nim_status/lib/migrations/sql_scripts.nim 
 
 clean-migration-file:
 	rm -f nim_status/lib/migrations/sql_scripts.nim
