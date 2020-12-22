@@ -43,7 +43,7 @@ proc checkMigrations*(db: DbConn): bool =
   debug "Verifying migration data"
 
   if allMigrationsExecuted.len > migrations.len:
-    warn "DB version might be greater than source", migrationsInCode=migrations.len, migrationsExecuted=allMigrationsExecuted.len
+    warn "DB version might be greater than source code", migrationsInCode=migrations.len, migrationsExecuted=allMigrationsExecuted.len
     return false
 
   var i = -1
