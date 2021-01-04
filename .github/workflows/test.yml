@@ -68,17 +68,9 @@ jobs:
             git
             unzip
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-go
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-pcre
-
-      # temporary workaround for: https://github.com/golang/go/issues/42565
-      - name: Fetch Go v1.14.11
-        if: matrix.platform.os == 'windows'
-        run: |
-          mkdir -p "${HOME}/Downloads"
-          cd "${HOME}/Downloads"
-          wget https://golang.org/dl/go1.14.11.windows-amd64.zip
-          unzip go1.14.11.windows-amd64.zip
 
       - uses: actions/checkout@v2
         with:
@@ -119,8 +111,6 @@ jobs:
         # specify `C:/msys64/` include/lib paths (via `cygpath -m`) to avoid
         # problems with msys2 path conversion
         run: |
-          export GOROOT="${HOME}/Downloads/go"
-          export PATH="${HOME}/Downloads/go/bin:${PATH}"
           # test-nim and test-c can interfere with each other if run in
           # parallel so use `-j1` instead of `-j${NPROC}`
           make -j1 \
