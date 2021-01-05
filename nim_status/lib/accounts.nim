@@ -12,7 +12,7 @@ proc login*(accountData, password: string) =
   # TODO: determine where will the DB connection live. In the meantime I'm storing it into a global variable
   # TODO: determine where the web3 conn will live
 
-  let path = currentSourcePath.parentDir() / accountData & ".db"
+  let path =  getCurrentDir() / accountData & ".db"
   db_conn = initializeDB(path, password)
 
   # TODO: these settings should have been set when calling saveAccountAndLogin
@@ -47,5 +47,5 @@ proc logout*() =
   web3_conn = nil
 
 proc test_removeDB*(accountData: string) = # TODO: remove this once proper db initialization is available
-  let path = currentSourcePath.parentDir() / accountData & ".db"
+  let path =  getCurrentDir() / accountData & ".db"
   removeFile(path)
