@@ -76,3 +76,5 @@ task tests, "Run all tests":
   buildAndRunTest "callrpc"
   buildAndRunTest "migrations"
   buildAndRunTest "mailservers"
+  buildAndRunTest "bip32"
+

@@ -87,4 +87,10 @@
 	url = https://github.com/arnetheduck/nim-result
 [submodule "vendor/nim-byteutils"]
 	path = vendor/nim-byteutils
-	url = https://github.com/status-im/nim-byteutils/
+	url = https://github.com/status-im/nim-byteutils
+[submodule "vendor/nim-normalize"]
+	path = vendor/nim-normalize
+	url = https://github.com/nitely/nim-normalize
+[submodule "vendor/nim-unicodedb"]
+	path = vendor/nim-unicodedb
+	url = https://github.com/nitely/nim-unicodedb
