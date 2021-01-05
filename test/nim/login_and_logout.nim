@@ -11,16 +11,14 @@ import web3/conversions
 let accountData = "someAccount"
 let passwd = "qwerty"
 
-# Removing DB since we still dont have migration code
-removeFile(currentSourcePath.parentDir().parentDir().parentDir() / "nim_status/lib" / accountData  & ".db")
-
+test_removeDB(accountData)
 
 try:
   assert web3_conn == nil
   discard callRPC(web3_conn, "eth_gasPrice", %[])
   assert "Should fail if reaches this point" == ""
 except:
-  assert getCurrentExceptionMsg() == "Web3 connection is not available"
+  assert getCurrentExceptionMsg() == "web3 connection is not available"
 
 
 login(accountData, passwd)
@@ -38,7 +36,7 @@ try:
   discard callRPC(web3_conn, "eth_gasPrice", %[])
   assert "Should fail if reaches this point" == ""
 except:
-  assert getCurrentExceptionMsg() == "Web3 connection is not available"
+  assert getCurrentExceptionMsg() == "web3 connection is not available"
 
 # Removing DB to be able to run the test again
-removeFile(currentSourcePath.parentDir().parentDir().parentDir() / "nim_status/lib" / accountData  & ".db")
+test_removeDB(accountData)
