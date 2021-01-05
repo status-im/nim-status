@@ -69,12 +69,6 @@ proc verifyAccountPassword*(keyStoreDir: string, address: string, password: stri
 proc validateMnemonic*(mnemonic: string): string =
   $go_shim.validateMnemonic(mnemonic.cstring)
 
-proc recoverAccount*(password: string, mnemonic: string): string =
-  $go_shim.recoverAccount(password.cstring, mnemonic.cstring)
-
-proc startOnboarding*(n: int, mnemonicPhraseLength: int): string =
-  $go_shim.startOnboarding(n.cint, mnemonicPhraseLength.cint)
-
 proc saveAccountAndLoginWithKeycard*(accountData: string, password: string, settingsJSON: string, configJSON: string, subaccountData: string, keyHex: string): string =
   $go_shim.saveAccountAndLoginWithKeycard(accountData.cstring, password.cstring, settingsJSON.cstring, configJSON.cstring, subaccountData.cstring, keyHex.cstring)
 
@@ -105,12 +99,6 @@ proc recover*(rpcParams: string): string =
 proc writeHeapProfile*(dataDir: string): string =
   $go_shim.writeHeapProfile(dataDir.cstring)
 
-proc importOnboardingAccount*(id: string, password: string): string =
-  $go_shim.importOnboardingAccount(id.cstring, password.cstring)
-
-proc removeOnboarding*() =
-  go_shim.removeOnboarding()
-
 proc hashTypedData*(data: string): string =
   $go_shim.hashTypedData(data.cstring)
 
@@ -137,9 +125,6 @@ proc chaosModeUpdate*(on: int): string =
 
 proc signHash*(hexEncodedHash: string): string =
   $go_shim.signHash(hexEncodedHash.cstring)
-
-proc createAccount*(password: string): string =
-  $go_shim.createAccount(password.cstring)
 
 proc sendTransactionWithSignature*(txtArgsJSON: string, sigString: string): string =
   $go_shim.sendTransactionWithSignature(txtArgsJSON.cstring, sigString.cstring)
