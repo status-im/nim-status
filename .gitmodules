@@ -91,3 +91,6 @@
 [submodule "vendor/nim-normalize"]
 	path = vendor/nim-normalize
 	url = https://github.com/nitely/nim-normalize
+[submodule "vendor/nim-unicodedb"]
+	path = vendor/nim-unicodedb
+	url = https://github.com/nitely/nim-unicodedb
