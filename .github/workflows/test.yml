@@ -52,6 +52,11 @@ jobs:
 
     steps:
 
+      - name: Install awk (gawk) and coreutils via Homebrew
+        if: matrix.platform.os == 'macos'
+        run: |
+          brew install coreutils gawk
+
       - name: Link Homebrew OpenSSL 1.1 to /usr/local/opt/openssl
         if: matrix.platform.os == 'macos'
         run: |
@@ -77,12 +82,17 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Calculate cache key from submodules tree
+        id: calc-cache-key
+        run: |
+          echo "::set-output name=hash::$(git submodule foreach --quiet --recursive 'git rev-parse $(git rev-parse --abbrev-ref HEAD)' | sha1sum | awk '{print $1}')"
+
       - uses: actions/cache@v2
         with:
           path: |
             vendor/nimbus-build-system/vendor/Nim/bin
             vendor/status-go/build/bin
-          key: ${{ matrix.platform.os }}-${{ env.NPROC }}-nim-statusgo-${{ hashFiles('.gitmodules') }}
+          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}
 
       - name: Install and build dependencies
         run: |
