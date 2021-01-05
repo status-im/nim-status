@@ -45,10 +45,6 @@ proc verifyAccountPassword*(keyStoreDir: cstring, address: cstring, password: cs
 
 proc validateMnemonic*(mnemonic: cstring): cstring {.importc: "ValidateMnemonic".}
 
-proc recoverAccount*(password: cstring, mnemonic: cstring): cstring {.importc: "RecoverAccount".}
-
-proc startOnboarding*(n: cint, mnemonicPhraseLength: cint): cstring {.importc: "StartOnboarding".}
-
 proc saveAccountAndLoginWithKeycard*(accountData: cstring, password: cstring, settingsJSON: cstring, configJSON: cstring, subaccountData: cstring, keyHex: cstring): cstring {.importc: "SaveAccountAndLoginWithKeycard".}
 
 proc hashTransaction*(txArgsJSON: cstring): cstring {.importc: "HashTransaction".}
@@ -69,10 +65,6 @@ proc recover*(rpcParams: cstring): cstring {.importc: "Recover".}
 
 proc writeHeapProfile*(dataDir: cstring): cstring {.importc: "WriteHeapProfile".}
 
-proc importOnboardingAccount*(id: cstring, password: cstring): cstring {.importc: "ImportOnboardingAccount".}
-
-proc removeOnboarding*() {.importc: "RemoveOnboarding".}
-
 proc hashTypedData*(data: cstring): cstring {.importc: "HashTypedData".}
 
 proc resetChainData*(): cstring {.importc: "ResetChainData".}
@@ -90,8 +82,6 @@ proc exportNodeLogs*(): cstring {.importc: "ExportNodeLogs".}
 proc chaosModeUpdate*(on: cint): cstring {.importc: "ChaosModeUpdate".}
 
 proc signHash*(hexEncodedHash: cstring): cstring {.importc: "SignHash".}
-
-proc createAccount*(password: cstring): cstring {.importc: "CreateAccount".}
 
 proc sendTransactionWithSignature*(txtArgsJSON: cstring, sigString: cstring): cstring {.importc: "SendTransactionWithSignature".}
 
