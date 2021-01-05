@@ -53,10 +53,10 @@ type RemoteMethod* {.pure.} = enum
 proc newWeb3*(settings: Settings): Web3 =
   let network = settings.getNetwork()
   if network.isNone:
-    raise (ref Web3Error)(msg: "Config not found for network " & settings.currentNetwork)
+    raise (ref Web3Error)(msg: "config not found for network " & settings.currentNetwork)
 
   if not network.get().config.upstreamConfig.enabled: 
-    raise (ref Web3Error)(msg: "Network " & settings.currentNetwork & " is not enabled")
+    raise (ref Web3Error)(msg: "network " & settings.currentNetwork & " is not enabled")
 
   result = waitFor newWeb3(network.get().config.upstreamConfig.url)
 
@@ -68,7 +68,10 @@ proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode): Respon
 
 
 proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response =
-  try:
+  if web3Conn == nil:
+    raise (ref Web3Error)(msg: "web3 connection is not available")
+
+  try: 
     var m = parseEnum[RemoteMethod](rpcMethod)
   except:
     return (true, %* {"code": -32601, "message": "the method " & rpcMethod & " does not exist/is not available"})
