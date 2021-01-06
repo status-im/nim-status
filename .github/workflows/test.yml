@@ -102,6 +102,12 @@ jobs:
       - name: Build and run tests
         if: matrix.platform.os != 'windows'
         run: |
+          # workaround for limitations of BSD `ar` on macOS
+          # see: https://github.com/nim-lang/Nim/issues/15589
+          (([[ ${{ matrix.platform.os }} = macos ]] && \
+            mkdir -p "${HOME}/.local/bin" && \
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar") || true)
+          export PATH="${HOME}/.local/bin:${PATH}"
           # test-nim and test-c can interfere with each other if run in
           # parallel so use `-j1` instead of `-j${NPROC}`
           make -j1 \
