@@ -6,8 +6,7 @@ import
   eth/keys,
   json_rpc/[rpcclient, rpcserver],
   waku/v2/node/[config, wakunode2],
-  waku/common/utils/nat,
-  waku/v2/waku_types
+  waku/common/utils/nat
 
 # The initial implementation of initNode is by intention a minimum viable usage
 # of nim-waku v2 from within nim-status
