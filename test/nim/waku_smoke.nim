@@ -5,7 +5,7 @@ import
   stew/results,
   unittest,
   waku/v2/node/[config, wakunode2],
-  waku/v2/waku_types
+  waku/v2/protocol/waku_message
 
 import
   ../../nim_status/lib/waku,
@@ -14,9 +14,6 @@ import
 # This test suite is essentially a "smoke test" for using nim-waku v2 from
 # within nim-status and should be replaced by tests focused on nim-status'
 # particular usage of nim-waku as the nim-status library evolves
-
-type
-  Topic = waku_types.Topic
 
 procSuite "waku node":
   asyncTest "basic subscribe and publish":
