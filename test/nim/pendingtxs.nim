@@ -5,7 +5,7 @@ import # vendor libs
   sqlcipher, json_serialization, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/lib/[pendingtxs, database, conversions]
+  ../../nim_status/[pendingtxs, database, conversions]
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"

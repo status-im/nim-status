@@ -5,7 +5,7 @@ import # vendor libs
   sqlcipher, json_serialization, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/lib/[chats, database, conversions, contacts, messages]
+  ../../nim_status/[chats, database, conversions, contacts, messages]
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
@@ -148,4 +148,3 @@ assert len(dbChats) == 0
 
 db.close()
 removeFile(path)
-

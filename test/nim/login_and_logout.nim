@@ -1,10 +1,10 @@
 import sqlcipher
 import os, json, json_serialization
 import options
-import ../../nim_status/lib/settings
-import ../../nim_status/lib/database
-import ../../nim_status/lib/callrpc
-import ../../nim_status/lib/accounts
+import ../../nim_status/settings
+import ../../nim_status/database
+import ../../nim_status/callrpc
+import ../../nim_status/accounts
 import web3/conversions
 
 

@@ -1,8 +1,10 @@
 import json
-import ../../nim_status
 import nimcrypto
 import chronicles
 import os
+
+import ../../nim_status
+import ../../nim_status/go/shim as go_shim
 
 proc hashPassword(password: string): string =
   result = "0x" & $keccak_256.digest(password)
@@ -16,13 +18,13 @@ proc resetDirectories*()=
 
 proc init*() =
   debug "Initializing keystore"
-  assert initKeystore("./data") == """{"error":""}"""
-  assert openAccounts("./noBackup") != """{"error":"unable to open database file"}""";
+  assert go_shim.initKeystore("./data") == """{"error":""}"""
+  assert go_shim.openAccounts("./noBackup") != """{"error":"unable to open database file"}""";
 
 proc AndLogin(account0: JsonNode, pwd: string) =
   let password = hashPassword(pwd)
 
-  let multiAccounts = parseJson($multiAccountStoreDerivedAccounts($ %* {
+  let multiAccounts = parseJson($go_shim.multiAccountStoreDerivedAccounts($ %* {
     "accountID": account0["id"].getStr,
     "paths": ["m/44'/60'/0'/0", "m/43'/60'/1581'", "m/43'/60'/1581'/0'/0", "m/44'/60'/0'/0/0"],
     "password": password
@@ -241,7 +243,7 @@ proc AndLogin(account0: JsonNode, pwd: string) =
     }
   ]
 
-  let saveResult = parseJson($saveAccountAndLogin($accountData, password, $settingsJSON, $configJSON, $subaccountData))
+  let saveResult = parseJson($go_shim.saveAccountAndLogin($accountData, password, $settingsJSON, $configJSON, $subaccountData))
   assert saveResult["error"].getStr == ""
 
   debug "Login successful"
@@ -249,7 +251,7 @@ proc AndLogin(account0: JsonNode, pwd: string) =
 proc createAccountAndLogin*(password: string = "qwerty"):string =
   debug "Creating an account"
 
-  let generatedAddresses = parseJson($multiAccountGenerateAndDeriveAddresses($ %* {
+  let generatedAddresses = parseJson($go_shim.multiAccountGenerateAndDeriveAddresses($ %* {
     "n": 5,
     "mnemonicPhraseLength": 12,
     "bip39Passphrase": "",
@@ -264,7 +266,7 @@ proc createAccountAndLogin*(password: string = "qwerty"):string =
 
 
 proc restoreAccountAndLogin*(mnemonic: string, password: string = "qwerty"):string =
-  let importedAddress = parseJson($ multiAccountImportMnemonic($ %* {
+  let importedAddress = parseJson($ go_shim.multiAccountImportMnemonic($ %* {
     "mnemonicPhrase": mnemonic,
     "Bip39Passphrase": ""
   }))
@@ -274,8 +276,8 @@ proc restoreAccountAndLogin*(mnemonic: string, password: string = "qwerty"):stri
   AndLogin(importedAddress, password)
 
 proc logoutAccount*() =
-  discard logout()
+  discard go_shim.logout()
 
 proc login*(password: string) =
-  let account = $parseJson($openAccounts("./noBackup"))[0]
-  assert login(account, hashPassword(password)) == """{"error":""}"""
+  let account = $parseJson($go_shim.openAccounts("./noBackup"))[0]
+  assert go_shim.login(account, hashPassword(password)) == """{"error":""}"""

@@ -8,7 +8,7 @@ import
   waku/v2/protocol/waku_message
 
 import
-  ../../nim_status/lib/waku,
+  ../../nim_status/waku,
   ./test_helpers
 
 # This test suite is essentially a "smoke test" for using nim-waku v2 from

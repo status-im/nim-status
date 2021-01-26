@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "nim_status.h"
+#include "nim_status_go.h"
 #include "nxjson.c"
 
 

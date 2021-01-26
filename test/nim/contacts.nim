@@ -6,7 +6,7 @@ import # vendor libs
   web3/ethtypes
 
 import # nim-status libs
-  ../../nim_status/lib/[contacts, database, conversions]
+  ../../nim_status/[contacts, database, conversions]
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"

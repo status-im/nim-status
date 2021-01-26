@@ -1,9 +1,9 @@
 import sqlcipher
 import os, json, json_serialization, json_serialization/std/options as json_options
 import options
-import ../../nim_status/lib/settings
-import ../../nim_status/lib/database
-import ../../nim_status/lib/callrpc
+import ../../nim_status/settings
+import ../../nim_status/database
+import ../../nim_status/callrpc
 import web3/conversions
 
 let passwd = "qwerty"
