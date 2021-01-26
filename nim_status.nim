@@ -6,7 +6,7 @@ from nim_status/lib/shim as nim_shim import
   generateAlias,
   identicon
 
-from nim_status/dummy/shim as dummy_shim import
+from nim_status/go/shim as go_shim import
   initKeystore,
   openAccounts,
   multiAccountGenerateAndDeriveAddresses,
@@ -14,14 +14,16 @@ from nim_status/dummy/shim as dummy_shim import
   multiAccountImportMnemonic,
   multiAccountImportPrivateKey,
   multiAccountDeriveAddresses,
-  saveAccountAndLogin,
+  saveAccountAndLogin
+
+from nim_status/dummy/shim as dummy_shim import
+  login,
   deleteMultiAccount,
   callRPC,
   callPrivateRPC,
   addPeer,
   setSignalEventCallback,
   sendTransaction,
-  login,
   logout,
   verifyAccountPassword,
   validateMnemonic,
