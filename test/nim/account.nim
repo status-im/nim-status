@@ -13,7 +13,7 @@ var success = false
 procSuite "nim_status":
   asyncTest "account":
     resetDirectories() # Recreates the data and nobackup dir
-    init()
+    #init()
 
     # Single RNG instance for the application - will be seeded on construction
     # and avoid using system resources (such as urandom) after that
