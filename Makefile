@@ -31,6 +31,7 @@ export LINK_PCRE := 0
 	nat-libs-sub \
 	nats \
 	nim_status \
+	nim_status_go \
 	shims-for-test-c \
 	status-go \
 	sqlcipher \
@@ -212,16 +213,16 @@ ifneq ($(NIMSTATUS_CFLAGS),)
  NIM_PARAMS += --passC:"$(NIMSTATUS_CFLAGS)"
 endif
 
-MIGRATIONS ?= nim_status/lib/migrations/sql_scripts.nim
+MIGRATIONS ?= nim_status/migrations/sql_scripts.nim
 
 $(MIGRATIONS): | deps
 	$(ENV_SCRIPT) nim c -r $(NIM_PARAMS) \
 		--verbosity:0 \
-		nim_status/lib/migrations/sql_generate.nim > \
-		nim_status/lib/migrations/sql_scripts.nim 2> /dev/null
+		nim_status/migrations/sql_generate.nim > \
+		nim_status/migrations/sql_scripts.nim 2> /dev/null
 
 clean-migration-file:
-	rm -f nim_status/lib/migrations/sql_scripts.nim
+	rm -f nim_status/migrations/sql_scripts.nim
 
 migrations: clean-migration-file $(MIGRATIONS)
 
@@ -238,11 +239,30 @@ $(NIMSTATUS): $(SQLCIPHER) $(MIGRATIONS)
 		--threads:on \
 		--tlsEmulation:off \
 		-o:$@ \
-		nim_status/c/nim_status.nim
-	cp nimcache/nim_status/nim_status.h build/nim_status.h
+		nim_status/c/shim.nim
+	cp nimcache/nim_status/shim.h build/nim_status.h
 	mv nim_status.a build/
 
 nim_status: $(NIMSTATUS)
+
+NIMSTATUS_GO ?= build/nim_status_go.a
+
+$(NIMSTATUS_GO): $(SQLCIPHER) $(MIGRATIONS)
+	echo -e $(BUILD_MSG) "$@"
+	+ mkdir -p build
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
+		--app:staticLib \
+		--header \
+		--nimcache:nimcache/nim_status_go \
+		--noMain \
+		--threads:on \
+		--tlsEmulation:off \
+		-o:$@ \
+		nim_status/c/go/shim.nim
+	cp nimcache/nim_status_go/shim.h build/nim_status_go.h
+	mv nim_status_go.a build/
+
+nim_status_go: $(NIMSTATUS_GO)
 
 SHIMS_FOR_TEST_C ?= test/c/build/shims.a
 
@@ -369,8 +389,8 @@ test-c:
 		test-c-template
 
 	rm -rf test/c/build
-	$(MAKE) $(NIMSTATUS)
-	$(MAKE) TEST_DEPS=$(NIMSTATUS) \
+	$(MAKE) $(NIMSTATUS_GO)
+	$(MAKE) TEST_DEPS=$(NIMSTATUS_GO) \
 		TEST_INCLUDES=$(LOGIN_TEST_INCLUDES) \
 		TEST_NAME=login \
 		test-c-template

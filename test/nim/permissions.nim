@@ -5,7 +5,7 @@ import # vendor libs
   json_serialization
 
 import # nim-status libs
-  ../../nim_status/lib/[database, permissions]
+  ../../nim_status/[database, permissions]
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"

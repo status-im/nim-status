@@ -1,4 +1,4 @@
-import ../../nim_status/lib/account
+import ../../nim_status/account
 import test_helpers
 import utils
 import eth/[keys, p2p]
@@ -33,4 +33,3 @@ procSuite "nim_status":
       account.privateKey != ""
       account.publicKey == pubKey
       signature != ""
-

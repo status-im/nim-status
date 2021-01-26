@@ -6,7 +6,7 @@ import # vendor libs
 from stew/shims/macros as stew_macros import hasCustomPragmaFixed, getCustomPragmaFixed
 
 import # nim-status libs
-  ../types, conversions
+  conversions
 
 type Dapp* {.dbTableName("dapps").} = object
   name* {.dbColumnName("name").}: string
@@ -59,7 +59,7 @@ proc getPermissions*(db: DbConn): seq[DappPermissions] =
 
   var tblDappPerms = dapps.map(dapp => (dapp.name, DappPermissions(name: dapp.name))).toOrderedTable()
 
-  query = fmt"""SELECT 
+  query = fmt"""SELECT
                       {dappPermission.name.columnName},
                       {dappPermission.permissions.columnName}
                     FROM {dappPermission.tableName}"""

@@ -1,8 +1,8 @@
 import sqlcipher
 import os, json, json_serialization
 import options
-import ../../nim_status/lib/tokens
-import ../../nim_status/lib/database
+import ../../nim_status/tokens
+import ../../nim_status/database
 import web3/conversions
 
 let passwd = "qwerty"

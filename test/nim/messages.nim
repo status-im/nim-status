@@ -5,7 +5,7 @@ import # vendor libs
   sqlcipher, json_serialization, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/lib/[messages, database, conversions, chats]
+  ../../nim_status/[messages, database, conversions, chats]
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
@@ -98,8 +98,8 @@ assert dbMsg.seen == true and dbChat.unviewedMessageCount == 0
 
 # deleteMessage
 db.deleteMessage(msg)
-var found: bool 
-try: 
+var found: bool
+try:
   discard db.getMessageById("msg2").get()
   found = true
 except:

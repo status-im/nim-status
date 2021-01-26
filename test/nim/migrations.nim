@@ -1,7 +1,7 @@
 import os, tables
 import sqlcipher, results
-import ../../nim_status/lib/migration
-import ../../nim_status/lib/migrations/sql_scripts
+import ../../nim_status/migration
+import ../../nim_status/migrations/sql_scripts
 import stew/byteutils
 
 let passwd = "qwerty"

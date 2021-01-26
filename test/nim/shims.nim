@@ -1,4 +1,4 @@
-import ../../nim_status/lib/shim as nim_shim
+import ../../nim_status/c/shim_impl as nim_shim
 import ../../nim_status/go/shim as go_shim
 import base64
 import nimPNG
@@ -8,9 +8,9 @@ import strutils
 
 proc hashCmp(str1: string, str2: string, testSame: bool): void =
   if testSame:
-    assert nim_shim.hashMessage(str1) == go_shim.hashMessage(str2)
+    assert $nim_shim.hashMessage(str1.cstring) == go_shim.hashMessage(str2)
   else:
-    assert nim_shim.hashMessage(str1) != go_shim.hashMessage(str2)
+    assert $nim_shim.hashMessage(str1.cstring) != go_shim.hashMessage(str2)
 
 hashCmp("", "", true)
 hashCmp("a", "a", true)
@@ -67,7 +67,7 @@ const badKey_04 = "0x04ffdb0fef8f8e3bd899250538bc3c651090aa5b579e9cefa38f6896d59
 # generateAlias
 
 proc generateAliasCmp(pubKey: string): void =
-  assert nim_shim.generateAlias(pubKey) == go_shim.generateAlias(pubKey)
+  assert $nim_shim.generateAlias(pubKey.cstring) == go_shim.generateAlias(pubKey)
 
 generateAliasCmp(pubKey_01)
 generateAliasCmp(pubKey_02)
@@ -103,7 +103,7 @@ generateAliasCmp(badKey_04)
 
 proc identiconCmp(key: string): void =
   let go_b64 = go_shim.identicon(key)
-  let nim_b64 = nim_shim.identicon(key)
+  let nim_b64 = $nim_shim.identicon(key.cstring)
   assert (go_b64 != "" and nim_b64 != "") or (go_b64 == "" and nim_b64 == "")
   if go_b64 == "" and nim_b64 == "":
     return

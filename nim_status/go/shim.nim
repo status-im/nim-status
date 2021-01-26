@@ -1,5 +1,13 @@
-import ../c/go/shim as go_shim
-import ../types
+# This module (see also `../c/go/shim_impl.nim`) wraps the API supplied by
+# status-go when it is compiled into `libstatus.a` or `libstatus.dll|dylib|so`.
+
+# It is expected that this module will be consumed as an import in another Nim
+# module; when doing so, it is not necessary to separately compile
+# `../c/go/shim.nim` but it is the responsibility of the user to link status-go
+# compiled to `libstatus` into the final executable.
+
+import ../c/go/shim_impl as go_shim
+import ../c/go/signals
 
 export SignalCallback
 
@@ -164,4 +172,3 @@ proc startLocalNotifications*(): string =
 
 proc stopLocalNotifications*(): string =
   $go_shim.stopLocalNotifications()
-

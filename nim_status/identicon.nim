@@ -1,14 +1,8 @@
-import base64
-import chroma
-import identicon/color
-import md5
-import nimage
-import nimPNG
-import streams
+import base64, chroma, identicon/color, md5, nimage, nimPNG, streams
 
 type
-  Bitmap* = array[0..24, uint8]
-  Identicon* = ref object
+  Bitmap = array[0..24, uint8]
+  Identicon = ref object
     bitmap*: Bitmap
     color*: ColorRGBA
   NimageColor = uint32
@@ -96,6 +90,14 @@ proc renderBase64(icon: Identicon): string =
   strm.close()
   "data:image/png;base64," & encoded
 
-proc generateBase64*(id: string): string =
+proc generateBase64(id: string): string =
   let icon = generate(id)
   renderBase64(icon)
+
+proc identicon*(str: string): string =
+  ## identicon returns a base64 encoded icon given a string.
+  ## We ignore any error, empty string result is considered an error.
+  try:
+    result = generateBase64(str)
+  except:
+    discard

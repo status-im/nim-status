@@ -5,7 +5,7 @@ import # vendor libs
  sqlcipher, json_serialization, web3/conversions as web3_conversions
 
 import # nim-status libs
- ../../nim_status/lib/[accounts, database, conversions]
+ ../../nim_status/[accounts, database, conversions]
 
 import times
 

@@ -1,8 +1,8 @@
 import sqlcipher
 import os, json, json_serialization
 import options
-import ../../nim_status/lib/mailservers
-import ../../nim_status/lib/database
+import ../../nim_status/mailservers
+import ../../nim_status/database
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/my.db"
