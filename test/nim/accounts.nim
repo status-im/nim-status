@@ -6,19 +6,19 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[accounts, database, conversions],
+  ../../nim_status/migrations/sql_scripts_accounts,
   ./test_helpers
 
 procSuite "accounts":
   asyncTest "accounts":
-    let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, newMigrationDefinition())
 
     var account:Account = Account(
       name: "Test",
       loginTimestamp: cast[int](cpuTime()),
-      photoPath: "/path",
+      identicon: "data:image/png;base64,something",
       keycardPairing: "",
       keyUid: "0x1234"
     )
@@ -37,7 +37,7 @@ procSuite "accounts":
     check:
       acc.name == "Test_updated"
       acc.loginTimestamp == 1
-      acc.photoPath == account.photoPath
+      acc.identicon == account.identicon
       acc.keyUid == account.keyUid
 
     db.deleteAccount(account.keyUid)

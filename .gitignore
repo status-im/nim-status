@@ -15,4 +15,5 @@
 TODO
 sql_generate
 sql_generate.exe
-sql_scripts.nim
+sql_scripts_accounts.nim
+sql_scripts_app.nim

@@ -7,6 +7,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[contacts, conversions, database],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "contacts":
@@ -14,7 +15,7 @@ procSuite "contacts":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     let contact1 = Contact(
       id: "Contact1",

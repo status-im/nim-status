@@ -7,6 +7,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[conversions, database, settings],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "settings":
@@ -14,7 +15,7 @@ procSuite "settings":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     let settingsStr = """{
       "address": "0x1122334455667788990011223344556677889900",

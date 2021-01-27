@@ -6,6 +6,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[database, tokens],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "tokens":
@@ -13,7 +14,7 @@ procSuite "tokens":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     let tokensStr = """{
       "address": "0x1122334455667788990011223344556677889900",

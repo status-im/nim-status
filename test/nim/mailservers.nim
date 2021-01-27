@@ -6,6 +6,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[database, mailservers],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "mailservers":
@@ -13,7 +14,7 @@ procSuite "mailservers":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     let mailserver1 = Mailserver(
       id: "mailserver-1",
