@@ -2,16 +2,25 @@ import lib/accounts
 import lib/alias
 import lib/alias/data
 import lib/account
+import lib/accounts
 import lib/identicon
 import lib/messages
 import lib/chats
 import lib/permissions
 import lib/util
+
+import lib/migration
+import lib/database
+import lib/migrations/sql_scripts_accounts as acc_migration
+import lib/migrations/sql_scripts_app as app_migration
+import sqlcipher
+
 import nimcrypto
 import strformat
 import strutils
 import unicode
 import json
+import os
 
 export createAccount
 export getAccounts;
@@ -59,3 +68,17 @@ proc identicon*(str: string): string =
     result = generateBase64(str)
   except:
     discard
+
+
+
+##### TODO: move to somefile
+
+type StatusObject* = object
+  accountsDB*: DbConn
+  appDB*: DbConn
+
+proc init*(dataDir: string):StatusObject =
+  # TODO: ensure directory exists
+  result.accountsDB = initializeDB(dataDir / "accounts.sql", acc_migration.newMigrationDefinition())
+
+proc openAccounts*(): seq[Account] = getAccounts(dbConn)
