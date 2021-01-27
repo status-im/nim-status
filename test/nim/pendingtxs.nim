@@ -6,6 +6,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[conversions, database, pendingtxs],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "pendingtxs":
@@ -13,7 +14,7 @@ procSuite "pendingtxs":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     let tx = PendingTx(
       networkId: 1,

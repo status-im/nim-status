@@ -6,7 +6,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/migration,
-  ../../nim_status/migrations/sql_scripts,
+  ../../nim_status/migrations/sql_scripts_accounts as migration_accounts,
   ./test_helpers
 
 procSuite "migrations":
@@ -18,24 +18,25 @@ procSuite "migrations":
 
     db.key(password)
 
+    var migrationDefinition = migration_accounts.newMigrationDefinition()
+
     check:
       db.getLastMigrationExecuted().error() == "No migrations were executed"
-      db.migrate().isOk
-      db.isUpToDate()
+      db.migrate(migrationDefinition).isOk
+      db.isUpToDate(migrationDefinition)
 
-    # !!! migrationUp, migrationDown were changed from `var` to `const`, so it's not possible to make the changes below
-    # Creating dinamically new migrations just to check if isUpToDate and migrate work as expected
-    # migrationUp["002_abc"] = "CREATE TABLE anotherTable (address VARCHAR NOT NULL PRIMARY KEY) WITHOUT ROWID;".toBytes
-    # migrationDown["002_abc"] = "DROP TABLE anotherTable;".toBytes
+    # Create new migrations to check if isUpToDate and migrate work as expected
+    migrationDefinition.migrationUp["002_abc"] = "CREATE TABLE anotherTable (address VARCHAR NOT NULL PRIMARY KEY) WITHOUT ROWID;".toBytes
+    migrationDefinition.migrationDown["002_abc"] = "DROP TABLE anotherTable;".toBytes
 
     check:
-      # not db.isUpToDate()
-      db.migrate().isOk
-      db.isUpToDate()
-      db.migrate().isOk
-      db.tearDown()
-      db.tearDown()
-      not db.isUpToDate()
+      not db.isUpToDate(migrationDefinition)
+      db.migrate(migrationDefinition).isOk
+      db.isUpToDate(migrationDefinition)
+      db.migrate(migrationDefinition).isOk
+      db.tearDown(migrationDefinition)
+      db.tearDown(migrationDefinition)
+      not db.isUpToDate(migrationDefinition)
       db.getLastMigrationExecuted().error() == "No migrations were executed"
 
     db.close()

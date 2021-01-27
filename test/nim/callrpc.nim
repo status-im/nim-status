@@ -7,6 +7,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[callrpc, database, settings],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "callrpc":
@@ -14,7 +15,7 @@ procSuite "callrpc":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     let settingsStr = """{
       "address": "0x1122334455667788990011223344556677889900",
@@ -32,23 +33,26 @@ procSuite "callrpc":
     }"""
 
     let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
-    #[
     let web3Obj = newWeb3(settingsObj)
-
     let rGasPrice = callRPC(web3Obj, eth_gasPrice, %[])
-    assert rGasPrice.error == false
-    assert rGasPrice.result.getStr()[0..1] == "0x"
+
+    check:
+      rGasPrice.error == false
+      rGasPrice.result.getStr()[0..1] == "0x"
 
     let rEthSign = callRPC(web3Obj, "eth_sign", %[])
-    assert rEthSign.error == true
-    assert rEthSign.result["code"].getInt == -32601
-    assert rEthSign.result["message"].getStr == "the method eth_sign does not exist/is not available"
+
+    check:
+      rEthSign.error == true
+      rEthSign.result["code"].getInt == -32601
+      rEthSign.result["message"].getStr == "the method eth_sign does not exist/is not available"
 
     let rSendTransaction = callRPC(web3Obj, "eth_sendTransaction", %* [%*{"from": "0x0000000000000000000000000000000000000000", "to": "0x0000000000000000000000000000000000000000", "value": "123"}])
-    assert rSendTransaction.error == true
-    assert rSendTransaction.result["code"].getInt == -32601
-    assert rSendTransaction.result["message"].getStr == "the method eth_sendTransaction does not exist/is not available"
-    ]#
+
+    check:
+      rSendTransaction.error == true
+      rSendTransaction.result["code"].getInt == -32601
+      rSendTransaction.result["message"].getStr == "the method eth_sendTransaction does not exist/is not available"
 
     db.close()
     removeFile(path)

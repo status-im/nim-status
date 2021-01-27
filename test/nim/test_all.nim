@@ -1,12 +1,6 @@
 import
   ./account,
-
-  # `test/nim/accounts.nim` is presently disabled because
-  # `nim_status/accounts.nim` is written w.r.t. the accounts table in
-  # `accounts.sql` created by status-go vs. the accounts table in `[key].db`
-  # created by status-go. See PR #147.
-  # ./accounts,
-
+  ./accounts,
   ./bip32,
   ./callrpc,
   ./chats,

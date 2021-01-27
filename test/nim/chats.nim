@@ -6,6 +6,7 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/[chats, contacts, conversions, database, messages],
+  ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "chats":
@@ -13,7 +14,7 @@ procSuite "chats":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let db = initializeDB(path, password, newMigrationDefinition())
 
     var chat = Chat(
       id: "ContactId",
