@@ -58,28 +58,28 @@ proc test_removeDB*(accountData: string) = # TODO: remove this once proper db in
 type
   AccountType* {.pure.} = enum
     Name = "name",
-    PhotoPath = "photoPath",
+    Identicon = "identicon",
     KeycardPairing = "keycardPairing",
     KeyUid = "keyUid",
     LoginTimestamp = "loginTimestamp"
 
   AccountCol* {.pure.} = enum
     Name = "name",
-    PhotoPath = "photo_path",
-    KeycardPairing = "keycard_pairing",
-    KeyUid = "key_uid",
-    LoginTimestamp = "login_timestamp"
+    Identicon = "identicon",
+    KeycardPairing = "keycardPairing",
+    KeyUid = "keyUid",
+    LoginTimestamp = "loginTimestamp"
 
   Account* = object
     name* {.serializedFieldName($AccountType.Name), dbColumnName($AccountCol.Name).}: string
-    photoPath* {.serializedFieldName($AccountType.PhotoPath), dbColumnName($AccountCol.PhotoPath).}: string
+    identicon* {.serializedFieldName($AccountType.Identicon), dbColumnName($AccountCol.Identicon).}: string
     keycardPairing* {.serializedFieldName($AccountType.KeycardPairing), dbColumnName($AccountCol.KeycardPairing).}: string
     keyUid* {.serializedFieldName($AccountType.KeyUid), dbColumnName($AccountCol.KeyUid).}: string
     loginTimestamp* {.serializedFieldName($AccountType.LoginTimestamp), dbColumnName($AccountCol.LoginTimestamp).}: int
 
 proc getAccounts*(db: DbConn): seq[Account] =
   var accountList: seq[Account] = @[]
-  let query = fmt"""SELECT {$AccountCol.Name}, {$AccountCol.LoginTimestamp}, {$AccountCol.PhotoPath}, {$AccountCol.KeycardPairing}, {$AccountCol.KeyUid} 
+  let query = fmt"""SELECT {$AccountCol.Name}, {$AccountCol.LoginTimestamp}, {$AccountCol.Identicon}, {$AccountCol.KeycardPairing}, {$AccountCol.KeyUid} 
   from accounts ORDER BY {$AccountCol.LoginTimestamp} DESC"""
   result = db.all(Account, query)
 
@@ -87,22 +87,22 @@ proc saveAccount*(db: DbConn, account: Account) =
   let query = fmt"""
     INSERT OR REPLACE INTO accounts (
     {$AccountCol.Name}, 
-    {$AccountCol.PhotoPath}, 
+    {$AccountCol.Identicon}, 
     {$AccountCol.KeycardPairing}, 
     {$AccountCol.KeyUid}
     ) 
     VALUES (?, ?, ?, ?)"""
 
-  db.exec(query, account.name, account.photoPath, account.keycardPairing, account.keyUid)
+  db.exec(query, account.name, account.identicon, account.keycardPairing, account.keyUid)
 
 proc updateAccount*(db: DbConn, account: Account) =
   let query = fmt"""UPDATE accounts 
   SET {$AccountCol.Name} = ?, 
-      {$AccountCol.PhotoPath} = ?, 
+      {$AccountCol.Identicon} = ?, 
       {$AccountCol.KeycardPairing} = ? 
   WHERE {$AccountCol.KeyUid}= ?"""
 
-  db.exec(query, account.name, account.photoPath, account.keycardPairing, account.keyUid)
+  db.exec(query, account.name, account.identicon, account.keycardPairing, account.keyUid)
 
 proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string) =
   let query = fmt"""UPDATE accounts 

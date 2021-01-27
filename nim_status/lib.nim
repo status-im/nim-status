@@ -78,7 +78,7 @@ type StatusObject* = object
   appDB*: DbConn
 
 proc init*(dataDir: string):StatusObject =
-  # TODO: ensure directory exists
-  result.accountsDB = initializeDB(dataDir / "accounts.sql", acc_migration.newMigrationDefinition())
+  result.accountsDB = initializeDB(dataDir / "accounts.sql", acc_migration.newMigrationDefinition(), false) # Disabling migrations because we are reusing a status-go DB
 
-proc openAccounts*(): seq[Account] = getAccounts(dbConn)
+proc openAccounts*(self: StatusObject): seq[Account] = 
+  getAccounts(self.accountsDB)

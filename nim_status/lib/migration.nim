@@ -90,7 +90,8 @@ proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
           db.execScript(string.fromBytes(query))
           db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
     except SqliteError:
-      warn "Could not execute migration"
+      let msg = getCurrentExceptionMsg()
+      warn "Could not execute migration", msg
       return MigrationResult.err "Could not execute migration"
   else:
     if db.isUpToDate(definition): return lastMigrationExecuted
@@ -106,7 +107,8 @@ proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
           db.execScript(string.fromBytes(query))
           db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
     except SqliteError:
-      warn "Could not execute migration"
+      let msg = getCurrentExceptionMsg()
+      warn "Could not execute migration", msg
       return MigrationResult.err "Could not execute migration"
 
   return db.getLastMigrationExecuted()
