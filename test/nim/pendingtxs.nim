@@ -5,11 +5,12 @@ import # vendor libs
   sqlcipher, json_serialization, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/lib/[pendingtxs, database, conversions]
+  ../../nim_status/lib/[pendingtxs, database, conversions],
+  ../../nim_status/lib/migrations/sql_scripts_app
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 let tx = PendingTx(
   networkId: 1,

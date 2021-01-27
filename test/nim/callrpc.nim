@@ -4,11 +4,13 @@ import options
 import ../../nim_status/lib/settings
 import ../../nim_status/lib/database
 import ../../nim_status/lib/callrpc
+import ../../nim_status/lib/migrations/sql_scripts_app
+
 import web3/conversions
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 let settingsStr = """{
     "address": "0x1122334455667788990011223344556677889900",
@@ -26,7 +28,7 @@ let settingsStr = """{
   }"""
 
 let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
-#[
+
 let web3Obj = newWeb3(settingsObj)
 
 let rGasPrice = callRPC(web3Obj, eth_gasPrice, %[])
@@ -42,6 +44,6 @@ let rSendTransaction = callRPC(web3Obj, "eth_sendTransaction", %* [%*{"from": "0
 assert rSendTransaction.error == true
 assert rSendTransaction.result["code"].getInt == -32601
 assert rSendTransaction.result["message"].getStr == "the method eth_sendTransaction does not exist/is not available"
-]#
+
 db.close()
 removeFile(path)

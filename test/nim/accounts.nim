@@ -6,12 +6,13 @@ import # vendor libs
 
 import # nim-status libs
  ../../nim_status/lib/[accounts, database, conversions]
+ ../../nim_status/lib/migrations/sql_accounts_app
 
 import times
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, newMigrationDefinition())
 
 var account:Account = Account(
   name: "Test",

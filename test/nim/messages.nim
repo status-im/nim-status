@@ -5,11 +5,12 @@ import # vendor libs
   sqlcipher, json_serialization, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/lib/[messages, database, conversions, chats]
+  ../../nim_status/lib/[messages, database, conversions, chats],
+  ../../nim_status/lib/migrations/sql_scripts_app
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 var msg = Message(
   id: "msg1",

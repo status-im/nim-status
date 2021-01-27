@@ -3,10 +3,11 @@ import os, json, json_serialization
 import options
 import ../../nim_status/lib/mailservers
 import ../../nim_status/lib/database
+import ../../nim_status/lib/migrations/sql_scripts_app
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/my.db"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 let mailserver1 = Mailserver(
   id: "mailserver-1",

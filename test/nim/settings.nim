@@ -7,10 +7,11 @@ import # vendor libs
 
 import # nim-status libs
   ../../nim_status/lib/[settings, database, conversions]
+import ../../nim_status/lib/migrations/sql_scripts_app
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 let settingsStr = """{
     "address": "0x1122334455667788990011223344556677889900",

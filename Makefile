@@ -212,16 +212,16 @@ ifneq ($(NIMSTATUS_CFLAGS),)
  NIM_PARAMS += --passC:"$(NIMSTATUS_CFLAGS)"
 endif
 
-MIGRATIONS ?= nim_status/lib/migrations/sql_scripts.nim
+MIGRATIONS ?= nim_status/lib/migrations/sql_scripts_app.nim
 
 $(MIGRATIONS): | deps
-	$(ENV_SCRIPT) nim c -r $(NIM_PARAMS) \
-		--verbosity:0 \
-		nim_status/lib/migrations/sql_generate.nim > \
-		nim_status/lib/migrations/sql_scripts.nim 2> /dev/null
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --verbosity:0 nim_status/lib/migrations/sql_generate.nim
+	nim_status/lib/migrations/sql_generate nim_status/lib/migrations/accounts > nim_status/lib/migrations/sql_scripts_accounts.nim 
+	nim_status/lib/migrations/sql_generate nim_status/lib/migrations/app > nim_status/lib/migrations/sql_scripts_app.nim 
 
 clean-migration-file:
-	rm -f nim_status/lib/migrations/sql_scripts.nim
+	rm -f nim_status/lib/migrations/sql_scripts_accounts.nim
+	rm -f nim_status/lib/migrations/sql_scripts_app.nim
 
 migrations: clean-migration-file $(MIGRATIONS)
 

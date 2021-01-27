@@ -6,11 +6,12 @@ import # vendor libs
   web3/ethtypes
 
 import # nim-status libs
-  ../../nim_status/lib/[contacts, database, conversions]
+  ../../nim_status/lib/[contacts, database, conversions],
+  ../../nim_status/lib/migrations/sql_scripts_app
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 let contact1 = Contact(
   id: "Contact1",

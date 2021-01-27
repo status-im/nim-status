@@ -5,11 +5,12 @@ import # vendor libs
   json_serialization
 
 import # nim-status libs
-  ../../nim_status/lib/[database, permissions]
+  ../../nim_status/lib/[database, permissions],
+  ../../nim_status/lib/migrations/sql_scripts_app
 
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+let db = initializeDB(path, passwd, newMigrationDefinition())
 
 let dappPerm1: DappPermissions = DappPermissions(
   name: "Dapp1",

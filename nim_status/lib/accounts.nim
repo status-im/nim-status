@@ -4,7 +4,7 @@ import # vendor libs
   web3, chronos, web3/conversions as web3_conversions, web3/ethtypes,
   sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
   stew/byteutils
-
+import migrations/sql_scripts_app
 import conversions, settings/types, settings, database, conversions, callrpc
 
 var db_conn*: DbConn
@@ -18,7 +18,7 @@ proc login*(accountData, password: string) =
   # TODO: determine where the web3 conn will live
 
   let path =  getCurrentDir() / accountData & ".db"
-  db_conn = initializeDB(path, password)
+  db_conn = initializeDB(path, password, newMigrationDefinition())
 
   # TODO: these settings should have been set when calling saveAccountAndLogin
   let settingsStr = """{

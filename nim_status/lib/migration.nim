@@ -1,9 +1,11 @@
 import sqlcipher, results
 import sequtils, tables, algorithm, strformat
 import stew/byteutils
-import migrations/sql_scripts
 import nimcrypto
 import chronicles
+import migrations/types
+
+export MigrationDefinition
 
 type Migration* {.dbTableName("migrations").} = object
   name* {.dbColumnName("name").}: string
@@ -36,9 +38,9 @@ proc getAllMigrationsExecuted*(db: DbConn): seq[Migration] =
   const query = fmt"SELECT {migration.name.columnName}, {migration.hash.columnName} FROM {migration.tableName} ORDER BY rowid ASC;"
   db.all(Migration, query)
 
-proc checkMigrations*(db: DbConn): bool =
+proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool =
   let allMigrationsExecuted = db.getAllMigrationsExecuted()
-  let migrations = toSeq(migrationUp.keys)
+  let migrations = toSeq(definition.migrationUp.keys)
   
   debug "Verifying migration data"
 
@@ -53,37 +55,37 @@ proc checkMigrations*(db: DbConn): bool =
       warn "Migration order mismatch", migration=migration.name
       return false
 
-    if keccak_256.digest(migrationUp[migration.name]).data.toHex() != migration.hash:
+    if keccak_256.digest(definition.migrationUp[migration.name]).data.toHex() != migration.hash:
       warn "Migration hash mismatch", migration=migration.name
       return false
 
   return true
 
 
-proc isUpToDate*(db: DbConn):bool =
+proc isUpToDate*(db: DbConn, definition: MigrationDefinition):bool =
   let lastMigrationExecuted = db.getLastMigrationExecuted()
   if lastMigrationExecuted.isOk:
     # Check what's the latest migration
     let currentMigration = lastMigrationExecuted.get()
     
     var index = 0
-    for name in migrationUp.keys:
-      if name == currentMigration.name and index == migrationUp.len - 1:
+    for name in definition.migrationUp.keys:
+      if name == currentMigration.name and index == definition.migrationUp.len - 1:
         return true
       index += 1
   
   result = false
 
 
-proc migrate*(db: DbConn): MigrationResult =
+proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
   db.createMigrationTableIfNotExists()
-  if not db.checkMigrations(): return MigrationResult.err "db/migration mismatch"
+  if not db.checkMigrations(definition): return MigrationResult.err "db/migration mismatch"
   var migration: Migration
   let lastMigrationExecuted = db.getLastMigrationExecuted()
   if not lastMigrationExecuted.isOk:
     try:
       db.transaction:
-        for name, query in migrationUp.pairs:
+        for name, query in definition.migrationUp.pairs:
           debug "Executing migration", name
           db.execScript(string.fromBytes(query))
           db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
@@ -91,13 +93,13 @@ proc migrate*(db: DbConn): MigrationResult =
       warn "Could not execute migration"
       return MigrationResult.err "Could not execute migration"
   else:
-    if db.isUpToDate(): return lastMigrationExecuted
+    if db.isUpToDate(definition): return lastMigrationExecuted
     
     let allMigrationsExecuted = db.getAllMigrationsExecuted()
     var index = -1
     try:
       db.transaction:
-        for name, query in migrationUp.pairs:
+        for name, query in definition.migrationUp.pairs:
           index += 1
           if index <= (allMigrationsExecuted.len - 1): continue
           debug "Executing migration", name
@@ -110,15 +112,15 @@ proc migrate*(db: DbConn): MigrationResult =
   return db.getLastMigrationExecuted()
 
 
-proc tearDown*(db: DbConn):bool =
+proc tearDown*(db: DbConn, definition: MigrationDefinition):bool =
   var migration: Migration
   var allMigrationsExecuted = db.getAllMigrationsExecuted().reversed()
   try:
     db.transaction:
       for m in allMigrationsExecuted:
         debug "Rolling back migration", name=m.name
-        if migrationDown.hasKey(m.name):
-          let script = string.fromBytes(migrationDown[m.name])
+        if definition.migrationDown.hasKey(m.name):
+          let script = string.fromBytes(definition.migrationDown[m.name])
           if script != "": db.execScript(script)
         db.exec(fmt"DELETE FROM {migration.tableName} WHERE {migration.name.columnName} = ?", m.name)
   except SqliteError:
