@@ -1,16 +1,14 @@
-import ../../nim_status/account
-import test_helpers
-import utils
-import eth/[keys, p2p]
+import # nim libs
+  os, unittest
 
-import chronos
-import os
-import unittest
+import # vednor libs
+  chronos, eth/[keys, p2p]
 
-var success = false
+import # nim-status libs
+  ../../nim_status/account,
+  ./test_helpers, ./test_utils
 
-
-procSuite "nim_status":
+procSuite "account":
   asyncTest "account":
     resetDirectories() # Recreates the data and nobackup dir
     init()
@@ -20,11 +18,7 @@ procSuite "nim_status":
     var rng = keys.newRng()
 
     let account = createAccount(rng)
-
-
     let pubKey = derivePubKeyFromPrivateKey(account.privateKey)
-
-
     let signature = signMessage(account.privateKey, "Hello world")
 
     check:
@@ -33,3 +27,6 @@ procSuite "nim_status":
       account.privateKey != ""
       account.publicKey == pubKey
       signature != ""
+
+    if not defined(windows):
+      removeDirectories()

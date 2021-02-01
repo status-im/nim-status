@@ -1,42 +1,54 @@
-import sqlcipher
-import os, json, json_serialization
-import options
-import ../../nim_status/settings
-import ../../nim_status/database
-import ../../nim_status/callrpc
-import ../../nim_status/accounts
-import web3/conversions
+import # nim libs
+  json, options, os, unittest
+
+import # vendor libs
+  chronos, json_serialization, sqlcipher, web3/conversions
+
+import # nim-status libs
+  ../../nim_status/[accounts, callrpc, database, settings],
+  ./test_helpers
+
+procSuite "login_and_logout":
+  asyncTest "login_and_logout":
+    let accountData = "someAccount"
+    let password = "qwerty"
+    test_removeDB(accountData)
+
+    try:
+      check:
+        web3_conn == nil
+
+      discard callRPC(web3_conn, "eth_gasPrice", %[])
+
+      check:
+        "Should fail if reaches this point" == ""
+    except:
+      check:
+        getCurrentExceptionMsg() == "web3 connection is not available"
 
 
-let accountData = "someAccount"
-let passwd = "qwerty"
+    login(accountData, password)
 
-test_removeDB(accountData)
+    # Using an ugly global var :(
+    let rGasPrice = callRPC(web3_conn, "eth_gasPrice", %[])
 
-try:
-  assert web3_conn == nil
-  discard callRPC(web3_conn, "eth_gasPrice", %[])
-  assert "Should fail if reaches this point" == ""
-except:
-  assert getCurrentExceptionMsg() == "web3 connection is not available"
+    check:
+      rGasPrice.error == false
+      rGasPrice.result.getStr()[0..1] == "0x"
 
+    logout()
 
-login(accountData, passwd)
+    try:
+      check:
+        web3_conn == nil
 
-# Using an ugly global var :(
-let rGasPrice = callRPC(web3_conn, "eth_gasPrice", %[])
-assert rGasPrice.error == false
-assert rGasPrice.result.getStr()[0..1] == "0x"
+      discard callRPC(web3_conn, "eth_gasPrice", %[])
 
-logout()
+      check:
+        "Should fail if reaches this point" == ""
+    except:
+      check:
+        getCurrentExceptionMsg() == "web3 connection is not available"
 
-
-try:
-  assert web3_conn == nil
-  discard callRPC(web3_conn, "eth_gasPrice", %[])
-  assert "Should fail if reaches this point" == ""
-except:
-  assert getCurrentExceptionMsg() == "web3 connection is not available"
-
-# Removing DB to be able to run the test again
-test_removeDB(accountData)
+    # Removing DB to be able to run the test again
+    test_removeDB(accountData)
