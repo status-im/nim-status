@@ -1,13 +1,11 @@
-import
-  chronos,
-  chronicles,
-  confutils,
-  stew/results,
-  unittest,
-  waku/v2/node/[config, wakunode2],
-  waku/v2/protocol/waku_message
+import # nim libs
+  unittest
 
-import
+import # vendor libs
+  chronicles, chronos, confutils, stew/results,
+  waku/v2/node/[config, wakunode2], waku/v2/protocol/waku_message
+
+import # nim-status libs
   ../../nim_status/waku,
   ./test_helpers
 
@@ -15,8 +13,8 @@ import
 # within nim-status and should be replaced by tests focused on nim-status'
 # particular usage of nim-waku as the nim-status library evolves
 
-procSuite "waku node":
-  asyncTest "basic subscribe and publish":
+procSuite "waku_smoke":
+  asyncTest "waku_smoke":
     let
       futures = [newFuture[int](), newFuture[int]()]
       message1 = WakuMessage(payload: cast[seq[byte]]("hello"),

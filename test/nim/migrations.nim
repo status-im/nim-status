@@ -1,36 +1,42 @@
-import os, tables
-import sqlcipher, results
-import ../../nim_status/migration
-import ../../nim_status/migrations/sql_scripts
-import stew/byteutils
+import # nim libs
+  os, tables, unittest
 
-let passwd = "qwerty"
-let path = currentSourcePath.parentDir() & "/build/myDatabase"
-var dbConn = openDatabase(path)
+import # vendor libs
+  chronos, results, sqlcipher, stew/byteutils
 
-dbConn.key(passwd)
+import # nim-status libs
+  ../../nim_status/migration,
+  ../../nim_status/migrations/sql_scripts,
+  ./test_helpers
 
+procSuite "migrations":
+  asyncTest "migrations":
+    let password = "qwerty"
+    let path = currentSourcePath.parentDir() & "/build/my.db"
+    removeFile(path)
+    var db = openDatabase(path)
 
-assert dbConn.getLastMigrationExecuted().error() == "No migrations were executed"
-assert dbConn.migrate().isOk
-assert dbConn.isUpToDate()
+    db.key(password)
 
-# Creating dinamically new migrations just to check if isUpToDate and migrate work as expected
-migrationUp["002_abc"] = "CREATE TABLE anotherTable (address VARCHAR NOT NULL PRIMARY KEY) WITHOUT ROWID;".toBytes
-migrationDown["002_abc"] = "DROP TABLE anotherTable;".toBytes
+    check:
+      db.getLastMigrationExecuted().error() == "No migrations were executed"
+      db.migrate().isOk
+      db.isUpToDate()
 
-assert not dbConn.isUpToDate()
-assert dbConn.migrate().isOk
+    # !!! migrationUp, migrationDown were changed from `var` to `const`, so it's not possible to make the changes below
+    # Creating dinamically new migrations just to check if isUpToDate and migrate work as expected
+    # migrationUp["002_abc"] = "CREATE TABLE anotherTable (address VARCHAR NOT NULL PRIMARY KEY) WITHOUT ROWID;".toBytes
+    # migrationDown["002_abc"] = "DROP TABLE anotherTable;".toBytes
 
-assert dbConn.isUpToDate()
+    check:
+      # not db.isUpToDate()
+      db.migrate().isOk
+      db.isUpToDate()
+      db.migrate().isOk
+      db.tearDown()
+      db.tearDown()
+      not db.isUpToDate()
+      db.getLastMigrationExecuted().error() == "No migrations were executed"
 
-assert dbConn.migrate().isOk
-
-assert dbConn.tearDown()
-assert dbConn.tearDown()
-
-assert not dbConn.isUpToDate()
-assert dbConn.getLastMigrationExecuted().error() == "No migrations were executed"
-
-
-dbConn.close()
+    db.close()
+    removeFile(path)

@@ -9,10 +9,18 @@ import ../../nim_status/go/shim as go_shim
 proc hashPassword(password: string): string =
   result = "0x" & $keccak_256.digest(password)
 
+proc removeDirectories*()=
+  debug "Remove directories"
+  removeDir("./data")
+  removeDir("./keystore")
+  removeDir("./noBackup")
+
 proc resetDirectories*()=
   debug "Reset directories"
   removeDir("./data")
   createDir("./data")
+  removeDir("./keystore")
+  createDir("./keystore")
   removeDir("./noBackup")
   createDir("./noBackup")
 
