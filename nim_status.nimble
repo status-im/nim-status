@@ -66,21 +66,10 @@ proc buildAndRunTest(name: string,
     exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIB_DIR") & " " & outDir & name
     exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib " & outDir & name
   exec outDir & name
+  if defined(windows):
+    rmDir "data"
+    rmDir "keystore"
+    rmDir "noBackup"
 
 task tests, "Run all tests":
-  buildAndRunTest "shims"
-  buildAndRunTest "settings"
-  buildAndRunTest "login_and_logout"
-  buildAndRunTest "db_smoke"
-  buildAndRunTest "waku_smoke"
-  buildAndRunTest "callrpc"
-  buildAndRunTest "migrations"
-  buildAndRunTest "mailservers"
-  buildAndRunTest "bip32"
-  buildAndRunTest "contacts"
-  buildAndRunTest "account"
-  buildAndRunTest "tokens"
-  buildAndRunTest "messages"
-  buildAndRunTest "chats"
-  buildAndRunTest "permissions"
-  buildAndRunTest "pendingtxs"
+  buildAndRunTest "test_all"

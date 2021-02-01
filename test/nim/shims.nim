@@ -1,42 +1,13 @@
-import ../../nim_status/c/shim_impl as nim_shim
-import ../../nim_status/go/shim as go_shim
-import base64
-import nimPNG
-import strutils
+import # nim libs
+  base64, strutils, unittest
 
-# hashMessage
+import # vendor libs
+  chronos, nimPNG
 
-proc hashCmp(str1: string, str2: string, testSame: bool): void =
-  if testSame:
-    assert $nim_shim.hashMessage(str1.cstring) == go_shim.hashMessage(str2)
-  else:
-    assert $nim_shim.hashMessage(str1.cstring) != go_shim.hashMessage(str2)
-
-hashCmp("", "", true)
-hashCmp("a", "a", true)
-hashCmp("ab", "ab", true)
-hashCmp("abc", "abc", true)
-hashCmp("aBc", "aBc", true)
-hashCmp("Abc", "abC", false)
-hashCmp("0xffffff", "0xffffff", true)
-hashCmp("0xFFFFFF", "0xffffff", true)
-hashCmp("0xffffff", "0xFFFFFF", true)
-hashCmp("0x" & "abc".toHex, "abc", true)
-hashCmp("0x616263", "abc", true)
-hashCmp("abc", "0x" & "abc".toHex, true)
-hashCmp("abc", "0x616263", true)
-hashCmp("0xabc", "0xabc", true)
-hashCmp("0xaBc", "0xaBc", true)
-hashCmp("0xAbc", "0xabC", false)
-hashCmp("0xabcd", "0xabcd", true)
-hashCmp("0xaBcd", "0xaBcd", true)
-hashCmp("0xAbcd", "0xabcD", true)
-hashCmp("0xverybadhex", "0xverybadhex", true)
-hashCmp("0Xabcd", "0Xabcd", true)
-hashCmp("0xabcd", "0Xabcd", false)
-hashCmp("0Xabcd", "0xabcd", false)
-assert nim_shim.hashMessage("0Xabcd") != nim_shim.hashMessage("0xabcd")
-assert go_shim.hashMessage("0Xabcd") != go_shim.hashMessage("0xabcd")
+import # nim-status libs
+  ../../nim_status/c/shim_impl as nim_shim,
+  ../../nim_status/go/shim as go_shim,
+  ./test_helpers
 
 const pubKey_01 = "0x0441ccda1563d69ac6b2e53718973c4e7280b4a5d8b3a09bb8bce9ebc5f082778243f1a04ec1f7995660482ca4b966ab0044566141ca48d7cdef8b7375cd5b7af5"
 const pubKey_02 = "0x04ee10b0d66ccb9e3da3a74f73f880e829332f2a649e759d7c82f08b674507d498d7837279f209444092625b2be691e607c5dc3da1c198d63e430c9c7810516a8f"
@@ -64,80 +35,120 @@ const badKey_02 = "0x06abcd"
 const badKey_03 = "0x06ffdb0fef8f8e3bd899250538bc3c651090aa5b579e9cefa38f6896d599dcd1f1326ec5cd8f749e0a7d3c0ce1c8f9126bd4be985004319769de1e83cbca9301bf"
 const badKey_04 = "0x04ffdb0fef8f8e3bd899250538bc3c651090aa5b579e9cefa38f6896d599dcd1f1326ec5cd8f749e0a7d3c0ce1c8f9126bd4be985004319769de1e83cbca930xyz"
 
-# generateAlias
+proc hashCmp(str1: string, str2: string, testSame: bool): void =
+  {.gcsafe.}:
+    if testSame:
+      check:
+          $nim_shim.hashMessage(str1.cstring) == go_shim.hashMessage(str2)
+    else:
+      check:
+          $nim_shim.hashMessage(str1.cstring) != go_shim.hashMessage(str2)
 
 proc generateAliasCmp(pubKey: string): void =
-  assert $nim_shim.generateAlias(pubKey.cstring) == go_shim.generateAlias(pubKey)
-
-generateAliasCmp(pubKey_01)
-generateAliasCmp(pubKey_02)
-generateAliasCmp(pubKey_03)
-generateAliasCmp(pubKey_04)
-generateAliasCmp(pubKey_05)
-generateAliasCmp(pubKey_06)
-generateAliasCmp(pubKey_07)
-generateAliasCmp(pubKey_08)
-generateAliasCmp(pubKey_09)
-generateAliasCmp(pubKey_10)
-generateAliasCmp(pubKey_11)
-generateAliasCmp(pubKey_12)
-generateAliasCmp(pubKey_13)
-generateAliasCmp(pubKey_14)
-generateAliasCmp(pubKey_15)
-generateAliasCmp(pubKey_16)
-generateAliasCmp(pubKey_17)
-generateAliasCmp(pubKey_18)
-generateAliasCmp(pubKey_19)
-generateAliasCmp(pubKey_20)
-generateAliasCmp(badKey_01)
-generateAliasCmp(badKey_02)
-generateAliasCmp(badKey_03)
-generateAliasCmp(badKey_04)
-
-# identicon
-
-# Here it's checked that the decoded PNGs are an exact match in terms of their
-# pixel by pixel RGBA values represented as sequences of uint8 values. It's not
-# possible to compare the base64 encoded strings directly since the PNG
-# encodings are slightly different, which results in different strings.
+  {.gcsafe.}:
+    check:
+      $nim_shim.generateAlias(pubKey.cstring) == go_shim.generateAlias(pubKey)
 
 proc identiconCmp(key: string): void =
+  # Here it's checked that the decoded PNGs are an exact match in terms of their
+  # pixel by pixel RGBA values represented as sequences of uint8 values. It's not
+  # possible to compare the base64 encoded strings directly since the PNG
+  # encodings are slightly different, which results in different strings.
   let go_b64 = go_shim.identicon(key)
   let nim_b64 = $nim_shim.identicon(key.cstring)
-  assert (go_b64 != "" and nim_b64 != "") or (go_b64 == "" and nim_b64 == "")
+
+  check: (go_b64 != "" and nim_b64 != "") or (go_b64 == "" and nim_b64 == "")
+
   if go_b64 == "" and nim_b64 == "":
     return
   let go_png_bytes = cast[seq[uint8]](decode(go_b64[22..^1]))
   let nim_png_bytes = cast[seq[uint8]](decode(nim_b64[22..^1]))
   let go_png = decodePNG32(go_png_bytes)
   let nim_png = decodePNG32(nim_png_bytes)
-  assert go_png.get.data.len == nim_png.get.data.len
+  check: go_png.get.data.len == nim_png.get.data.len
   var i = 0
   while i < nim_png.get.data.len:
-    assert nim_png.get.data[i] == gopng.get.data[i]
+    check: nim_png.get.data[i] == gopng.get.data[i]
     i += 1
 
-identiconCmp(pubKey_01)
-identiconCmp(pubKey_02)
-identiconCmp(pubKey_03)
-identiconCmp(pubKey_04)
-identiconCmp(pubKey_05)
-identiconCmp(pubKey_06)
-identiconCmp(pubKey_07)
-identiconCmp(pubKey_08)
-identiconCmp(pubKey_09)
-identiconCmp(pubKey_10)
-identiconCmp(pubKey_11)
-identiconCmp(pubKey_12)
-identiconCmp(pubKey_13)
-identiconCmp(pubKey_14)
-identiconCmp(pubKey_15)
-identiconCmp(pubKey_16)
-identiconCmp(pubKey_17)
-identiconCmp(pubKey_18)
-identiconCmp(pubKey_19)
-identiconCmp(pubKey_20)
-identiconCmp(badKey_01)
-identiconCmp(badKey_02)
-identiconCmp(badKey_03)
-identiconCmp(badKey_04)
+procSuite "shims":
+  asyncTest "hashMessage":
+    hashCmp("", "", true)
+    hashCmp("a", "a", true)
+    hashCmp("ab", "ab", true)
+    hashCmp("abc", "abc", true)
+    hashCmp("aBc", "aBc", true)
+    hashCmp("Abc", "abC", false)
+    hashCmp("0xffffff", "0xffffff", true)
+    hashCmp("0xFFFFFF", "0xffffff", true)
+    hashCmp("0xffffff", "0xFFFFFF", true)
+    hashCmp("0x" & "abc".toHex, "abc", true)
+    hashCmp("0x616263", "abc", true)
+    hashCmp("abc", "0x" & "abc".toHex, true)
+    hashCmp("abc", "0x616263", true)
+    hashCmp("0xabc", "0xabc", true)
+    hashCmp("0xaBc", "0xaBc", true)
+    hashCmp("0xAbc", "0xabC", false)
+    hashCmp("0xabcd", "0xabcd", true)
+    hashCmp("0xaBcd", "0xaBcd", true)
+    hashCmp("0xAbcd", "0xabcD", true)
+    hashCmp("0xverybadhex", "0xverybadhex", true)
+    hashCmp("0Xabcd", "0Xabcd", true)
+    hashCmp("0xabcd", "0Xabcd", false)
+    hashCmp("0Xabcd", "0xabcd", false)
+    {.gcsafe.}:
+      check:
+        nim_shim.hashMessage("0Xabcd") != nim_shim.hashMessage("0xabcd")
+        go_shim.hashMessage("0Xabcd") != go_shim.hashMessage("0xabcd")
+
+  asyncTest "generateAlias":
+    generateAliasCmp(pubKey_01)
+    generateAliasCmp(pubKey_02)
+    generateAliasCmp(pubKey_03)
+    generateAliasCmp(pubKey_04)
+    generateAliasCmp(pubKey_05)
+    generateAliasCmp(pubKey_06)
+    generateAliasCmp(pubKey_07)
+    generateAliasCmp(pubKey_08)
+    generateAliasCmp(pubKey_09)
+    generateAliasCmp(pubKey_10)
+    generateAliasCmp(pubKey_11)
+    generateAliasCmp(pubKey_12)
+    generateAliasCmp(pubKey_13)
+    generateAliasCmp(pubKey_14)
+    generateAliasCmp(pubKey_15)
+    generateAliasCmp(pubKey_16)
+    generateAliasCmp(pubKey_17)
+    generateAliasCmp(pubKey_18)
+    generateAliasCmp(pubKey_19)
+    generateAliasCmp(pubKey_20)
+    generateAliasCmp(badKey_01)
+    generateAliasCmp(badKey_02)
+    generateAliasCmp(badKey_03)
+    generateAliasCmp(badKey_04)
+
+  asyncTest "identicon":
+    identiconCmp(pubKey_01)
+    identiconCmp(pubKey_02)
+    identiconCmp(pubKey_03)
+    identiconCmp(pubKey_04)
+    identiconCmp(pubKey_05)
+    identiconCmp(pubKey_06)
+    identiconCmp(pubKey_07)
+    identiconCmp(pubKey_08)
+    identiconCmp(pubKey_09)
+    identiconCmp(pubKey_10)
+    identiconCmp(pubKey_11)
+    identiconCmp(pubKey_12)
+    identiconCmp(pubKey_13)
+    identiconCmp(pubKey_14)
+    identiconCmp(pubKey_15)
+    identiconCmp(pubKey_16)
+    identiconCmp(pubKey_17)
+    identiconCmp(pubKey_18)
+    identiconCmp(pubKey_19)
+    identiconCmp(pubKey_20)
+    identiconCmp(badKey_01)
+    identiconCmp(badKey_02)
+    identiconCmp(badKey_03)
+    identiconCmp(badKey_04)

@@ -1,6 +1,6 @@
-import sqlcipher
-import migration
-import results
+import results, sqlcipher
+
+import ./migration
 
 proc initializeDB*(path, password: string):DbConn =
   result = openDatabase(path)

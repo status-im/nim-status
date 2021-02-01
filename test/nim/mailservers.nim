@@ -1,53 +1,62 @@
-import sqlcipher
-import os, json, json_serialization
-import options
-import ../../nim_status/mailservers
-import ../../nim_status/database
+import # nim libs
+  json, options, os, unittest
 
-let passwd = "qwerty"
-let path = currentSourcePath.parentDir() & "/build/my.db"
-let db = initializeDB(path, passwd)
+import # vendor libs
+  chronos, json_serialization, sqlcipher
 
-let mailserver1 = Mailserver(
-  id: "mailserver-1",
-  name: "foo",
-  address: "bar",
-  password: some("baz"),
-  fleet: "quux"
-)
+import # nim-status libs
+  ../../nim_status/[database, mailservers],
+  ./test_helpers
 
-let mailserver2 = Mailserver(
-  id: "mailserver-2",
-  name: "foo",
-  address: "bar",
-  password: some("baz"),
-  fleet: "quux"
-)
+procSuite "mailservers":
+  asyncTest "mailservers":
+    let password = "qwerty"
+    let path = currentSourcePath.parentDir() & "/build/my.db"
+    removeFile(path)
+    let db = initializeDB(path, password)
 
-let mailserver3 = Mailserver(
-  id: "mailserver-3",
-  name: "foo",
-  address: "bar",
-  password: some("baz"),
-  fleet: "quux"
-)
+    let mailserver1 = Mailserver(
+      id: "mailserver-1",
+      name: "foo",
+      address: "bar",
+      password: some("baz"),
+      fleet: "quux"
+    )
 
-db.saveMailserver(mailserver1)
-db.saveMailservers(@[mailserver2, mailserver3])
+    let mailserver2 = Mailserver(
+      id: "mailserver-2",
+      name: "foo",
+      address: "bar",
+      password: some("baz"),
+      fleet: "quux"
+    )
 
-var dbMailservers = db.getMailservers()
+    let mailserver3 = Mailserver(
+      id: "mailserver-3",
+      name: "foo",
+      address: "bar",
+      password: some("baz"),
+      fleet: "quux"
+    )
 
-echo dbMailservers
+    db.saveMailserver(mailserver1)
+    db.saveMailservers(@[mailserver2, mailserver3])
 
-assert dbMailservers.len == 3
+    var dbMailservers = db.getMailservers()
 
-db.deleteMailserver(mailserver1)
+    echo dbMailservers
 
-dbMailservers = db.getMailservers()
+    check:
+      dbMailservers.len == 3
 
-echo dbMailservers
+    db.deleteMailserver(mailserver1)
 
-assert dbMailservers.len == 2
+    dbMailservers = db.getMailservers()
 
-db.close()
-removeFile(path)
+    echo dbMailservers
+
+    check:
+      dbMailservers.len == 2
+
+    db.close()
+    removeFile(path)

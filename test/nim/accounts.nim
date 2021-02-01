@@ -1,47 +1,50 @@
 import # nim libs
-   os, json, options
+  json, options, os, times, unittest
 
 import # vendor libs
- sqlcipher, json_serialization, web3/conversions as web3_conversions
+  chronos, json_serialization, sqlcipher, web3/conversions as web3_conversions
 
 import # nim-status libs
- ../../nim_status/[accounts, database, conversions]
+  ../../nim_status/[accounts, database, conversions],
+  ./test_helpers
 
-import times
+procSuite "accounts":
+  asyncTest "accounts":
+    let password = "qwerty"
+    let path = currentSourcePath.parentDir() & "/build/my.db"
+    removeFile(path)
+    let db = initializeDB(path, password)
 
-let passwd = "qwerty"
-let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd)
+    var account:Account = Account(
+      name: "Test",
+      loginTimestamp: cast[int](cpuTime()),
+      photoPath: "/path",
+      keycardPairing: "",
+      keyUid: "0x1234"
+    )
 
-var account:Account = Account(
-  name: "Test",
-  loginTimestamp: cast[int](cpuTime()),
-  photoPath: "/path",
-  keycardPairing: "",
-  keyUid: "0x1234"
-)
+    db.saveAccount(account)
+    account.name = "Test_updated"
+    db.updateAccount(account)
+    db.updateAccountTimestamp(1, "0x1234")
+    var accountList = db.getAccounts()
 
-db.saveAccount(account)
+    check:
+      accountList.len == 1
 
-account.name = "Test_updated"
-db.updateAccount(account)
+    let acc = accountList[0]
 
-db.updateAccountTimestamp(1, "0x1234")
+    check:
+      acc.name == "Test_updated"
+      acc.loginTimestamp == 1
+      acc.photoPath == account.photoPath
+      acc.keyUid == account.keyUid
 
-var accountList = db.getAccounts()
-assert accountList.len == 1
-let acc = accountList[0]
+    db.deleteAccount(account.keyUid)
+    accountList = db.getAccounts()
 
-assert acc.name == "Test_updated"
-assert acc.loginTimestamp == 1
-assert acc.photoPath == account.photoPath
-assert acc.keyUid == account.keyUid
+    check:
+      accountList.len == 0
 
-db.deleteAccount(account.keyUid)
-
-accountList = db.getAccounts()
-
-assert accountList.len == 0
-
-db.close()
-removeFile(path)
+    db.close()
+    removeFile(path)
