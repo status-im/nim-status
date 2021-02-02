@@ -12,6 +12,7 @@ import
   ./chats,
   ./contacts,
   ./db_smoke,
+  ./hybrid_smoke,
 
   # `test/nim/login_and_logout.nim` is presently disabled because
   # `nim_status/accounts.nim` uses a global mutable variable for `web3_conn`
