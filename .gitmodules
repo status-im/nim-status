@@ -91,3 +91,6 @@
 [submodule "vendor/nim-unicodedb"]
 	path = vendor/nim-unicodedb
 	url = https://github.com/nitely/nim-unicodedb
+[submodule "vendor/nim-protobuf-serialization"]
+	path = vendor/nim-protobuf-serialization
+	url = https://github.com/status-im/nim-protobuf-serialization
