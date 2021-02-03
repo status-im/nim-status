@@ -8,6 +8,10 @@ import
   stew/byteutils, stew/shims/net as stewNet,
   eth/[keys, p2p]
 
+import macros
+import strutils
+import protobuf_serialization
+import protobuf_serialization/files/type_generator
 
 var connThread: Thread[void]
 
@@ -91,6 +95,8 @@ proc initWakuV1*() {.thread.} =
       if msg.decoded.src.isSome():
         echo "Received message from ", $msg.decoded.src.get(), ": ",
           string.fromBytes(msg.decoded.payload)
+
+    
 
     
     let 
