@@ -94,3 +94,6 @@
 [submodule "vendor/nim-protobuf-serialization"]
 	path = vendor/nim-protobuf-serialization
 	url = https://github.com/status-im/nim-protobuf-serialization
+[submodule "vendor/combparser"]
+	path = vendor/combparser
+	url = https://github.com/PMunch/combparser
