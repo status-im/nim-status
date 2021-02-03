@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message StatusProtocolMessage {
+  bytes signature = 4001;
+  bytes payload = 4002;
+}
