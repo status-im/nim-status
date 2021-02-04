@@ -97,3 +97,6 @@
 [submodule "vendor/combparser"]
 	path = vendor/combparser
 	url = https://github.com/PMunch/combparser
+[submodule "vendor/protobuf-nim"]
+	path = vendor/protobuf-nim
+	url = https://github.com/PMunch/protobuf-nim
