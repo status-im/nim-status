@@ -247,7 +247,7 @@ nim_status: $(NIMSTATUS)
 
 NIMSTATUS_GO ?= build/nim_status_go.a
 
-$(NIMSTATUS_GO): $(SQLCIPHER) $(MIGRATIONS)
+$(NIMSTATUS_GO): $(SQLCIPHER)
 	echo -e $(BUILD_MSG) "$@"
 	+ mkdir -p build
 	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
