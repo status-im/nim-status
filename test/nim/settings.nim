@@ -1,17 +1,19 @@
 import # nim libs
-  json, options, os, unittest
+  json, options, os, unittest, strformat
 
 import # vendor libs
   chronos, json_serialization, json_serialization/std/options as json_options,
   sqlcipher, web3/conversions as web3_conversions, web3/ethtypes
 
 import # nim-status libs
-  ../../nim_status/[conversions, database, settings],
+  ../../nim_status/[conversions, database, settings, accounts],
   ../../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
+import ../../nim_status/hybrid/shim as hybrid
+
 procSuite "settings":
-  asyncTest "settings":
+  test "settings":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
@@ -38,6 +40,114 @@ procSuite "settings":
 
     let nodeConfig = %* {"config": 1}
 
+    createSettings(db, settingsObj, nodeConfig)
+    # Set the global used in hybrid/shim module
+    accounts.db_conn = db
+
+
+    var hybridRpcJson = """{"method": "settings_saveSetting", "params": ["address", "0x11223344556677889900112233445566778899ff"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["chaos-mode?", false]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["currency", "eur"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["dapps-address", "0x11223344556677889900112233445566778899ff"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["eip1581-address", "0x11223344556677889900112233445566778899ff"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["fleet", "test-fleet"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["installation-id", "new-id"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["key-uid", "test-key-uid"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["latest-derived-path", 2]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["mnemonic", "test-mnemonic"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["name", "test-name"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["networks/current-network", "test-current-network"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    let testJsonArr = """[{"id":"ropsten_rpc","etherscan-link":"https://etherscan.io/address/","name":"Ropsten with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/ropsten_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://ropsten.infura.io/ws/v3/7230123556ec4a8aac8d89ccd0dd74d7"}}}]"""
+    hybridRpcJson = fmt"""{{"method": "settings_saveSetting", "params": ["networks/networks", {testJsonArr}]}}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    let rpcJson = """{"test": 123}"""
+    hybridRpcJson = fmt"""{{"method": "settings_saveSetting", "params": ["node-config", {rpcJson}]}}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["photo-path", "test-photo-path"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = fmt"""{{"method": "settings_saveSetting", "params": ["pinned-mailservers", {rpcJson}]}}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["preferred-name", "test-preferred-name"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["preview-privacy?", true]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["public-key", "test-public-key"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["signing-phrase", "test-signing-phrase"]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = """{"method": "settings_saveSetting", "params": ["appearance", 1234]}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+    hybridRpcJson = fmt"""{{"method": "settings_saveSetting", "params": ["usernames", {rpcJson}]}}"""
+    discard hybrid.callPrivateRPC(hybridRpcJson)
+
+
+    hybridRpcJson = """{"method": "settings_getSettings"}"""
+    let rpcSettingsStr = hybrid.callPrivateRPC(hybridRpcJson)
+
+    echo "rpcSettings: ", rpcSettingsStr
+    let rpcSettingsJson = parseJson(rpcSettingsStr)
+    echo "rpcSettings[node-config]: ", rpcSettingsJson["networks/networks"]
+    echo "rpcSettings[node-config] type: ", type(rpcSettingsJson["networks/networks"])
+    check:
+      rpcSettingsJson["address"].getStr == "0x11223344556677889900112233445566778899ff"
+      rpcSettingsJson["chaos-mode?"].getBool == false
+      rpcSettingsJson["currency"].getStr == "eur"
+      #rpcSettingsJson["custom-bootnodes"].getStr == rpcJson
+      rpcSettingsJson["dapps-address"].getStr == "0x11223344556677889900112233445566778899ff"
+      rpcSettingsJson["eip1581-address"].getStr == "0x11223344556677889900112233445566778899ff"
+      rpcSettingsJson["fleet"].getStr == "test-fleet"
+      rpcSettingsJson["installation-id"].getStr == "new-id"
+      rpcSettingsJson["key-uid"].getStr == "test-key-uid"
+      rpcSettingsJson["latest-derived-path"].getInt == 2
+      rpcSettingsJson["mnemonic"].getStr == "test-mnemonic"
+      rpcSettingsJson["name"].getStr == "test-name"
+      rpcSettingsJson["networks/current-network"].getStr == "test-current-network"
+      rpcSettingsJson["networks/networks"] == parseJson(testJsonArr)
+      rpcSettingsJson["node-config"] == parseJson(rpcJson)
+      rpcSettingsJson["photo-path"].getStr == "test-photo-path"
+      rpcSettingsJson["pinned-mailservers"] == parseJson(rpcJson)
+      rpcSettingsJson["preferred-name"].getStr == "test-preferred-name"
+      rpcSettingsJson["preview-privacy?"].getBool == true
+      rpcSettingsJson["public-key"].getStr == "test-public-key"
+      rpcSettingsJson["signing-phrase"].getStr == "test-signing-phrase"
+      rpcSettingsJson["appearance"].getInt == 1234
+      rpcSettingsJson["usernames"] == parseJson(rpcJson)
+
+
+    deleteSettings(db)
     createSettings(db, settingsObj, nodeConfig)
 
     let dbSettings1 = getSettings(db)

@@ -23,10 +23,18 @@
 # compiled to `libstatus` into the final executable.
 
 import strformat
+import json
+import json_serialization
 
 from ../../nim_status as nim_status import nil
 from ../go/shim as go_shim import nil
 import ../c/go/signals
+
+from ../settings as settings import nil
+from ../settings/types as settings_types import nil
+from ../accounts as accounts import nil
+
+import sqlcipher
 
 export SignalCallback
 
@@ -71,7 +79,21 @@ proc callRPC*(inputJSON: string): string =
   notImplemented()
 
 proc callPrivateRPC*(inputJSON: string): string =
-  notImplemented()
+  let parsedJson = parseJson(inputJSON)
+  let rpcMethod = parsedJson["method"].getStr
+  if rpcMethod == "settings_getSettings":
+    let db = accounts.db_conn
+    let settings = settings.getSettings(db)
+
+    result = Json.encode(settings)
+  elif rpcMethod == "settings_saveSetting":
+    let params = parsedJson["params"].getElems()
+    let db = accounts.db_conn
+      
+    settings.saveSetting(db, params[0], params[1])
+    result = """{"error": false}"""
+  else:
+    result = go_shim.callPrivateRPC(inputJSON)
 
 proc addPeer*(peer: string): string =
   notImplemented()

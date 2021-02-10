@@ -135,7 +135,7 @@ type
     customBootnodesEnabled* {.dontSerialize, serializedFieldName($SettingsType.CustomBootnodesEnabled), dbColumnName($SettingsCol.CustomBootnodesEnabled).}: Option[JsonNode]
     dappsAddress* {.serializedFieldName($SettingsType.DappsAddress), dbColumnName($SettingsCol.DappsAddress).}: Address
     eip1581Address* {.serializedFieldName($SettingsType.EIP1581Address), dbColumnName($SettingsCol.EIP1581Address).}: Address
-    fleet* {.dontSerialize, serializedFieldName($SettingsType.Fleet), dbColumnName($SettingsCol.Fleet).}: Option[string]
+    fleet* {.serializedFieldName($SettingsType.Fleet), dbColumnName($SettingsCol.Fleet).}: Option[string]
     hideHomeTooltip* {.dontSerialize, serializedFieldName($SettingsType.HideHomeTooltip), dbColumnName($SettingsCol.HideHomeTooltip).}: Option[bool]
     installationID* {.serializedFieldName($SettingsType.InstallationID), dbColumnName($SettingsCol.InstallationID).}: string
     keyUID* {.serializedFieldName($SettingsType.KeyUID), dbColumnName($SettingsCol.KeyUID).}: string
@@ -152,8 +152,8 @@ type
     # NotificationsEnabled indicates whether local notifications should be enabled (android only)
     notificationsEnabled* {.dontSerialize, serializedFieldName($SettingsType.NotificationsEnabled), dbColumnName($SettingsCol.NotificationsEnabled).}: Option[bool]
     photoPath* {.serializedFieldName($SettingsType.PhotoPath), dbColumnName($SettingsCol.PhotoPath).}: string
-    pinnedMailservers* {.dontSerialize, serializedFieldName($SettingsType.PinnedMailservers), dbColumnName($SettingsCol.PinnedMailservers).}: Option[JsonNode]
-    preferredName* {.dontSerialize, serializedFieldName($SettingsType.PreferredName), dbColumnName($SettingsCol.PreferredName).}: Option[string]
+    pinnedMailservers* {.serializedFieldName($SettingsType.PinnedMailservers), dbColumnName($SettingsCol.PinnedMailservers).}: Option[JsonNode]
+    preferredName* {.serializedFieldName($SettingsType.PreferredName), dbColumnName($SettingsCol.PreferredName).}: Option[string]
     previewPrivacy* {.serializedFieldName($SettingsType.PreviewPrivacy), dbColumnName($SettingsCol.PreviewPrivacy).}: bool
     publicKey* {.serializedFieldName($SettingsType.PublicKey), dbColumnName($SettingsCol.PublicKey).}: string
     # PushNotificationsServerEnabled indicates whether we should be running a push notification server
@@ -172,9 +172,9 @@ type
     syncingOnMobileNetwork* {.dontSerialize, serializedFieldName($SettingsType.SyncingOnMobileNetwork), dbColumnName($SettingsCol.SyncingOnMobileNetwork).}: Option[bool]
     # SendPushNotifications indicates whether we should send push notifications for other clients
     sendPushNotifications* {.dontSerialize, serializedFieldName($SettingsType.SendPushNotifications), dbColumnName($SettingsCol.SendPushNotifications).}: Option[bool]
-    appearance* {.dontSerialize, serializedFieldName($SettingsType.Appearance), dbColumnName($SettingsCol.Appearance).}: uint
+    appearance* {.serializedFieldName($SettingsType.Appearance), dbColumnName($SettingsCol.Appearance).}: uint
     useMailservers* {.dontSerialize, serializedFieldName($SettingsType.UseMailservers), dbColumnName($SettingsCol.UseMailservers).}: bool
-    usernames* {.dontSerialize, serializedFieldName($SettingsType.Usernames), dbColumnName($SettingsCol.Usernames).}: Option[JsonNode]
+    usernames* {.serializedFieldName($SettingsType.Usernames), dbColumnName($SettingsCol.Usernames).}: Option[JsonNode]
     walletRootAddress* {.serializedFieldName($SettingsType.WalletRootAddress), dbColumnName($SettingsCol.WalletRootAddress).}: Option[Address]
     walletSetUpPassed* {.dontSerialize, serializedFieldName($SettingsType.WalletSetUpPassed), dbColumnName($SettingsCol.WalletSetUpPassed).}: Option[bool]
     walletVisibleTokens* {.dontSerialize, serializedFieldName($SettingsType.WalletVisibleTokens), dbColumnName($SettingsCol.WalletVisibleTokens).}: Option[JsonNode]

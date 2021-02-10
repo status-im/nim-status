@@ -61,6 +61,30 @@ proc saveSetting*(db: DbConn, setting: string, value: auto) =
   var settings: Settings
   db.exec(fmt"""UPDATE {settings.tableName} SET {setting} = ? WHERE synthetic_id = 'id'""", value)
 
+proc saveSetting*(db: DbConn, setting: JsonNode, value: JsonNode) =
+  var settings: Settings
+  let jsonFieldName = setting.getStr
+  var columnName: string
+  var colArr: seq[string]
+  for c in SettingsCol:
+    colArr.add($c)
+  for f in SettingsType:
+    if $f == jsonFieldName:
+      columnName = colArr[ord(f)]
+      break
+  for f in fields(settings):
+    if f.columnName == columnName:
+      if f is int or f is int64 or f is uint or f is Option[int] or f is Option[int64] or f is Option[uint]:
+        saveSetting(db, columnName, value.getInt)
+      elif f is bool or f is Option[bool]:
+        saveSetting(db, columnName, value.getBool)
+      elif f is JsonNode or f is Option[JsonNode]:
+        saveSetting(db, columnName, value)
+      elif f is seq:
+        saveSetting(db, columnName, Json.encode(value))
+      else:
+        saveSetting(db, columnName, value.getStr)
+
 proc getNodeConfig*(db: DbConn): JsonNode =
   var settings: Settings
   let query = fmt"""SELECT {settings.nodeConfig.columnName} FROM {settings.tableName} WHERE synthetic_id = 'id'"""
@@ -76,3 +100,8 @@ proc getSettings*(db: DbConn): Settings =
   if not settings.isSome:
     raise newException(ValueError, "No record found for settings")
   settings.get
+
+proc deleteSettings*(db: DbConn) =
+  var settings: Settings
+  let query = fmt"""DELETE FROM {settings.tableName}"""
+  db.exec(query)
