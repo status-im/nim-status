@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package protobuf;
 
-import "vendor/nim-status/nim_status/lib/enums.proto";
+import "enums.proto";
 
 message StickerMessage {
   string hash = 1;

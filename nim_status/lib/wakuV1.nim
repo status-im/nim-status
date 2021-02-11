@@ -8,15 +8,8 @@ import
   stew/byteutils, stew/shims/net as stewNet,
   eth/[keys, p2p]
 
-import macros
-import strutils
-import protobuf_serialization
-import protobuf_serialization/files/type_generator
-
-import_proto3 "protocol_message.proto"
-import_proto3 "application_metadata_message.proto"
-
-import chatMessage
+import protocol/protocol
+import protocol/chat_message
 
 var connThread: Thread[void]
 
@@ -99,11 +92,11 @@ proc initWakuV1*() {.thread.} =
       echo "MSG RECEIVED!"
       if msg.decoded.src.isSome():
         echo "Received message from ", $msg.decoded.src.get()
-        let protocolMessage = Protobuf.decode(msg.decoded.payload, ProtocolMessage)
-        let appMetadataMessage = Protobuf.decode(protocolMessage.public_message, ApplicationMetadataMessage)
-        if appMetadataMessage.`type` == Type.CHAT_MESSAGE:
-          let chatMessage = decodeChatMessage(appMetadataMessage.payload)
-          echo $chatMessage
+        let protocolMessage = msg.decoded.payload.toProtocolMessage()
+        let publicMessage = protocolMessage.getPublicMessage()
+        if publicMessage.getMessageType() == Type.CHAT_MESSAGE:
+          echo publicMessage.getChatMessage()
+          echo publicMessage.getChatMessage().getSticker()
     
     let 
       symKey: SymKey = hexToByteArray[32]("0xa82a520aff70f7a989098376e48ec128f25f767085e84d7fb995a9815eebff0a")
