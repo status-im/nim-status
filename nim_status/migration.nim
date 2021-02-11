@@ -41,7 +41,7 @@ proc getAllMigrationsExecuted*(db: DbConn): seq[Migration] =
 proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool =
   let allMigrationsExecuted = db.getAllMigrationsExecuted()
   let migrations = toSeq(definition.migrationUp.keys)
-  
+
   debug "Verifying migration data"
 
   if allMigrationsExecuted.len > migrations.len:
@@ -51,7 +51,7 @@ proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool =
   var i = -1
   for migration in allMigrationsExecuted:
     i += 1
-    if migrations[i] != migration.name: 
+    if migrations[i] != migration.name:
       warn "Migration order mismatch", migration=migration.name
       return false
 
@@ -67,13 +67,13 @@ proc isUpToDate*(db: DbConn, definition: MigrationDefinition):bool =
   if lastMigrationExecuted.isOk:
     # Check what's the latest migration
     let currentMigration = lastMigrationExecuted.get()
-    
+
     var index = 0
     for name in definition.migrationUp.keys:
       if name == currentMigration.name and index == definition.migrationUp.len - 1:
         return true
       index += 1
-  
+
   result = false
 
 
@@ -90,11 +90,12 @@ proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
           db.execScript(string.fromBytes(query))
           db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
     except SqliteError:
-      warn "Could not execute migration"
+      let msg = getCurrentExceptionMsg()
+      warn "Could not execute migration", msg
       return MigrationResult.err "Could not execute migration"
   else:
     if db.isUpToDate(definition): return lastMigrationExecuted
-    
+
     let allMigrationsExecuted = db.getAllMigrationsExecuted()
     var index = -1
     try:
@@ -106,7 +107,8 @@ proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
           db.execScript(string.fromBytes(query))
           db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
     except SqliteError:
-      warn "Could not execute migration"
+      let msg = getCurrentExceptionMsg()
+      warn "Could not execute migration", msg
       return MigrationResult.err "Could not execute migration"
 
   return db.getLastMigrationExecuted()
@@ -127,4 +129,3 @@ proc tearDown*(db: DbConn, definition: MigrationDefinition):bool =
     warn "Could not rollback migration"
     return false
   return true
-
