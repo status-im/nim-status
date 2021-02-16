@@ -47,6 +47,7 @@ proc buildAndRunTest(name: string,
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
     " --define:ssl" &
     (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
+    " --linetrace:on" &
     " --nimcache:nimcache/test/" & name &
     " --out:" & outDir & name &
     (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &
@@ -54,6 +55,7 @@ proc buildAndRunTest(name: string,
     (if defined(windows): " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" & (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") else: (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") & " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"") &
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
     (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
+    " --stacktrace:on" &
     " --threads:on" &
     " --tlsEmulation:off" &
     " " &
