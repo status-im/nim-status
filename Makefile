@@ -29,7 +29,6 @@ export LINK_PCRE := 0
 	deps \
 	migrations \
 	nat-libs-sub \
-	nats \
 	nim_status \
 	nim_status_go \
 	shims-for-test-c \
@@ -97,20 +96,15 @@ create-data-dirs:
 		keystore \
 		noBackup
 
-# nim-nat-traversal assumes nat-libs are available in its parent's vendor
+# nat-libs target assumes libs are in vendor subdir of working directory;
+# also, in msys2 environment miniupnpc's Makefile.mingw's invocation of
+# `wingenminiupnpcstrings.exe` will fail if containing directory is not in PATH
 nat-libs-sub:
 	cd vendor/nim-waku && \
+		PATH="$$(pwd)/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc:$${PATH}" \
 		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 nat-libs
 
-# in msys2 environment miniupnpc's Makefile.mingw's invocation of
-# `wingenminiupnpcstrings.exe` will fail if containing directory is not in PATH
-nats:
-	PATH="$(shell pwd)/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc:$${PATH}" \
-	$(MAKE) nat-libs
-	PATH="$(shell pwd)/vendor/nim-waku/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc:$${PATH}" \
-	$(MAKE) nat-libs-sub
-
-deps: | deps-common nats
+deps: | deps-common nat-libs-sub
 
 update: | update-common
 
