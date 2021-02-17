@@ -6,7 +6,11 @@ import
   waku/v1/node/waku_helpers,
   waku/common/utils/nat,
   stew/byteutils, stew/shims/net as stewNet,
-  eth/[keys, p2p]
+  eth/[keys, p2p],
+  nimcrypto,
+  strutils
+
+
 
 import protocol/protocol
 import protocol/chat_message
@@ -87,23 +91,49 @@ proc initWakuV1*() {.thread.} =
           fatal "connectToNetwork failed", msg = connectedFut.readError.msg
           quit(1)
 
+
+    # TEST seedphrase and privkey
+    # discover cushion word elephant slow cry impact spice pen toast crazy omit
+    let privKey: PrivateKey = PrivateKey.fromHex("0xc2ca2bc9bbb5327fafc3c13728a8e4289d62a0fe0a00d91b7e595a8060520132").get()
+
     # Code to be executed on receival of a message on filter.
     proc handler(msg: ReceivedMessage) =
-      echo "MSG RECEIVED!"
       if msg.decoded.src.isSome():
-        echo "Received message from ", $msg.decoded.src.get()
+        echo "Received public message message from ", $msg.decoded.src.get()
         let protocolMessage = msg.decoded.payload.toProtocolMessage()
         let publicMessage = protocolMessage.getPublicMessage()
         if publicMessage.getMessageType() == Type.CHAT_MESSAGE:
           echo publicMessage.getChatMessage()
           echo publicMessage.getChatMessage().getSticker()
-    
+
+
+    proc negotiatedTopicMessageHandler(msg: ReceivedMessage) =
+      if msg.decoded.src.isSome():
+        echo "Received public message message from ", $msg.decoded.src.get()
+        
+
+
+    # Code to be executed on receival of a message on filter.
+    proc handler2(msg: ReceivedMessage) =
+      if msg.decoded.src.isSome():
+        echo "Received 1:1 message from ", $msg.decoded.src.get()
+        let sharedKey = ecdhRaw(SkSecretKey(privKey), SkPublicKey(msg.decoded.src.get())).data[1..32]
+        echo sharedKey
+        let negotiatedTopic = "0x" & byteutils.toHex(keccak_256.digest(byteutils.toHex(sk).toLowerAscii()).data)[0..7]
+        echo negotiatedTopic
+        discard node.subscribeFilter(initFilter(privateKey = some(privKey), topics = @[hexToByteArray[4](negotiatedTopic)]), negotiatedTopicMessageHandler)
+
+
+       
     let 
       symKey: SymKey = hexToByteArray[32]("0xa82a520aff70f7a989098376e48ec128f25f767085e84d7fb995a9815eebff0a")
       topic = hexToByteArray[4]("0x9c22ff5f") # test
       filter = initFilter(symKey = some(symKey), topics = @[topic])
+      filter2 = initFilter(privateKey = some(privKey), topics = @[hexToByteArray[4]("0x3f7b971b")]) # TODO, calculate Contact Discovery topic
 
     discard node.subscribeFilter(filter, handler)
+    discard node.subscribeFilter(filter2, handler2)
+
 
 
 proc initAsyncThread() =
