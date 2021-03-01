@@ -8,6 +8,7 @@ import
   stew/byteutils, stew/shims/net as stewNet,
   eth/[keys, p2p],
   nimcrypto,
+  json,
   strutils
 
 
@@ -15,9 +16,13 @@ import
 import protocol/protocol
 import protocol/chat_message
 
-var connThread: Thread[void]
+import messages
 
-proc initWakuV1*() {.thread.} =
+type MyClosure* = proc (p0: string){.closure, locks: 0, gcsafe.}
+
+var connThread: Thread[MyClosure]
+
+proc initWakuV1*(onMessage: MyClosure) {.thread.} =
     # Test waku
     const clientId = "NimStatusWaku"
     let nodeKey = KeyPair.random(keys.newRng()[])
@@ -98,30 +103,87 @@ proc initWakuV1*() {.thread.} =
 
     # Code to be executed on receival of a message on filter.
     proc handler(msg: ReceivedMessage) =
+      echo "THREAD ID IN HANDLER: ", getThreadId()
       if msg.decoded.src.isSome():
         echo "Received public message message from ", $msg.decoded.src.get()
         let protocolMessage = msg.decoded.payload.toProtocolMessage()
         let publicMessage = protocolMessage.getPublicMessage()
+       
+
+        let fromUser = "0x0492ea4c28002b5cd849e09b653bbe4413f50f79c85fcc1c09853353752bd34082f654f50f26c62b3e96639c217966329e3318ee80e53042c9fe41c6ca9db17f00"
+
         if publicMessage.getMessageType() == Type.CHAT_MESSAGE:
-          echo publicMessage.getChatMessage()
-          echo publicMessage.getChatMessage().getSticker()
+          let chatMessage = publicMessage.getChatMessage()
+          let message = %*{ 
+            "alias": "Random Waku User",
+            "localChatId": chatMessage.chat_id,
+            "clock": chatMessage.clock * 1000,
+            "contentType": 1,
+            "ensName": "",
+            "from": fromUser,
+            "id": byteutils.toHex(keccak_256.digest(chatMessage.chat_id & fromUser & $chatMessage.clock).data),
+            "identicon": "",
+            "lineCount": 1,
+            "messageType": 2,
+            "replace": "",
+            "responseTo": "",
+            "rtl": false,
+            "seen": false,
+            "text": chatMessage.text,
+            "timestamp": chatMessage.timestamp * 1000,
+            "whisperTimestamp": chatMessage.clock * 1000,
+            "outgoingStatus": "sent",
+            "parsedText": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "literal": "FROM WAKU: " & chatMessage.text
+                  }
+                ]
+              }
+            ]
+          }
+
+          let response = $ %* {
+            "type": "messages.new",
+            "event": {
+              "messages": [ message  ]
+            }
+          }
+        
+          onMessage(response)
+
+
 
 
     proc negotiatedTopicMessageHandler(msg: ReceivedMessage) =
+      echo "THREAD ID IN negotiatedtopic: ", getThreadId()
       if msg.decoded.src.isSome():
         echo "Received public message message from ", $msg.decoded.src.get()
         
 
+    proc subscribeLater(f: Filter) {.async.} =
+      echo "SUBSCRIBE LATER"
+      await sleepAsync 100.milliseconds
+      echo f;
+      discard node.subscribeFilter(f, negotiatedTopicMessageHandler)
+
 
     # Code to be executed on receival of a message on filter.
     proc handler2(msg: ReceivedMessage) =
+      echo "THREAD ID IN HANDLER2: ", getThreadId()
       if msg.decoded.src.isSome():
         echo "Received 1:1 message from ", $msg.decoded.src.get()
         let sharedKey = ecdhRaw(SkSecretKey(privKey), SkPublicKey(msg.decoded.src.get())).data[1..32]
-        echo sharedKey
-        let negotiatedTopic = "0x" & byteutils.toHex(keccak_256.digest(byteutils.toHex(sk).toLowerAscii()).data)[0..7]
+        let negotiatedTopic = "0x" & byteutils.toHex(keccak_256.digest(byteutils.toHex(sharedKey).toLowerAscii()).data)[0..7]
         echo negotiatedTopic
-        discard node.subscribeFilter(initFilter(privateKey = some(privKey), topics = @[hexToByteArray[4](negotiatedTopic)]), negotiatedTopicMessageHandler)
+
+        let negSymKey: SymKey = hexToByteArray[32](byteutils.toHex(sharedKey))
+
+
+        let f = initFilter(src = some(msg.decoded.src.get()), symKey = some(negSymKey), topics = @[hexToByteArray[4](negotiatedTopic)])
+        discard subscribeLater(f)
 
 
        
@@ -136,11 +198,11 @@ proc initWakuV1*() {.thread.} =
 
 
 
-proc initAsyncThread() =
-    initWakuV1()
+proc initAsyncThread(onMessage: MyClosure) =
+    initWakuV1(onMessage)
     runForever()
 
 
-proc startWakuV1*() =
-    connThread.createThread(initAsyncThread)
-    debug "Async thread created"    
+proc startWakuV1*(onMessage: MyClosure) =
+    connThread.createThread(initAsyncThread, onMessage)
+    debug "Async thread created"
