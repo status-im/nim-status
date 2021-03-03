@@ -24,13 +24,10 @@ in stdenv.mkDerivation {
 
     ${flags.vars}
 
-    echo "### toolPath"
-    echo ${flags.toolPath}
-
     ${if osId=="Windows" then
-    "make --print-data-base CC=\"$CC\" CFLAGS=\"-Wall -Os -DWIN32 -DNATPMP_STATICLIB -DENABLE_STRNATPMPERR -DNATPMP_MAX_RETRIES=4 ${flags.compiler}\" libnatpmp.a"
+    "make OS=\"$OS\" CC=\"$CC\" CFLAGS=\"-Wall -Os -DWIN32 -DNATPMP_STATICLIB -DENABLE_STRNATPMPERR -DNATPMP_MAX_RETRIES=4 ${flags.compiler}\" libnatpmp.a"
       else
-    "make CC=\"$CC\" CFLAGS=\"-Wall -Os -DENABLE_STRNATPMPERR -DNATPMP_MAX_RETRIES=4 ${flags.compiler}\" libnatpmp.a"
+    "make OS=\"$OS\" CC=\"$CC\" CFLAGS=\"-Wall -Os -DENABLE_STRNATPMPERR -DNATPMP_MAX_RETRIES=4 ${flags.compiler}\" libnatpmp.a"
     }
   '';
 

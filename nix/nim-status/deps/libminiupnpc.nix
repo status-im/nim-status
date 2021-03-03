@@ -25,11 +25,10 @@ in stdenv.mkDerivation {
     ${flags.vars}
 
     cd miniupnpc
-
     ${if osId=="Windows" then
-		"make -f Makefile.mingw CC=\"$CC\" CFLAGS=\"${flags.compiler}\" libminiupnpc.a"
+		"make -f Makefile.mingw OS=\"$OS\" CC=\"$CC\" CFLAGS=\"${flags.compiler}\" libminiupnpc.a"
     else
-	  "make CC=\"$CC\" CFLAGS=\"${flags.compiler}\" libminiupnpc.a"
+	  "make OS=\"$OS\" CC=\"$CC\" CFLAGS=\"${flags.compiler}\" libminiupnpc.a"
     }
   '';
 

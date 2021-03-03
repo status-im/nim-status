@@ -39,24 +39,41 @@ let
   androidToolPath = "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/${osId}-${osArch}/bin";
   androidToolPathPrefix = "${androidToolPath}/${androidTargetArch}-linux-${platform}";
 
+
+
+  routeHeader = builtins.readFile ./deps/route.h;
+  iosIncludes = stdenv.mkDerivation {
+    name = "nim-status-ios-includes";
+    buildInputs = [ pkgs.coreutils ];
+    builder = writeScript "nim-ios-includes.sh"
+    ''
+      export PATH=${pkgs.coreutils}/bin
+      mkdir $out
+      cd $out
+      mkdir net
+      echo "${routeHeader}" > net/route.h
+    '';
+  };
+
+
+
   isysroot = if isAndroid then 
     "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/${osId}-${osArch}/sysroot"             
     else "$(xcrun --sdk ${iosSdk} --show-sdk-path)";
 
   compilerFlags = if isAndroid then
-      "-isysroot ${isysroot} -fPIC"
+      "-isysroot ${isysroot} -target ${androidTarget}${api} -fPIC"
       else if isIOS then
       # TODO The conditional for -miphoneos-version-min=8.0 is required,
       # otherwise Nim will complain that thread-local storage is not supported for the current target
       # when expanding 'NIM_THREADVAR' macro
-
-      "-isysroot ${isysroot} -fembed-bitcode -arch ${iosArch} ${if fromNim && arch == "arm" then "" else "-m${iosSdk}-version-min=8.0"}"
+      "-isysroot ${isysroot}  -I${iosIncludes} -fembed-bitcode -arch ${iosArch} ${if fromNim && arch == "arm" then "" else "-m${iosSdk}-version-min=8.0"}"
       else throw "Unsupported platform!";
 
   linkerFlags = if isAndroid then  
-  "--sysroot ${isysroot}"
+  "--sysroot ${isysroot} -target ${androidTarget}${api}"
   else if isIOS then
-  "--sysroot ${isysroot} -fembed-bitcode -arch ${iosArch} ${if fromNim && arch == "arm" then "" else "-m${iosSdk}-version-min=8.0"}"
+  "--sysroot ${isysroot} -arch ${iosArch} -fembed-bitcode ${if fromNim && arch == "arm" then "" else "-m${iosSdk}-version-min=8.0"}"
   else throw "Unsupported platform!";
 
 
@@ -68,7 +85,7 @@ let
       export AR=${androidToolPathPrefix}-ar
       export RANLIB=${androidToolPathPrefix}-ranlib
       # go build will use this
-      export CC="${androidToolPath}/clang -target ${androidTarget}${api}"
+      export CC="${androidToolPath}/clang"
       export OS=android
 
       # This is important, otherwise Nim might not use proper tooling
@@ -81,6 +98,7 @@ let
     ''
       export PATH=${iosToolPath}:$PATH
       export OS=ios
+      export CC="${iosToolPath}/clang"
     ''
     else throw "Unsupported platform!";
 
