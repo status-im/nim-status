@@ -43,7 +43,7 @@ proc generate(id: string): Identicon =
   Identicon(bitmap: bitmap, color: color)
 
 proc renderBase64(icon: Identicon): string =
-  let img = newNimage(50, 50)
+  let img = newNimage(250, 250)
   # make the background transparent
   const transparent: NimageColor = 0
   img.fill(transparent)
@@ -55,17 +55,18 @@ proc renderBase64(icon: Identicon): string =
   let a = color.a
   let rgba: NimageColor = nimage.rgba(r, g, b, a)
   const maxRow = 5
-  const sizeSquare = 6
+  const sizeSquare = 30
   for i in low(bitmap)..high(bitmap):
     if bitmap[i] == 1:
       # compare to: https://github.com/status-im/status-go/blob/develop/protocol/identity/identicon/renderer.go#L41-L46
       # for `image.Rect` of Go the 2nd pair of coords is exclusive upper bound
       # but for `fillRect` used here it is inclusive
-      var x0 = (10 + (i mod maxRow) * sizeSquare).uint32
-      var y0 = (10 + (i div maxRow) * sizeSquare).uint32
-      var x1 = ((10 + (i mod maxRow) * sizeSquare + sizeSquare) - 1).uint32
-      var y1 = ((10 + (i div maxRow) * sizeSquare + sizeSquare) - 1).uint32
+      var x0 = (50 + (i mod maxRow) * sizeSquare).uint32
+      var y0 = (50 + (i div maxRow) * sizeSquare).uint32
+      var x1 = ((50 + (i mod maxRow) * sizeSquare + sizeSquare) - 1).uint32
+      var y1 = ((50 + (i div maxRow) * sizeSquare + sizeSquare) - 1).uint32
       img.fillRect(x0, y0, x1, y1, rgba)
+      echo x0, "-", y0, "-", x1, "-", y1, "-", rgba, "\n"
   var pixels: seq[uint8]
   for j in low(img.pixels)..high(img.pixels):
     let pix32 = img.pixels[j]
@@ -87,14 +88,14 @@ proc renderBase64(icon: Identicon): string =
   let settings = makePNGEncoder()
   settings.autoConvert = false
   settings.filterStrategy = LFS_BRUTE_FORCE
-  let png = encodePNG(pixels, LCT_RGBA, 8, 50, 50, settings)
+  let png = encodePNG(pixels, LCT_RGBA, 8, 250, 250, settings)
   let strm = newStringStream()
   png.writeChunks(strm)
   strm.flush()
   strm.setPosition(0)
   let encoded = base64.encode(strm.readAll())
   strm.close()
-  "data:image/png;base64," & encoded
+  result = "data:image/png;base64," & encoded
 
 proc generateBase64*(id: string): string =
   let icon = generate(id)
