@@ -16,7 +16,7 @@ import
 import protocol/protocol
 import protocol/chat_message
 
-import messages
+from messages import nil
 
 type MyClosure* = proc (p0: string){.closure, locks: 0, gcsafe.}
 
@@ -114,14 +114,19 @@ proc initWakuV1*(onMessage: MyClosure) {.thread.} =
 
         if publicMessage.getMessageType() == Type.CHAT_MESSAGE:
           let chatMessage = publicMessage.getChatMessage()
+
+          let messageId = byteutils.toHex(keccak_256.digest(chatMessage.chat_id & fromUser & $chatMessage.clock).data)
+          let contentType = 1 # TODO
+          let messageType = 2 # TODO
+
           let message = %*{ 
             "alias": "Random Waku User",
             "localChatId": chatMessage.chat_id,
             "clock": chatMessage.clock * 1000,
-            "contentType": 1,
+            "contentType": contentType,
             "ensName": "",
             "from": fromUser,
-            "id": byteutils.toHex(keccak_256.digest(chatMessage.chat_id & fromUser & $chatMessage.clock).data),
+            "id": messageId,
             "identicon": "",
             "lineCount": 1,
             "messageType": 2,
@@ -152,8 +157,49 @@ proc initWakuV1*(onMessage: MyClosure) {.thread.} =
             }
           }
         
-          onMessage(response)
+          var dbMsg: messages.Message = messages.Message()
+          dbMsg.id = messageId
+          dbMsg.whisperTimestamp = chatMessage.timestamp
+          dbMsg.source = fromUser
+          # dbMsg.destination =  Needs to be set for 1:1
+          dbMsg.text = chatMessage.text
+          dbMsg.contentType = 1
+          dbMsg.username = ""
+          dbMsg.timestamp = chatMessage.timestamp
+          dbMsg.chatId = chatMessage.chat_id
+          dbMsg.localChatId = chatMessage.chat_id
+          dbMsg.hide = false # ??
+          dbMsg.responseTo = ""
+          dbMsg.messageType = messageType
+          dbMsg.clockValue = chatMessage.clock
+          dbMsg.seen = false # TODO:
+          dbMsg.outgoingStatus = "" # 
+          dbMsg.parsedText = cast[seq[byte]]("")
+          dbMsg.rawPayload = msg.decoded.payload
+          dbMsg.stickerPack = 0 #
+          dbMsg.stickerHash = "" #
+          dbMsg.commandId = ""
+          dbMsg.commandValue = ""
+          dbMsg.commandAddress = ""
+          dbMsg.commandFrom = ""
+          dbMsg.commandContract = ""
+          dbMsg.commandState = 0
+          dbMsg.audioPayload = cast[seq[byte]]("")
+          dbMsg.audioType = 0
+          dbMsg.audioDurationMs = 0
+          dbMsg.audioBase64 = ""
+          dbMsg.replaceMessage = ""
+          dbMsg.rtl = false
+          dbMsg.lineCount = 1
+          dbMsg.links = ""
+          dbMsg.mentions = ""
+          dbMsg.imagePayload = cast[seq[byte]]("")
+          dbMsg.imageType = ""
+          dbMsg.imageBase64 = ""
 
+          onMessage(response)
+          
+          #dbConnection.saveMessage( dbMsg   );  <------- where does dbconn come from?
 
 
 

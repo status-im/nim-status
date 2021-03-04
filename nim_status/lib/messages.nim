@@ -94,19 +94,19 @@ type
 
   Message* = object
     id* {.serializedFieldName($MessageType.Id), dbColumnName($MessageCol.Id).}: string
-    whisperTimestamp* {.serializedFieldName($MessageType.WhisperTimestamp), dbColumnName($MessageCol.WhisperTimestamp).}: int
+    whisperTimestamp* {.serializedFieldName($MessageType.WhisperTimestamp), dbColumnName($MessageCol.WhisperTimestamp).}: uint64
     source* {.serializedFieldName($MessageType.Source), dbColumnName($MessageCol.Source).}: string
     destination* {.serializedFieldName($MessageType.Destination), dbColumnName($MessageCol.Destination).}: seq[byte]
     text* {.serializedFieldName($MessageType.Text), dbColumnName($MessageCol.Text).}: string
     contentType* {.serializedFieldName($MessageType.ContentType), dbColumnName($MessageCol.ContentType).}: int
     username* {.serializedFieldName($MessageType.Username), dbColumnName($MessageCol.Username).}: string
-    timestamp* {.serializedFieldName($MessageType.Timestamp), dbColumnName($MessageCol.Timestamp).}: int
+    timestamp* {.serializedFieldName($MessageType.Timestamp), dbColumnName($MessageCol.Timestamp).}: uint64
     chatId* {.serializedFieldName($MessageType.ChatId), dbColumnName($MessageCol.ChatId).}: string
     localChatId* {.serializedFieldName($MessageType.LocalChatId), dbColumnName($MessageCol.LocalChatId).}: string
     hide* {.serializedFieldName($MessageType.Hide), dbColumnName($MessageCol.Hide).}: bool
     responseTo* {.serializedFieldName($MessageType.ResponseTo), dbColumnName($MessageCol.ResponseTo).}: string
     messageType* {.serializedFieldName($MessageType.MessageType), dbColumnName($MessageCol.MessageType).}: int
-    clockValue* {.serializedFieldName($MessageType.ClockValue), dbColumnName($MessageCol.ClockValue).}: int
+    clockValue* {.serializedFieldName($MessageType.ClockValue), dbColumnName($MessageCol.ClockValue).}: uint64
     seen* {.serializedFieldName($MessageType.Seen), dbColumnName($MessageCol.Seen).}: bool
     outgoingStatus* {.serializedFieldName($MessageType.OutgoingStatus), dbColumnName($MessageCol.OutgoingStatus).}: string
     parsedText* {.serializedFieldName($MessageType.ParsedText), dbColumnName($MessageCol.ParsedText).}: seq[byte]
