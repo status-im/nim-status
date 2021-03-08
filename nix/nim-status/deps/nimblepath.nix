@@ -21,14 +21,20 @@ let
 
     news = {
       url = "https://github.com/tormund/news.git";
-      rev = "a3a6e3ae5ff16126942f4febe746ca4da978072b";
-      sha256 = "0qmwh2p306z2rxmwlfqfj8b3j92bdwavxa8z6jifmak5n0inn8ad";
+      rev = "e1d63564a2a411f264e75694b8f7c66e50c3a4cb";
+      sha256 = "1sl0w7xg16xvk1mp81hnz9vapy3jq239c0kl4fi25wr47sbch0jk";
     };
 
     nim-bearssl = {
       url = "https://github.com/status-im/nim-bearssl.git";
       rev = "33b2303fc3b64359970b77bb09274c3e012ff37f";
       sha256 = "0ynjiwxpacn98ab8nw6vv53482ji685wymdslnws6qibyvvfkb0b";
+      submodules = {
+        url = "https://www.bearssl.org/git/BearSSL";
+        rev = "dda1f8a0c46e15b4a235163470ff700b2f13dcc5";
+        sha256 = "0000000000000000000000000000000000000000000000000000";
+
+      };
     };
 
     nim-byteutils = {
@@ -75,8 +81,8 @@ let
 
     nim-json-rpc = {
       url = "https://github.com/status-im/nim-json-rpc.git";
-      rev = "244254632b15c745b6e15537aafd401f360d9928";
-      sha256 = "1nj3111ni42jfnvnhffzpd1fv0s1362rr8n6rgxcqq26gsivcgks";
+      rev = "d90bdb679bd3d81a4e3a887e14f8ee5caa4fa177";
+      sha256 = "1jwl4a9bl65yk1mihnvxxzrhb1932yzs4rf2675zdwr9a3yz5yci";
     };
 
     nim-json-serialization = {
@@ -193,19 +199,40 @@ let
   fetchedDirs = builtins.map (name:
       let
         dep = nimble-deps.${name};
+        fetchSubmodules = builtins.elem name [ "nim-bearssl" ];
         src = pkgs.fetchgit {
           url = dep.url;
           rev = dep.rev;
           sha256 = dep.sha256;
-          fetchSubmodules = false;
+          deepClone = fetchSubmodules;
+          fetchSubmodules = fetchSubmodules;
         };
+
+        # submodules = if dep ? submodules then 
+        # builtins.map (
+        #   s: 
+        #   let
+        #     src = pkgs.fetchgit {
+        #       url = dep.url;
+        #       rev = dep.rev;
+        #       sha256 = dep.sha256;
+        #       fetchSubmodules = fetchSubmodules;
+        #     };
+        #   in 
+        #   )
+        #   dep.submodules
+        # else [];
       in stdenv.mkDerivation {
         name = "fetch-nimble-dep-${name}";
-        inherit src;
+        inherit src fetchSubmodules;
         buildInputs = [ pkgs.coreutils ];
         builder = writeScript "fetch-nimble-dep-builder.sh"
         ''
           source $stdenv/setup
+
+          echo "###"
+          echo $name
+          echo $fetchSubmodules
 
           export DIR_NAME=$out/${name}-#head
           mkdir -p $DIR_NAME
