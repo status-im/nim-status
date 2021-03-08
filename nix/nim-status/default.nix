@@ -122,10 +122,11 @@ in rec {
 
   # deps
 
-  #libnatpmp = callPackage ./deps/libnatpmp.nix {platform = "android"; arch="386";};
   libnatpmp = buildArchTree "deps/libnatpmp";
   libminiupnpc = buildArchTree "deps/libminiupnpc";
   sqlcipher = buildArchTree "deps/sqlcipher";
+
+  nimblepath = callPackage ./deps/nimblepath.nix {};
   
   nim-status-android = buildAndroid nim-status.android "nim_status";
   nim-status-ios = buildIos nim-status.ios "nim_status";

@@ -41,29 +41,47 @@ in stdenv.mkDerivation rec {
     mkdir ./nim_status/c/go/include
     cp ${nimBase} ./nim_status/c/go/include/nimbase.h
 
+    # Migrations
+	  # nim c --cc:clang --verbosity:0 nim_status/migrations/sql_generate.nim
+	  # nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
+	  # nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
   '';
 
   buildPhase = ''
     ${flags.vars}
-    echo -e "Building Nim-Status"
+
+    echo -e "Building Nim-Status Go shim"
     export INCLUDE_PATH=./include
     # Need -d:nimEmulateOverflowChecks,
     # otherwise compiler will complain about
     # undefined nimMulInt/nimAddInt functions
     # https://github.com/nim-lang/Nim/issues/13645#issuecomment-601037942
     # https://github.com/nim-lang/Nim/pull/13692
-    nim c \
-      --cincludes:$INCLUDE_PATH \
-      --app:staticLib \
-      --cc:clang \
-      --header \
-      --nimcache:nimcache/nim_status_go \
-      --noMain \
-      -d:nimEmulateOverflowChecks \
-      --threads:on \
-      --tlsEmulation:off \
-      -o:nim_status_go.a \
-      nim_status/c/go/shim.nim
+
+    # nim c \
+    #   --cincludes:$INCLUDE_PATH \
+    #   --app:staticLib \
+    #   --cc:clang \
+    #   --header \
+    #   --nimcache:nimcache/nim_status_go \
+    #   --noMain \
+    #   -d:nimEmulateOverflowChecks \
+    #   --threads:on \
+    #   --tlsEmulation:off \
+    #   -o:nim_status_go.a \
+    #   nim_status/c/go/shim.nim
+
+  	nim c \
+		--app:staticLib \
+		--header \
+		--nimcache:nimcache/nim_status \
+		--noMain \
+		--threads:on \
+		--tlsEmulation:off \
+		-o:nim_status.a \
+		nim_status/c/shim.nim
+
+
   '';
 
   installPhase = ''
