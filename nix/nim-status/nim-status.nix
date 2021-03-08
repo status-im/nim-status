@@ -31,6 +31,29 @@ in stdenv.mkDerivation rec {
   phases = ["unpackPhase" "preBuildPhase" "buildPhase" "installPhase"];
 
   preBuildPhase = ''
+    mkdir ./nim_status/c/go/include
+    mkdir ./include
+
+    cp ${nimBase} ./nim_status/c/go/include/nimbase.h
+    cp ${nimBase} ./include/nimbase.h
+
+    mkdir nimbledeps
+    ln -sf ${nimblepath} nimbledeps/pkgs
+
+    export INCLUDE_PATH=`pwd`/include
+    export NIMBLE_DIR=`pwd`/nimbledeps
+    # Migrations
+    nim c --verbosity:1 \
+      --cc:clang \
+      --overflowChecks:off \
+      -d:nimEmulateOverflowChecks \
+      --cincludes:$INCLUDE_PATH \
+      --nimcache:nimcache/migrations \
+      nim_status/migrations/sql_generate.nim
+
+	  nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
+	  nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
+
     echo 'switch("passC", "${flags.compiler}")' >> config.nims
     echo 'switch("passL", "${flags.linker}")' >> config.nims
     echo 'switch("cpu", "${flags.nimCpu}")' >> config.nims
@@ -40,16 +63,7 @@ in stdenv.mkDerivation rec {
     echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.exe", "clang"' >> config.nims
     echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.linkerexe", "clang"' >> config.nims
 
-    mkdir ./nim_status/c/go/include
-    cp ${nimBase} ./nim_status/c/go/include/nimbase.h
 
-    mkdir nimbledeps
-    ln -sf ${nimblepath} nimbledeps/pkgs
-
-    # Migrations
-	  # nim c --cc:clang --verbosity:0 nim_status/migrations/sql_generate.nim
-	  # nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
-	  # nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
   '';
 
   buildPhase = ''
@@ -85,7 +99,9 @@ in stdenv.mkDerivation rec {
 
   	nim c \
 		--app:staticLib \
+    --cc:clang \
 		--header \
+    -d:nimEmulateOverflowChecks \
 		--nimcache:nimcache/nim_status \
 		--noMain \
 		--threads:on \
