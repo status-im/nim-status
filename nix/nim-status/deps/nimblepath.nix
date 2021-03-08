@@ -207,8 +207,15 @@ let
         ''
           source $stdenv/setup
 
-          mkdir $out
-          ln -sf $src $out/${name}
+          export DIR_NAME=$out/${name}-#head
+          mkdir -p $DIR_NAME
+          export PKG_DIR=$src
+          if [ -d $src/src ]; then
+            export PKG_DIR=$src/src
+          fi
+          echo $PKG_DIR >> $DIR_NAME/${name}.nimble-link
+          echo $PKG_DIR >> $DIR_NAME/${name}.nimble-link
+          #ln -sf $src/src $out/${name}
         '';
       }
     ) 

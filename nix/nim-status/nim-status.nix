@@ -20,6 +20,8 @@ let
   };
 
   flags = callPackage ./getFlags.nix {inherit platform arch; fromNim = true;};
+
+  nimblepath = callPackage ./deps/nimblepath.nix {};
   nimBase = ./nimbase.h;
 in stdenv.mkDerivation rec {
   name = "nim-status-go_lib";
@@ -41,6 +43,9 @@ in stdenv.mkDerivation rec {
     mkdir ./nim_status/c/go/include
     cp ${nimBase} ./nim_status/c/go/include/nimbase.h
 
+    mkdir nimbledeps
+    ln -sf ${nimblepath} nimbledeps/pkgs
+
     # Migrations
 	  # nim c --cc:clang --verbosity:0 nim_status/migrations/sql_generate.nim
 	  # nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
@@ -52,6 +57,9 @@ in stdenv.mkDerivation rec {
 
     echo -e "Building Nim-Status Go shim"
     export INCLUDE_PATH=./include
+    export NIMBLE_DIR=`pwd`/nimbledeps
+
+
     # Need -d:nimEmulateOverflowChecks,
     # otherwise compiler will complain about
     # undefined nimMulInt/nimAddInt functions
@@ -70,6 +78,10 @@ in stdenv.mkDerivation rec {
     #   --tlsEmulation:off \
     #   -o:nim_status_go.a \
     #   nim_status/c/go/shim.nim
+
+    echo '### nimble_dir'
+    echo $NIMBLE_DIR
+    nim --version
 
   	nim c \
 		--app:staticLib \
