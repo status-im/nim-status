@@ -29,12 +29,12 @@ let
       url = "https://github.com/status-im/nim-bearssl.git";
       rev = "33b2303fc3b64359970b77bb09274c3e012ff37f";
       sha256 = "0ynjiwxpacn98ab8nw6vv53482ji685wymdslnws6qibyvvfkb0b";
-      submodules = {
+      submodules = [{
         url = "https://www.bearssl.org/git/BearSSL";
         rev = "dda1f8a0c46e15b4a235163470ff700b2f13dcc5";
-        sha256 = "0000000000000000000000000000000000000000000000000000";
-
-      };
+        path = "bearssl/csources";
+        sha256 = "1dlgl2l585rqa7p77x639xslil2mla4pymkwfjh6x63sg13k747d";
+      }];
     };
 
     nim-byteutils = {
@@ -125,6 +125,12 @@ let
       url = "https://github.com/status-im/nim-secp256k1.git";
       rev = "a9d5cba699a0ee636ad155ea0dc49747b24d2ea4";
       sha256 = "18q3j34slsr8hfxlrywapvkf9sv0mxam27h676l9hpck9yfgg4gm";
+      submodules = [{
+        url = "https://github.com/status-im/secp256k1.git";
+        rev = "1766dc808621f8a6e91282a321ddabce4352e624";
+        sha256 = "0imfcs57gzs7kk571x475777kisq5ar71yj2jvfppxbyrhwahi1h";
+        path = "secp256k1_wrapper/secp256k1";
+      }];
     };
 
 
@@ -197,57 +203,58 @@ let
   };
 
   fetchedDirs = builtins.map (name:
-      let
-        dep = nimble-deps.${name};
-        fetchSubmodules = builtins.elem name [ "nim-bearssl" ];
-        src = pkgs.fetchgit {
-          url = dep.url;
-          rev = dep.rev;
-          sha256 = dep.sha256;
-          deepClone = fetchSubmodules;
-          fetchSubmodules = fetchSubmodules;
-        };
+    let
+      dep = nimble-deps.${name};
+      src = let 
+        src = pkgs.fetchgit ((builtins.removeAttrs dep ["submodules"]) // {fetchSubmodules = false;});
+        submodules = if dep ? submodules then 
+          builtins.map (
+            s: s // {
+              src = pkgs.fetchgit ((builtins.removeAttrs s ["path"])// {fetchSubmodules = false;});
+            }) dep.submodules
+        else [];
 
-        # submodules = if dep ? submodules then 
-        # builtins.map (
-        #   s: 
-        #   let
-        #     src = pkgs.fetchgit {
-        #       url = dep.url;
-        #       rev = dep.rev;
-        #       sha256 = dep.sha256;
-        #       fetchSubmodules = fetchSubmodules;
-        #     };
-        #   in 
-        #   )
-        #   dep.submodules
-        # else [];
-      in stdenv.mkDerivation {
-        name = "fetch-nimble-dep-${name}";
-        inherit src fetchSubmodules;
+        submoduleScript = lib.concatStringsSep "\n" (builtins.map (
+          s: ''
+            mkdir -p ${s.path}
+            cp -r ${s.src}/* ${s.path}/
+          '') submodules);
+      in 
+      if (builtins.length submodules) == 0 then src else stdenv.mkDerivation {
+        name = "build-full-dep-src-${name}";
+        inherit src;
         buildInputs = [ pkgs.coreutils ];
-        builder = writeScript "fetch-nimble-dep-builder.sh"
+        builder = writeScript "build-full-dep-src-${name}-builder.sh"
         ''
           source $stdenv/setup
+          mkdir $out
 
-          echo "###"
-          echo $name
-          echo $fetchSubmodules
+          cd $out
+          cp -r --no-preserve=mode,ownership $src/* .
 
-          export DIR_NAME=$out/${name}-#head
-          mkdir -p $DIR_NAME
-          export PKG_DIR=$src
-          if [ -d $src/src ]; then
-            export PKG_DIR=$src/src
-          fi
-          echo $PKG_DIR >> $DIR_NAME/${name}.nimble-link
-          echo $PKG_DIR >> $DIR_NAME/${name}.nimble-link
-          #ln -sf $src/src $out/${name}
+          ${submoduleScript}
         '';
-      }
-    ) 
-    (builtins.attrNames nimble-deps);
+      };
+    in stdenv.mkDerivation {
+      name = "fetch-nimble-dep-${name}";
+      inherit src;
+      buildInputs = [ pkgs.coreutils ];
+      builder = writeScript "fetch-nimble-dep-builder.sh"
+      ''
+        source $stdenv/setup
 
+        export DIR_NAME=$out/${name}-#head
+        mkdir -p $DIR_NAME
+        export PKG_DIR=$src
+        if [ -d $src/src ]; then
+          export PKG_DIR=$src/src
+        fi
+        echo $PKG_DIR >> $DIR_NAME/${name}.nimble-link
+        echo $PKG_DIR >> $DIR_NAME/${name}.nimble-link
+
+        #ln -sf $src/src $out/${name}
+      '';
+  }) (builtins.attrNames nimble-deps);
 in stdenv.mkDerivation {
   name = "nim-status-nimbledeps";
 
