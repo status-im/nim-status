@@ -89,14 +89,14 @@ let
       export OS=android
 
       # This is important, otherwise Nim might not use proper tooling
-      mkdir bin
-      ln -s $AR bin/ar
-      ln -s $RANLIB bin/ranlib
-      export PATH=`pwd`/bin:$PATH
+      mkdir tmp_bin
+      ln -s $AR tmp_bin/ar
+      ln -s $RANLIB tmp_bin/ranlib
+      export PATH=`pwd`/tmp_bin:$PATH
     ''
     else if isIOS then
     ''
-      export PATH=${iosToolPath}:$PATH
+      export PATH=${pkgs.binutils-unwrapped}/bin:${iosToolPath}:$PATH
       export OS=ios
       export CC="${iosToolPath}/clang"
     ''

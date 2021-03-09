@@ -24,15 +24,17 @@ let
   nimblepath = callPackage ./deps/nimblepath.nix {};
   nimBase = ./nimbase.h;
 in stdenv.mkDerivation rec {
-  name = "nim-status-go_lib";
+  name = "nim-status_lib";
   inherit src platform arch;
-  buildInputs = with pkgs; [ nim which];
+  buildInputs = with pkgs; [ nim which binutils-unwrapped ];
 
   phases = ["unpackPhase" "preBuildPhase" "buildPhase" "installPhase"];
 
   preBuildPhase = ''
     mkdir ./nim_status/c/go/include
     mkdir ./include
+
+    ${flags.vars}
 
     cp ${nimBase} ./nim_status/c/go/include/nimbase.h
     cp ${nimBase} ./include/nimbase.h
@@ -42,6 +44,8 @@ in stdenv.mkDerivation rec {
 
     export INCLUDE_PATH=`pwd`/include
     export NIMBLE_DIR=`pwd`/nimbledeps
+
+
     # Migrations
     nim c --verbosity:1 \
       --cc:clang \
@@ -67,8 +71,6 @@ in stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
-    ${flags.vars}
-
     echo -e "Building Nim-Status Go shim"
     export INCLUDE_PATH=./include
     export NIMBLE_DIR=`pwd`/nimbledeps
@@ -80,26 +82,10 @@ in stdenv.mkDerivation rec {
     # https://github.com/nim-lang/Nim/issues/13645#issuecomment-601037942
     # https://github.com/nim-lang/Nim/pull/13692
 
-    # nim c \
-    #   --cincludes:$INCLUDE_PATH \
-    #   --app:staticLib \
-    #   --cc:clang \
-    #   --header \
-    #   --nimcache:nimcache/nim_status_go \
-    #   --noMain \
-    #   -d:nimEmulateOverflowChecks \
-    #   --threads:on \
-    #   --tlsEmulation:off \
-    #   -o:nim_status_go.a \
-    #   nim_status/c/go/shim.nim
-
-    echo '### nimble_dir'
-    echo $NIMBLE_DIR
-    nim --version
-
   	nim c \
 		--app:staticLib \
     --cc:clang \
+    --verbosity:1 \
 		--header \
     -d:nimEmulateOverflowChecks \
 		--nimcache:nimcache/nim_status \
@@ -114,8 +100,8 @@ in stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir $out
-    cp nimcache/nim_status_go/shim.h $out/nim_status.h
+    cp nimcache/nim_status/shim.h $out/nim_status.h
     cp ./nim_status/c/go/include/nimbase.h $out/
-    mv nim_status_go.a $out/libnim_status.a
+    mv nim_status.a $out/libnim_status.a
   '';
 }

@@ -27,10 +27,6 @@ let
     };
   };
 
-  buildNimStatus = platform: arch: callPackage ./nim-status.nix {
-    inherit platform arch;
-  };
-
   # Metadata common to all builds of status-go
   meta = {
     description = "The Status Go module that consumes go-ethereum.";
@@ -93,19 +89,9 @@ let
       '';
   };
 in rec {
-  nim-status = {
-    android = {
-      x86 = buildNimStatus "android" "386";
-      arm = buildNimStatus "androideabi" "arm";
-      arm64 = buildNimStatus "android" "arm64";
-    };
-    ios = {
-      x86 = buildNimStatus "ios" "386";
-      arm = buildNimStatus "ios" "arm";
-      arm64 = buildNimStatus "ios" "arm64";
-    };
-  };
 
+  nim-status-go = buildArchTree "nim-status-go";
+  nim-status = buildArchTree "nim-status";
   status-go = {
     android = {
       x86 = buildStatusGo "android" "386";
