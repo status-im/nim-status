@@ -13,6 +13,8 @@ let
   buildPackage = name: platform: arch: callPackage (./. + "/${name}.nix") {
     inherit platform arch;
   };
+  osId = builtins.elemAt (builtins.split "\-" stdenv.hostPlatform.system) 2;
+  osArch = builtins.elemAt (builtins.split "\-" stdenv.hostPlatform.system) 0;
 
   buildArchTree = name: {
      android = {
@@ -25,6 +27,8 @@ let
       arm = buildPackage name "ios" "arm";
       arm64 = buildPackage name "ios" "arm64";
     };
+
+    host = buildPackage name osId osArch;
   };
 
   # Metadata common to all builds of status-go

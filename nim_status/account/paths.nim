@@ -2,7 +2,7 @@ import strutils
 import stew/[results]
 import ./types
 
-const HARDENED_INDEX: uint32 = 1 shl 31;
+const HARDENED_INDEX: uint32 = cast[uint32](1 shl 31);
 
 proc isNonHardened*(self: PathLevel): bool = (self.uint32 and HARDENED_INDEX) == 0
 

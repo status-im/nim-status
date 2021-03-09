@@ -12,13 +12,17 @@
 
 let
   callPackage = newScope {};
-  src = pkgs.fetchgit {
-    url = "https://github.com/status-im/nim-status";
-    rev = "40b935eb2676a449745e81eca72be492517f4136";
-    sha256 = "1bnilbv76q4mrkkwcl72z99bnmwk45kv9g12m26wvy2dlkr353px";
-    fetchSubmodules = false;
-  };
+  # src = pkgs.fetchgit {
+  #   url = "https://github.com/status-im/nim-status";
+  #   rev = "40b935eb2676a449745e81eca72be492517f4136";
+  #   sha256 = "1bnilbv76q4mrkkwcl72z99bnmwk45kv9g12m26wvy2dlkr353px";
+  #   fetchSubmodules = false;
+  # };
 
+  src = builtins.filterSource (
+    path: type: baseNameOf path != ".git" && 
+    baseNameOf path != "vendor") ../..;
+  
   flags = callPackage ./getFlags.nix {inherit platform arch; fromNim = true;};
 
   nimblepath = callPackage ./deps/nimblepath.nix {};
