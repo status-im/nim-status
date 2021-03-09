@@ -62,14 +62,17 @@ in stdenv.mkDerivation rec {
 	  nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
 	  nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
 
-    echo 'switch("passC", "${flags.compiler}")' >> config.nims
-    echo 'switch("passL", "${flags.linker}")' >> config.nims
-    echo 'switch("cpu", "${flags.nimCpu}")' >> config.nims
-    echo 'switch("os", "${flags.nimPlatform}")' >> config.nims
+    ${if !flags.isHost then
+    ''
+      echo 'switch("passC", "${flags.compiler}")' >> config.nims
+      echo 'switch("passL", "${flags.linker}")' >> config.nims
+      echo 'switch("cpu", "${flags.nimCpu}")' >> config.nims
+      echo 'switch("os", "${flags.nimPlatform}")' >> config.nims
 
-    echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.path", "${flags.toolPath}"' >> config.nims
-    echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.exe", "clang"' >> config.nims
-    echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.linkerexe", "clang"' >> config.nims
+      echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.path", "${flags.toolPath}"' >> config.nims
+      echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.exe", "clang"' >> config.nims
+      echo 'put "${flags.nimCpu}.${flags.nimPlatform}.clang.linkerexe", "clang"' >> config.nims
+    '' else ""}
 
 
   '';

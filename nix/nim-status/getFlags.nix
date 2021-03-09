@@ -59,7 +59,8 @@ let
 
   isysroot = if isAndroid then 
     "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/${osId}-${osArch}/sysroot"             
-    else "$(xcrun --sdk ${iosSdk} --show-sdk-path)";
+    else if isIOS then "$(xcrun --sdk ${iosSdk} --show-sdk-path)"
+    else "";
 
   compilerFlags = if isAndroid then
       "-isysroot ${isysroot} -target ${androidTarget}${api} -fPIC"
@@ -68,13 +69,13 @@ let
       # otherwise Nim will complain that thread-local storage is not supported for the current target
       # when expanding 'NIM_THREADVAR' macro
       "-isysroot ${isysroot}  -I${iosIncludes} -fembed-bitcode -arch ${iosArch} ${if fromNim && arch == "arm" then "" else "-m${iosSdk}-version-min=8.0"}"
-      else throw "Unsupported platform!";
+      else "";
 
   linkerFlags = if isAndroid then  
   "--sysroot ${isysroot} -target ${androidTarget}${api}"
   else if isIOS then
   "--sysroot ${isysroot} -arch ${iosArch} -fembed-bitcode ${if fromNim && arch == "arm" then "" else "-m${iosSdk}-version-min=8.0"}"
-  else throw "Unsupported platform!";
+  else "";
 
 
   iosToolPath = "${xcodeWrapper}/bin";
@@ -100,7 +101,7 @@ let
       export OS=ios
       export CC="${iosToolPath}/clang"
     ''
-    else throw "Unsupported platform!";
+    else "";
 
   toolPath = if isAndroid then androidToolPath else iosToolPath;
   hostMap = {
@@ -129,6 +130,7 @@ in {
   "isysroot" = isysroot;
   "isAndroid" = isAndroid;
   "isIOS" = isIOS;
+  "isHost" = !isAndroid && !isIOS;
   "toolPath" = toolPath;
   "nimCpu" = nimCpu;
   "nimPlatform" = nimPlatform;
