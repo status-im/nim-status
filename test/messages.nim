@@ -5,8 +5,8 @@ import # vendor libs
   json_serialization, sqlcipher, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/[conversions, chats, database, messages],
-  ../../nim_status/migrations/sql_scripts_app,
+  ../nim_status/[conversions, chats, database, messages],
+  ../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "messages":

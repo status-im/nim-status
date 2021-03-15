@@ -6,8 +6,8 @@ import # vendor libs
   sqlcipher, web3/conversions as web3_conversions, web3/ethtypes
 
 import # nim-status libs
-  ../../nim_status/[conversions, database, settings],
-  ../../nim_status/migrations/sql_scripts_app,
+  ../nim_status/[conversions, database, settings],
+  ../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "settings":

@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions
 
 import # nim-status libs
-  ../../nim_status/[accounts, callrpc, database, settings],
+  ../nim_status/[accounts, callrpc, database, settings],
   ./test_helpers
 
 procSuite "login_and_logout":

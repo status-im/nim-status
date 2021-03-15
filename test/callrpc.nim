@@ -6,8 +6,8 @@ import # vendor libs
   options, sqlcipher, web3/conversions
 
 import # nim-status libs
-  ../../nim_status/[callrpc, database, settings],
-  ../../nim_status/migrations/sql_scripts_app,
+  ../nim_status/[callrpc, database, settings],
+  ../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "callrpc":

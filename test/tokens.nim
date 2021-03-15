@@ -5,8 +5,8 @@ import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions
 
 import # nim-status libs
-  ../../nim_status/[database, tokens],
-  ../../nim_status/migrations/sql_scripts_app,
+  ../nim_status/[database, tokens],
+  ../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "tokens":

@@ -73,7 +73,6 @@ jobs:
             git
             unzip
             mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-go
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-pcre
 
@@ -89,9 +88,7 @@ jobs:
 
       - uses: actions/cache@v2
         with:
-          path: |
-            vendor/nimbus-build-system/vendor/Nim/bin
-            vendor/status-go/build/bin
+          path: vendor/nimbus-build-system/vendor/Nim/bin
           key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}
 
       - name: Install and build dependencies
@@ -108,9 +105,7 @@ jobs:
             mkdir -p "${HOME}/.local/bin" && \
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar") || true)
           export PATH="${HOME}/.local/bin:${PATH}"
-          # test-nim and test-c can interfere with each other if run in
-          # parallel so use `-j1` instead of `-j${NPROC}`
-          make -j1 \
+          make \
             NIMFLAGS="--parallelBuild:${NPROC}" \
             PCRE_INCLUDE_DIR="${{ matrix.platform.pcre_include }}" \
             PCRE_LIB_DIR="${{ matrix.platform.pcre_lib }}" \
@@ -127,9 +122,7 @@ jobs:
         # specify `C:/msys64/` include/lib paths (via `cygpath -m`) to avoid
         # problems with msys2 path conversion
         run: |
-          # test-nim and test-c can interfere with each other if run in
-          # parallel so use `-j1` instead of `-j${NPROC}`
-          make -j1 \
+          make \
             NIMFLAGS="--parallelBuild:${NPROC}" \
             PCRE_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.pcre_include }})" \
             PCRE_LIB_DIR="$(cygpath -m ${{ matrix.platform.pcre_lib }})" \

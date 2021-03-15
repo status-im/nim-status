@@ -22,17 +22,11 @@ requires "nim >= 1.2.0",
 import strutils
 
 proc buildAndRunTest(name: string,
-                     srcDir = "test/nim/",
-                     outDir = "test/nim/build/",
+                     srcDir = "test/",
+                     outDir = "test/build/",
                      params = "",
                      cmdParams = "",
                      lang = "c") =
-  rmDir "data"
-  rmDir "keystore"
-  rmDir "noBackup"
-  mkDir "data"
-  mkDir "keystore"
-  mkDir "noBackup"
   rmDir outDir
   mkDir outDir
   # allow something like "nim test --verbosity:0 --hints:off beacon_chain.nims"
@@ -52,7 +46,7 @@ proc buildAndRunTest(name: string,
     " --out:" & outDir & name &
     (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &
     (if getEnv("PCRE_LDFLAGS").strip != "": " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" else: "") &
-    (if defined(windows): " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"" & (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") else: (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") & " --passL:\"-L" & getEnv("STATUSGO_LIB_DIR") & " -lstatus" & "\"") &
+    (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") &
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
     (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
     " --stacktrace:on" &
@@ -64,14 +58,7 @@ proc buildAndRunTest(name: string,
     srcDir & name & ".nim" &
     " " &
     cmdParams
-  if defined(macosx):
-    exec "install_name_tool -add_rpath " & getEnv("STATUSGO_LIB_DIR") & " " & outDir & name
-    exec "install_name_tool -change libstatus.dylib @rpath/libstatus.dylib " & outDir & name
   exec outDir & name
-  if defined(windows):
-    rmDir "data"
-    rmDir "keystore"
-    rmDir "noBackup"
 
 task tests, "Run all tests":
   buildAndRunTest "test_all"
