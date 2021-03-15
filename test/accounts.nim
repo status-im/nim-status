@@ -5,8 +5,8 @@ import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/[accounts, database, conversions],
-  ../../nim_status/migrations/sql_scripts_accounts,
+  ../nim_status/[accounts, database, conversions],
+  ../nim_status/migrations/sql_scripts_accounts,
   ./test_helpers
 
 procSuite "accounts":

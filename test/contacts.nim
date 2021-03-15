@@ -6,8 +6,8 @@ import # vendor libs
   web3/ethtypes
 
 import # nim-status libs
-  ../../nim_status/[contacts, conversions, database],
-  ../../nim_status/migrations/sql_scripts_app,
+  ../nim_status/[contacts, conversions, database],
+  ../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "contacts":

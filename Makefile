@@ -21,23 +21,13 @@ export LINK_PCRE := 0
 	all \
 	clean \
 	clean-build-dirs \
-	clean-data-dirs \
+	clean-migration-files \
 	clean-sqlcipher \
-	clean-status-go \
-	clean-migration-file \
-	create-data-dirs \
 	deps \
 	migrations \
 	nat-libs-sub \
-	nim_status \
-	nim_status_go \
-	shims-for-test-c \
-	status-go \
 	sqlcipher \
 	test \
-	test-c \
-	test-c-template \
-	test-nim \
 	update
 
 ifeq ($(NIM_PARAMS),)
@@ -55,7 +45,7 @@ GIT_SUBMODULE_UPDATE := git submodule update --init --recursive
 
 else # "variables.mk" was included. Business as usual until the end of this file.
 
-all: nim_status
+all: sqlcipher
 
 # must be included after the default target
 -include $(BUILD_SYSTEM_DIR)/makefiles/targets.mk
@@ -69,32 +59,20 @@ else
  detected_OS := $(strip $(shell uname))
 endif
 
-clean: | clean-common clean-build-dirs clean-data-dirs clean-sqlcipher clean-status-go
+clean: | clean-common clean-build-dirs clean-migration-files clean-sqlcipher
 
 clean-build-dirs:
 	rm -rf \
-		build \
-		test/c/build \
-		test/nim/build
+		test/build
 
-clean-data-dirs:
-	rm -rf \
-		data \
-		keystore \
-		noBackup
+clean-migration-files:
+	rm -f \
+		nim_status/migrations/sql_scripts_accounts.nim \
+		nim_status/migrations/sql_scripts_app.nim
 
 clean-sqlcipher:
 	cd vendor/nim-sqlcipher && $(MAKE) clean-build-dirs
 	cd vendor/nim-sqlcipher && $(MAKE) clean-sqlcipher
-
-clean-status-go:
-	rm -rf $(shell dirname $(STATUSGO))/*
-
-create-data-dirs:
-	mkdir -p \
-		data \
-		keystore \
-		noBackup
 
 # nat-libs target assumes libs are in vendor subdir of working directory;
 # also, in msys2 environment miniupnpc's Makefile.mingw's invocation of
@@ -117,21 +95,6 @@ ifndef SHARED_LIB_EXT
    SHARED_LIB_EXT := so
  endif
 endif
-
-# should be an absolute path when supplied by user
-ifndef STATUSGO
- STATUSGO := vendor/status-go/build/bin/libstatus.$(SHARED_LIB_EXT)
- STATUSGO_LIB_DIR := $(shell pwd)/$(shell dirname $(STATUSGO))
-else
- STATUSGO_LIB_DIR := $(shell dirname $(STATUSGO))
-endif
-
-$(STATUSGO): | deps
-	echo -e $(BUILD_MSG) "$@"
-	+ cd vendor/status-go && \
-		$(MAKE) statusgo-shared-library $(HANDLE_OUTPUT)
-
-status-go: $(STATUSGO)
 
 # These SSL variables and logic work like those in nim-sqlcipher's Makefile
 SSL_STATIC ?= true
@@ -214,97 +177,36 @@ $(MIGRATIONS): | deps
 	nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
 	nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
 
-clean-migration-file:
-	rm -f nim_status/migrations/sql_scripts_accounts.nim
-	rm -f nim_status/migrations/sql_scripts_app.nim
-
-migrations: clean-migration-file $(MIGRATIONS)
-
-NIMSTATUS ?= build/nim_status.a
-
-$(NIMSTATUS): $(SQLCIPHER) $(MIGRATIONS)
-	echo -e $(BUILD_MSG) "$@"
-	+ mkdir -p build
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
-		--app:staticLib \
-		--header \
-		--nimcache:nimcache/nim_status \
-		--noMain \
-		--threads:on \
-		--tlsEmulation:off \
-		-o:$@ \
-		nim_status/c/shim.nim
-	cp nimcache/nim_status/shim.h build/nim_status.h
-	mv nim_status.a build/
-
-nim_status: $(NIMSTATUS)
-
-NIMSTATUS_GO ?= build/nim_status_go.a
-
-$(NIMSTATUS_GO):
-	echo -e $(BUILD_MSG) "$@"
-	+ mkdir -p build
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
-		--app:staticLib \
-		--header \
-		--nimcache:nimcache/nim_status_go \
-		--noMain \
-		--threads:on \
-		--tlsEmulation:off \
-		-o:$@ \
-		nim_status/c/go/shim.nim
-	cp nimcache/nim_status_go/shim.h build/nim_status_go.h
-	mv nim_status_go.a build/
-
-nim_status_go: $(NIMSTATUS_GO)
-
-SHIMS_FOR_TEST_C ?= test/c/build/shims.a
-
-$(SHIMS_FOR_TEST_C): $(SQLCIPHER)
-	echo -e $(BUILD_MSG) "$@"
-	+ mkdir -p test/c/build
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) \
-		--app:staticLib \
-		--header \
-		--nimcache:nimcache/shims \
-		--noMain \
-		--threads:on \
-		--tlsEmulation:off \
-		-o:$@ \
-		test/c/shims.nim
-	cp nimcache/shims/shims.h test/c/build/shims.h
-	mv shims.a test/c/build/
-
-shims-for-test-c: $(SHIMS_FOR_TEST_C)
+migrations: clean-migration-files $(MIGRATIONS)
 
 ifeq ($(SQLCIPHER_STATIC),false)
- PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR):$${PATH}
+ PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$${PATH}
  ifeq ($(PCRE_STATIC),false)
   ifeq ($(SSL_STATIC),false)
-   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   else
-   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   endif
  else
   ifeq ($(SSL_STATIC),false)
-   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   else
-   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(shell pwd)/$(shell dirname $(SQLCIPHER))$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   endif
  endif
 else
- PATH_TEST ?= $(STATUSGO_LIB_DIR):$${PATH}
+ PATH_TEST ?= $${PATH}
  ifeq ($(PCRE_STATIC),false)
   ifeq ($(SSL_STATIC),false)
-   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   else
-   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(PCRE_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   endif
  else
   ifeq ($(SSL_STATIC),false)
-   LD_LIBRARY_PATH_TEST ?= $(SSL_LIB_DIR):$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
   else
-   LD_LIBRARY_PATH_TEST ?= :$(STATUSGO_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
+   LD_LIBRARY_PATH_TEST ?= $${LD_LIBRARY_PATH}}
   endif
  endif
 endif
@@ -323,73 +225,13 @@ else
  endif
 endif
 
-ifeq ($(detected_OS),Windows)
- STATUSGO_SQLCIPHER_LDFLAGS_TEST := -L$(STATUSGO_LIB_DIR) -lstatus $(SQLCIPHER_LDFLAGS_TEST)
-else
- STATUSGO_SQLCIPHER_LDFLAGS_TEST := $(SQLCIPHER_LDFLAGS_TEST) -L$(STATUSGO_LIB_DIR) -lstatus
-endif
-
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
 else ifeq ($(detected_OS),macOS)
  PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names
 endif
 
-test-c-template: $(STATUSGO) clean-data-dirs create-data-dirs
-	echo "Compiling 'test/c/$(TEST_NAME)'"
-	+ mkdir -p test/c/build
-	$(ENV_SCRIPT) $(CC) \
-		$(TEST_INCLUDES) \
-		-I$(shell pwd)/vendor/nimbus-build-system/vendor/Nim/lib \
-		test/c/$(TEST_NAME).c \
-		$(TEST_DEPS) \
-		$(PCRE_LDFLAGS) \
-		$(STATUSGO_SQLCIPHER_LDFLAGS_TEST) \
-		$(SSL_LDFLAGS) \
-		-lm \
-		-pthread \
-		$(PLATFORM_FLAGS_TEST_C) \
-		-o test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT)
-	[[ $$? = 0 ]] && \
-	(([[ $(detected_OS) = macOS ]] && \
-	install_name_tool -add_rpath \
-		$(STATUSGO_LIB_DIR) \
-		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT) && \
-	install_name_tool -change \
-		libstatus.dylib \
-		@rpath/libstatus.dylib \
-		test/c/build/$(TEST_NAME) $(HANDLE_OUTPUT)) || true)
-	echo "Executing 'test/c/build/$(TEST_NAME)'"
-ifeq ($(detected_OS),macOS)
-	./test/c/build/$(TEST_NAME)
-else ifeq ($(detected_OS),Windows)
-	PATH="$(PATH_TEST)" \
-	./test/c/build/$(TEST_NAME)
-else
-	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_TEST)" \
-	./test/c/build/$(TEST_NAME)
-endif
-
-SHIMS_FOR_TEST_C_INCLUDES ?= -I$(shell pwd)/test/c/build
-
-LOGIN_TEST_INCLUDES ?= -I$(shell pwd)/build
-
-test-c:
-	rm -rf test/c/build
-	$(MAKE) $(SHIMS_FOR_TEST_C)
-	$(MAKE) TEST_DEPS=$(SHIMS_FOR_TEST_C) \
-		TEST_INCLUDES=$(SHIMS_FOR_TEST_C_INCLUDES) \
-		TEST_NAME=shims \
-		test-c-template
-
-	rm -rf test/c/build
-	$(MAKE) $(NIMSTATUS_GO)
-	$(MAKE) TEST_DEPS=$(NIMSTATUS_GO) \
-		TEST_INCLUDES=$(LOGIN_TEST_INCLUDES) \
-		TEST_NAME=login \
-		test-c-template
-
-test-nim: $(STATUSGO) $(SQLCIPHER) $(MIGRATIONS)
+test: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -397,7 +239,6 @@ ifeq ($(detected_OS),macOS)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS_TEST)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
@@ -407,7 +248,6 @@ else ifeq ($(detected_OS),Windows)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS_TEST)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
 	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_TEST)" \
@@ -417,10 +257,7 @@ else
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS_TEST)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	STATUSGO_LIB_DIR="$(STATUSGO_LIB_DIR)" \
 	$(ENV_SCRIPT) nimble tests
 endif
-
-test: test-nim test-c
 
 endif # "variables.mk" was not included
