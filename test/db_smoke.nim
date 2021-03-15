@@ -5,7 +5,7 @@ import # vendor libs
   chronos, sqlcipher
 
 import # nim-status libs
-  ../../nim_status/database,
+  ../nim_status/database,
   ./test_helpers
 
 procSuite "db_smoke":

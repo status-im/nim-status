@@ -5,8 +5,8 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # nim-status libs
-  ../../nim_status/[database, mailservers],
-  ../../nim_status/migrations/sql_scripts_app,
+  ../nim_status/[database, mailservers],
+  ../nim_status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "mailservers":

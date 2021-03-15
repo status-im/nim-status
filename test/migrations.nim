@@ -5,8 +5,8 @@ import # vendor libs
   chronos, results, sqlcipher, stew/byteutils
 
 import # nim-status libs
-  ../../nim_status/migration,
-  ../../nim_status/migrations/sql_scripts_accounts as migration_accounts,
+  ../nim_status/migration,
+  ../nim_status/migrations/sql_scripts_accounts as migration_accounts,
   ./test_helpers
 
 procSuite "migrations":

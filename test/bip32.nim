@@ -5,7 +5,7 @@ import # vendor libs
   chronos, byteutils, eth/keys, secp256k1, stew/[results]
 
 import # nim-status libs
-  ../../nim_status/account,
+  ../nim_status/account,
   ./test_helpers
 
 procSuite "bip32":

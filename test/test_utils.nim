@@ -3,8 +3,11 @@ import nimcrypto
 import chronicles
 import os
 
-import ../../nim_status
-import ../../nim_status/go/shim as go_shim
+import ../nim_status
+
+# The module `nim_status/go/shim.nim` has been removed from this repo, so this
+# test_utils module is not usable and will eventually be removed
+import ../nim_status/go/shim as go_shim
 
 proc hashPassword(password: string): string =
   result = "0x" & $keccak_256.digest(password)
