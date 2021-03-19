@@ -61,4 +61,5 @@ proc buildAndRunTest(name: string,
   exec outDir & name
 
 task tests, "Run all tests":
-  buildAndRunTest "test_all"
+  #buildAndRunTest "test_all"
+  buildAndRunTest "client"
