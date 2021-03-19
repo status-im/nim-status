@@ -225,6 +225,10 @@ else
  endif
 endif
 
+client: 
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) -o:build/nim_status nim_status/client.nim 
+
+
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
 else ifeq ($(detected_OS),macOS)
