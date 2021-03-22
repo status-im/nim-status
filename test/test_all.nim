@@ -8,6 +8,7 @@ import
   ./bip32,
   ./callrpc,
   ./chats,
+  ./client,
   ./contacts,
   ./db_smoke,
 
