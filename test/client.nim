@@ -11,7 +11,10 @@ import # nim-status libs
 procSuite "client":
   asyncTest "client":
 
-    let config = StatusConfig.load()
+    let dataDir = currentSourcePath.parentDir() / "build"
+    var config = StatusConfig.load(
+      @["--rootDataDir=" & dataDir]
+    )
     let statusObj = init(config)
 
     var account:Account = Account(
@@ -26,7 +29,7 @@ procSuite "client":
     updateAccountTimestamp(statusObj.accountsDB, 1, "0x1234")
     let accounts = statusObj.openAccounts()
     check:
-      $statusObj.config.rootDataDir == "status_datadir"
+      $statusObj.config.rootDataDir == dataDir
       accounts[0].keyUid == "0x1234"
 
     let password = "qwerty"
