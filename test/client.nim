@@ -12,7 +12,7 @@ procSuite "client":
   asyncTest "client":
 
     let dataDir = currentSourcePath.parentDir() / "build" / "data"
-    createDir(dataDir)
+
     var config = StatusConfig.load(
       @["--rootDataDir=" & dataDir]
     )
@@ -31,7 +31,7 @@ procSuite "client":
     statusObj.updateAccountTimestamp(1, "0x1234")
     let accounts = statusObj.getAccounts()
     check:
-      $statusObj.config.rootDataDir == dataDir
+      statusObj.config.rootDataDir == dataDir
       accounts[0].keyUid == "0x1234"
 
     let password = "qwerty"

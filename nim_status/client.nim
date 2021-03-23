@@ -23,7 +23,7 @@ type StatusObject* = ref object
 proc init*(config: StatusConfig): StatusObject =
   result = new StatusObject
   result.config = config
-  result.accountsDB = initializeDB($config.rootDataDir / $config.accountsDbFileName, acc_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+  result.accountsDB = initializeDB(config.rootDataDir / config.accountsDbFileName, acc_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
 
 proc getAccounts*(self: StatusObject): seq[Account] =
   getAccounts(self.accountsDB)
@@ -41,9 +41,9 @@ proc getSettings*(self: StatusObject): Settings =
   getSettings(self.userDB)
 
 proc login*(self: StatusObject, keyUid: string, password: string) =
-  self.userDB = initializeDB($self.config.rootDataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+  self.userDB = initializeDB(self.config.rootDataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
   echo "==============================="
-  echo "DB path: " & ($self.config.rootDataDir / keyUid & ".db")
+  echo "DB path: " & (self.config.rootDataDir / keyUid & ".db")
   echo "Password: " & password
   let result = self.userDB.value("SELECT public_key from settings") # check if decryption worked
   echo "Result: "
