@@ -15,6 +15,7 @@ procSuite "client":
     var config = StatusConfig.load(
       @["--rootDataDir=" & dataDir]
     )
+
     let statusObj = init(config)
 
     var account:Account = Account(
@@ -25,17 +26,15 @@ procSuite "client":
       keyUid: "0x1234"
     )
 
-    saveAccount(statusObj.accountsDB, account)
-    updateAccountTimestamp(statusObj.accountsDB, 1, "0x1234")
-    let accounts = statusObj.openAccounts()
+    statusObj.saveAccount(account)
+    statusObj.updateAccountTimestamp(1, "0x1234")
+    let accounts = statusObj.getAccounts()
     check:
       $statusObj.config.rootDataDir == dataDir
       accounts[0].keyUid == "0x1234"
 
     let password = "qwerty"
-    echo "### before login"
     statusObj.login(account.keyUid, password)
-    echo "### after login"
     let settingsStr = """{
       "address": "0x1122334455667788990011223344556677889900",
       "chaos-mode": true,
@@ -56,13 +55,11 @@ procSuite "client":
     let settingsObj = Json.decode(settingsStr, Settings, allowUnknownFields = true)
 
     let nodeConfig = %* {"config": 1}
-    echo "### before createSettings"
-    createSettings(statusObj.userDB, settingsObj, nodeConfig)
-    echo "### after createSettings"
-    let dbSettings = getSettings(statusObj.userDB)
-    echo "### after getSettings"
+    statusObj.createSettings(settingsObj, nodeConfig)
+    let dbSettings = statusObj.getSettings()
     check:
       dbSettings.keyUID == settingsObj.keyUID
 
 
     statusObj.close()
+    removeDir(datadir)
