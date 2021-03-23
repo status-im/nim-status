@@ -11,7 +11,8 @@ import # nim-status libs
 procSuite "client":
   asyncTest "client":
 
-    let dataDir = currentSourcePath.parentDir() / "build"
+    let dataDir = currentSourcePath.parentDir() / "build" / "data"
+    createDir(dataDir)
     var config = StatusConfig.load(
       @["--rootDataDir=" & dataDir]
     )
