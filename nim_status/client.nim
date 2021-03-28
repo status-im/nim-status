@@ -18,14 +18,16 @@ import # nim-status libs
   ./settings
 
 type StatusObject* = ref object
-  config*: StatusConfig
   accountsDB*: DbConn
+  dataDir*: string
   userDB*: DbConn
 
-proc init*(config: StatusConfig): StatusObject =
-  result = new StatusObject
-  result.config = config
-  result.accountsDB = initializeDB(config.rootDataDir / config.accountsDbFileName, acc_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+proc new*(T: type StatusObject, dataDir: string,
+  accountsDbFileName: string = "accounts.sql"): T =
+
+  T(accountsDB: initializeDB(dataDir / accountsDbFileName,
+      acc_migration.newMigrationDefinition(), true),
+    dataDir: dataDir)
 
 proc getAccounts*(self: StatusObject): seq[accounts.Account] =
   getAccounts(self.accountsDB)
@@ -43,9 +45,9 @@ proc getSettings*(self: StatusObject): Settings =
   getSettings(self.userDB)
 
 proc login*(self: StatusObject, keyUid: string, password: string) =
-  self.userDB = initializeDB(self.config.rootDataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+  self.userDB = initializeDB(self.dataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
   echo "==============================="
-  echo "DB path: " & (self.config.rootDataDir / keyUid & ".db")
+  echo "DB path: " & (self.dataDir / keyUid & ".db")
   echo "Password: " & password
   let result = self.userDB.value("SELECT public_key from settings") # check if decryption worked
   echo "Result: "
@@ -69,8 +71,3 @@ proc loadChats*(self: StatusObject): seq[Chat] =
 proc close*(self: StatusObject) =
   self.userDB.close()
   self.accountsDB.close()
-
-when isMainModule:
-  let statusConfig = StatusConfig.load()
-  let statusObj = init(statusConfig)
-  # Start a REPL ...

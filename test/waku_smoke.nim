@@ -17,12 +17,13 @@ procSuite "waku_smoke":
   asyncTest "waku_smoke":
     let
       futures = [newFuture[int](), newFuture[int]()]
+      cTopic = "test"
       message1 = WakuMessage(payload: cast[seq[byte]]("hello"),
-        contentTopic: ContentTopic(1))
+        contentTopic: ContentTopic(cTopic))
       message2 = WakuMessage(payload: cast[seq[byte]]("world"),
-        contentTopic: ContentTopic(1))
+        contentTopic: ContentTopic(cTopic))
       done = WakuMessage(payload: cast[seq[byte]]("test done"),
-        contentTopic: ContentTopic(1))
+        contentTopic: ContentTopic(cTopic))
       timeout = 5.minutes
       topic = "testing"
     var nodeConfig = WakuNodeConf.load()
@@ -46,8 +47,8 @@ procSuite "waku_smoke":
         await node.stop()
 
     await node.start()
-    await node.mountRelay()
-    await node.subscribe(topic, handler)
+    node.mountRelay()
+    node.subscribe(topic, handler)
     await node.publish(topic, message1)
     await node.publish(topic, message2)
     await node.publish(topic, done)

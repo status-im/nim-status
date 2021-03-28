@@ -13,11 +13,7 @@ procSuite "client":
 
     let dataDir = currentSourcePath.parentDir() / "build" / "data"
 
-    var config = StatusConfig.load(
-      @["--rootDataDir=" & dataDir]
-    )
-
-    let statusObj = init(config)
+    let statusObj = StatusObject.new(dataDir)
 
     var account:Account = Account(
       name: "Test",
@@ -31,7 +27,7 @@ procSuite "client":
     statusObj.updateAccountTimestamp(1, "0x1234")
     let accounts = statusObj.getAccounts()
     check:
-      statusObj.config.rootDataDir == dataDir
+      statusObj.dataDir == dataDir
       accounts[0].keyUid == "0x1234"
 
     let password = "qwerty"

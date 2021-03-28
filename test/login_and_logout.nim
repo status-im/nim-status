@@ -33,8 +33,7 @@ procSuite "login_and_logout":
     let rGasPrice = callRPC(web3_conn, "eth_gasPrice", %[])
 
     check:
-      rGasPrice.error == false
-      rGasPrice.result.getStr()[0..1] == "0x"
+      rGasPrice.getStr()[0..1] == "0x"
 
     logout()
 

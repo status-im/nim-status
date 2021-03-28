@@ -67,10 +67,10 @@ proc derive*(seed: Keyseed, path: KeyPath): SecretKeyResult =
   )
 
   for child in path.pathNodes:
-    if child.isErr(): return err(child.error())
+    if child.isErr(): return err(child.error().cstring)
 
     let r = extPrivK.child(child.get())
-    if r.isErr(): return err(r.error())
+    if r.isErr(): return err(r.error().cstring)
     extPrivK = r.get()
 
   ok(extPrivK.secretKey)

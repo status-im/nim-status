@@ -55,14 +55,13 @@ proc newWeb3*(settings: Settings): Web3 =
   if network.isNone:
     raise (ref Web3Error)(msg: "config not found for network " & settings.currentNetwork)
 
-  if not network.get().config.upstreamConfig.enabled: 
+  if not network.get().config.upstreamConfig.enabled:
     raise (ref Web3Error)(msg: "network " & settings.currentNetwork & " is not enabled")
 
   result = waitFor newWeb3(network.get().config.upstreamConfig.url)
 
 proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode): Response =
-  try: 
-    echo "callRPC debug method: ", rpcMethod, "params: ", params
+  try:
     result = waitFor web3Conn.provider.call($rpcMethod, params)
   except ValueError:
     raise (ref Web3Error)(msg: getCurrentExceptionMsg())
@@ -72,10 +71,10 @@ proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response =
   if web3Conn == nil:
     raise (ref Web3Error)(msg: "web3 connection is not available")
 
-  try: 
+  try:
     var m = parseEnum[RemoteMethod](rpcMethod)
   except:
-    return (true, %* {"code": -32601, "message": "the method " & rpcMethod & " does not exist/is not available"})
+    return %* {"code": -32601, "message": "the method " & rpcMethod & " does not exist/is not available"}
 
   try:
     result = waitFor web3Conn.provider.call(rpcMethod, params)
