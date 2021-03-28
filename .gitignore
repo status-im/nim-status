@@ -2,6 +2,7 @@
 .idea
 .vscode
 /.update.timestamp
+/build
 /nim_status.nims
 /nimcache
 /test/build

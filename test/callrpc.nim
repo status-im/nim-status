@@ -37,22 +37,19 @@ procSuite "callrpc":
     let rGasPrice = callRPC(web3Obj, eth_gasPrice, %[])
 
     check:
-      rGasPrice.error == false
-      rGasPrice.result.getStr()[0..1] == "0x"
+      rGasPrice.getStr()[0..1] == "0x"
 
     let rEthSign = callRPC(web3Obj, "eth_sign", %[])
 
     check:
-      rEthSign.error == true
-      rEthSign.result["code"].getInt == -32601
-      rEthSign.result["message"].getStr == "the method eth_sign does not exist/is not available"
+      rEthSign["code"].getInt == -32601
+      rEthSign["message"].getStr == "the method eth_sign does not exist/is not available"
 
     let rSendTransaction = callRPC(web3Obj, "eth_sendTransaction", %* [%*{"from": "0x0000000000000000000000000000000000000000", "to": "0x0000000000000000000000000000000000000000", "value": "123"}])
 
     check:
-      rSendTransaction.error == true
-      rSendTransaction.result["code"].getInt == -32601
-      rSendTransaction.result["message"].getStr == "the method eth_sendTransaction does not exist/is not available"
+      rSendTransaction["code"].getInt == -32601
+      rSendTransaction["message"].getStr == "the method eth_sendTransaction does not exist/is not available"
 
     db.close()
     removeFile(path)

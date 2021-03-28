@@ -21,12 +21,12 @@ requires "nim >= 1.2.0",
 
 import strutils
 
-proc buildAndRunTest(name: string,
-                     srcDir = "test/",
-                     outDir = "test/build/",
-                     params = "",
-                     cmdParams = "",
-                     lang = "c") =
+proc buildAndRun(name: string,
+                 srcDir = "test/",
+                 outDir = "test/build/",
+                 params = "",
+                 cmdParams = "",
+                 lang = "c") =
   rmDir outDir
   mkDir outDir
   # allow something like "nim test --verbosity:0 --hints:off beacon_chain.nims"
@@ -39,6 +39,13 @@ proc buildAndRunTest(name: string,
     " --define:chronicles_line_numbers" &
     " --define:debug" &
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
+    # (if getEnv("RLN_STATIC").strip != "false": " --dynlibOverride:vendor/rln/target/debug/librln" else: "") &
+    # usually `--dynlibOverride` is used in case of static linking and so would
+    # be used conditionally (see commented code above), but because
+    # `vendor/nim-waku/waku/v2/protocol/waku_rln_relay/rln.nim` specifies the
+    # library with a relative path prefix (which isn't valid relative to root
+    # of this repo) it needs to be used in the case of shared or static linking
+    " --dynlibOverride:vendor/rln/target/debug/librln" &
     " --define:ssl" &
     (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
     " --linetrace:on" &
@@ -46,9 +53,9 @@ proc buildAndRunTest(name: string,
     " --out:" & outDir & name &
     (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &
     (if getEnv("PCRE_LDFLAGS").strip != "": " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" else: "") &
+    (if getEnv("RLN_LDFLAGS").strip != "": " --passL:\"" & getEnv("RLN_LDFLAGS") & "\"" else: "") &
     (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") &
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
-    (if defined(macosx): " --passL:-headerpad_max_install_names" else: "") &
     " --stacktrace:on" &
     " --threads:on" &
     " --tlsEmulation:off" &
@@ -60,5 +67,8 @@ proc buildAndRunTest(name: string,
     cmdParams
   exec outDir & name
 
-task tests, "Run all tests":
-  buildAndRunTest "test_all"
+task chat, "Build and run the example chat client":
+  buildAndRun "chat", "examples/", "build/"
+
+task tests, "Build and run all tests":
+  buildAndRun "test_all"

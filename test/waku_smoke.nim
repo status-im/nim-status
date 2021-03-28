@@ -46,8 +46,8 @@ procSuite "waku_smoke":
         await node.stop()
 
     await node.start()
-    await node.mountRelay()
-    await node.subscribe(topic, handler)
+    node.mountRelay()
+    node.subscribe(topic, handler)
     await node.publish(topic, message1)
     await node.publish(topic, message2)
     await node.publish(topic, done)
