@@ -12,7 +12,7 @@ Corresponds roughly to [status-go](https://github.com/status-im/status-go), whic
 git clone https://github.com/status-im/nim-status
 cd nim-status
 make update
-make PCRE_INCLUDE_DIR=... PCRE_LIB_DIR=... SSL_INCLUDE_DIR=... SSL_LIB_DIR=...
+make
 ```
 
 For more output use `make V=1 ...`.
