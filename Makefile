@@ -82,10 +82,12 @@ LIBNATPMP := $(shell pwd)/vendor/nim-waku/vendor/nim-nat-traversal/vendor/libnat
 # nat-libs target assumes libs are in vendor subdir of working directory;
 # also, in msys2 environment miniupnpc's Makefile.mingw's invocation of
 # `wingenminiupnpcstrings.exe` will fail if containing directory is not in PATH
-$(LIBMINIUPNPC) $(LIBNATPMP):
+$(LIBMINIUPNPC):
 	cd vendor/nim-waku && \
 		PATH="$$(pwd)/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc:$${PATH}" \
 		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 nat-libs
+
+$(LIBNATPMP): $(LIBMINIUPNPC)
 
 nat-libs-sub: $(LIBMINIUPNPC) $(LIBNATPMP)
 
@@ -106,9 +108,17 @@ endif
 RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/debug
 RLN_STATIC ?= false
 ifeq ($(RLN_STATIC),false)
- RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
+ ifeq ($(detected_OS),Windows)
+  RLN_LIB := $(RLN_LIB_DIR)/rln.$(SHARED_LIB_EXT)
+ else
+  RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
+ endif
 else
- RLN_LIB := $(RLN_LIB_DIR)/librln.a
+ ifeq ($(detected_OS),Windows)
+  RLN_LIB := $(RLN_LIB_DIR)/librln.dll.a
+ else
+  RLN_LIB := $(RLN_LIB_DIR)/librln.a
+ endif
 endif
 
 $(RLN_LIB):
@@ -205,7 +215,11 @@ endif
 # `vendor/nim-waku/waku/v2/protocol/waku_rln_relay/rln.nim` specifies the
 # library with a relative path prefix (which isn't valid relative to root of
 # this repo) it needs to be used in the case of shared or static linking
-NIM_PARAMS += --dynlibOverride:vendor/rln/target/debug/librln
+ifeq ($(detected_OS),Windows)
+ NIM_PARAMS += --dynlibOverride:vendor/rln/target/debug/rln
+else
+ NIM_PARAMS += --dynlibOverride:vendor/rln/target/debug/librln
+endif
 # endif
 
 ifndef NIMSTATUS_CFLAGS
