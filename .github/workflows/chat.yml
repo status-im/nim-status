@@ -90,7 +90,9 @@ jobs:
 
       - uses: actions/cache@v2
         with:
-          path: vendor/nimbus-build-system/vendor/Nim/bin
+          path: |
+            vendor/nim-waku/vendor/rln/target/debug
+            vendor/nimbus-build-system/vendor/Nim/bin
           key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}
 
       - name: Install and build dependencies
