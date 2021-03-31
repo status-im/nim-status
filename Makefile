@@ -108,17 +108,9 @@ endif
 RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/debug
 RLN_STATIC ?= false
 ifeq ($(RLN_STATIC),false)
- ifeq ($(detected_OS),Windows)
-  RLN_LIB := $(RLN_LIB_DIR)/rln.$(SHARED_LIB_EXT)
- else
-  RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
- endif
+ RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
 else
- ifeq ($(detected_OS),Windows)
-  RLN_LIB := $(RLN_LIB_DIR)/librln.dll.a
- else
-  RLN_LIB := $(RLN_LIB_DIR)/librln.a
- endif
+ RLN_LIB := $(RLN_LIB_DIR)/librln.a
 endif
 
 $(RLN_LIB):
@@ -203,7 +195,7 @@ ifndef RLN_LDFLAGS
   endif
  else
   ifeq ($(detected_OS),Windows)
-   RLN_LDFLAGS := $(shell cygpath -m $(RLN_LIB))
+   RLN_LDFLAGS := $(shell cygpath -m $(RLN_LIB)) -luserenv
   else
    RLN_LDFLAGS := $(RLN_LIB)
   endif
@@ -216,7 +208,7 @@ endif
 # library with a relative path prefix (which isn't valid relative to root of
 # this repo) it needs to be used in the case of shared or static linking
 ifeq ($(detected_OS),Windows)
- NIM_PARAMS += --dynlibOverride:vendor/rln/target/debug/rln
+ NIM_PARAMS += --dynlibOverride:vendor\\rln\\target\\debug\\rln
 else
  NIM_PARAMS += --dynlibOverride:vendor/rln/target/debug/librln
 endif

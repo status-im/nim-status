@@ -39,13 +39,13 @@ proc buildAndRun(name: string,
     " --define:chronicles_line_numbers" &
     " --define:debug" &
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
-    # (if getEnv("RLN_STATIC").strip != "false": " --dynlibOverride:vendor/rln/target/debug/" & (if defined(windows): "rln" else: "librln") else: "") &
+    # (if getEnv("RLN_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") else: "") &
     # usually `--dynlibOverride` is used in case of static linking and so would
     # be used conditionally (see commented code above), but because
     # `vendor/nim-waku/waku/v2/protocol/waku_rln_relay/rln.nim` specifies the
     # library with a relative path prefix (which isn't valid relative to root
     # of this repo) it needs to be used in the case of shared or static linking
-    " --dynlibOverride:vendor/rln/target/debug/" & (if defined(windows): "rln" else: "librln") &
+    (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") &
     " --define:ssl" &
     (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
     " --linetrace:on" &
