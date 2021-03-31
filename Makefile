@@ -118,7 +118,7 @@ $(RLN_LIB):
 ifeq ($(detected_OS),macOS)
 	install_name_tool -id \
 		@rpath/librln.$(SHARED_LIB_EXT) \
-		$(RLN_LIB)
+		$(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
 endif
 
 rlnlib-sub: $(RLN_LIB)
