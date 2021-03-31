@@ -24,6 +24,7 @@ import strutils
 proc buildAndRun(name: string,
                  srcDir = "test/",
                  outDir = "test/build/",
+                 run = true,
                  params = "",
                  cmdParams = "",
                  lang = "c") =
@@ -65,10 +66,14 @@ proc buildAndRun(name: string,
     srcDir & name & ".nim" &
     " " &
     cmdParams
-  exec outDir & name
+  if run:
+    exec outDir & name
 
 task chat, "Build and run the example chat client":
   buildAndRun "chat", "examples/", "build/"
+
+task chat_build, "Build the example chat client":
+  buildAndRun "chat", "examples/", "build/", false
 
 task tests, "Build and run all tests":
   buildAndRun "test_all"

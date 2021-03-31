@@ -322,6 +322,13 @@ else
  endif
 endif
 
+CHAT_RUN ?= true
+ifeq ($(CHAT_RUN),true)
+ CHAT_TASK := chat
+else
+ CHAT_TASK := chat_build
+endif
+
 chat: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
@@ -333,7 +340,7 @@ ifeq ($(detected_OS),macOS)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	$(ENV_SCRIPT) nimble chat
+	$(ENV_SCRIPT) nimble $(CHAT_TASK)
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
@@ -345,7 +352,7 @@ else ifeq ($(detected_OS),Windows)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	$(ENV_SCRIPT) nimble chat
+	$(ENV_SCRIPT) nimble $(CHAT_TASK)
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
@@ -357,7 +364,7 @@ else
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	$(ENV_SCRIPT) nimble chat
+	$(ENV_SCRIPT) nimble $(CHAT_TASK)
 endif
 
 test: $(SQLCIPHER) $(MIGRATIONS)
