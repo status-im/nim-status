@@ -42,10 +42,11 @@ jobs:
             ssl_lib: ,
           }
         pcre:      [ true ]
+        release:   [ true, false ]
         rln:       [ false ]
         sqlcipher: [ true ]
         ssl:   [ true ]
-    name: ${{ matrix.platform.icon }} - static linking - PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }}
+    name: ${{ matrix.platform.icon }} - static linking - PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }} - RELEASE ${{ matrix.release }}
     runs-on: ${{ matrix.platform.os }}-latest
     defaults:
       run:
@@ -115,7 +116,7 @@ jobs:
             PCRE_INCLUDE_DIR="${{ matrix.platform.pcre_include }}" \
             PCRE_LIB_DIR="${{ matrix.platform.pcre_lib }}" \
             PCRE_STATIC=${{ matrix.pcre }} \
-            RELEASE=true \
+            RELEASE=${{ matrix.release }} \
             RLN_STATIC=${{ matrix.rln }} \
             SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_INCLUDE_DIR="${{ matrix.platform.ssl_include }}" \
@@ -136,7 +137,7 @@ jobs:
             PCRE_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.pcre_include }})" \
             PCRE_LIB_DIR="$(cygpath -m ${{ matrix.platform.pcre_lib }})" \
             PCRE_STATIC=${{ matrix.pcre }} \
-            RELEASE=true \
+            RELEASE=${{ matrix.release }} \
             RLN_STATIC=${{ matrix.rln }} \
             SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.ssl_include }})" \
