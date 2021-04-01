@@ -115,6 +115,7 @@ jobs:
             PCRE_INCLUDE_DIR="${{ matrix.platform.pcre_include }}" \
             PCRE_LIB_DIR="${{ matrix.platform.pcre_lib }}" \
             PCRE_STATIC=${{ matrix.pcre }} \
+            RELEASE=true \
             RLN_STATIC=${{ matrix.rln }} \
             SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_INCLUDE_DIR="${{ matrix.platform.ssl_include }}" \
@@ -134,6 +135,7 @@ jobs:
             PCRE_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.pcre_include }})" \
             PCRE_LIB_DIR="$(cygpath -m ${{ matrix.platform.pcre_lib }})" \
             PCRE_STATIC=${{ matrix.pcre }} \
+            RELEASE=true \
             RLN_STATIC=${{ matrix.rln }} \
             SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.ssl_include }})" \

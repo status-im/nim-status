@@ -21,6 +21,20 @@ requires "nim >= 1.2.0",
 
 import strutils
 
+const debug_opts =
+  " --debugger:native" &
+  " --define:chronicles_line_numbers" &
+  " --define:debug" &
+  " --linetrace:on" &
+  " --stacktrace:on"
+
+const release_opts =
+  " --define:danger" &
+  " --define:strip" &
+  " --opt:size" &
+  " --passC:-flto" &
+  " --passL:-flto"
+
 proc buildAndRun(name: string,
                  srcDir = "test/",
                  outDir = "test/build/",
@@ -36,9 +50,7 @@ proc buildAndRun(name: string,
     extra_params &= " " & paramStr(i)
   exec "nim " &
     lang &
-    " --debugger:native" &
-    " --define:chronicles_line_numbers" &
-    " --define:debug" &
+    (if getEnv("RELEASE").strip != "false": release_opts else: debug_opts) &
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
     # (if getEnv("RLN_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") else: "") &
     # usually `--dynlibOverride` is used in case of static linking and so would
@@ -49,15 +61,13 @@ proc buildAndRun(name: string,
     (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") &
     " --define:ssl" &
     (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
-    " --linetrace:on" &
-    " --nimcache:nimcache/test/" & name &
+    " --nimcache:nimcache/" & (if getEnv("RELEASE").strip != "false": "release/" else: "debug/") & name &
     " --out:" & outDir & name &
     (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &
     (if getEnv("PCRE_LDFLAGS").strip != "": " --passL:\"" & getEnv("PCRE_LDFLAGS") & "\"" else: "") &
     (if getEnv("RLN_LDFLAGS").strip != "": " --passL:\"" & getEnv("RLN_LDFLAGS") & "\"" else: "") &
     (if getEnv("SQLCIPHER_LDFLAGS").strip != "": " --passL:\"" & getEnv("SQLCIPHER_LDFLAGS") & "\"" else: "") &
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
-    " --stacktrace:on" &
     " --threads:on" &
     " --tlsEmulation:off" &
     " " &
