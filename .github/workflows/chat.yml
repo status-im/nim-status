@@ -123,6 +123,7 @@ jobs:
             SSL_STATIC=${{ matrix.ssl }} \
             V=1 \
             chat
+          ls -ladh build/chat
 
       - name: Build the example chat client (Windows)
         if: matrix.platform.os == 'windows'
@@ -143,3 +144,4 @@ jobs:
             SSL_STATIC=${{ matrix.ssl }} \
             V=1 \
             chat
+          ls -ladh build/chat.exe
