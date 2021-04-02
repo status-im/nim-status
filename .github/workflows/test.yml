@@ -80,6 +80,8 @@ jobs:
         with:
           path: |
             vendor/nim-sqlcipher/lib
+            vendor/nim-waku/vendor/nim-nat-traversal/vendor/libnatpmp-upstream
+            vendor/nim-waku/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc
             vendor/nim-waku/vendor/rln/target
             vendor/nimbus-build-system/vendor/Nim/bin
           key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-sqlcipher_static-${{ matrix.sqlcipher }}
