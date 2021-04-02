@@ -84,7 +84,7 @@ jobs:
             vendor/nim-sqlcipher/lib
             vendor/nim-waku/vendor/rln/target
             vendor/nimbus-build-system/vendor/Nim/bin
-          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-${{ matrix.release }}
+          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-release-${{ matrix.release }}
 
       - name: Install and build dependencies
         run: |
