@@ -105,7 +105,15 @@ ifndef SHARED_LIB_EXT
  endif
 endif
 
-RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/debug
+RELEASE ?= false
+
+ifneq ($(RELEASE),false)
+ RLN_CARGO_BUILD_FLAGS := --release
+ RLN_TARGET_SUBDIR := release
+else
+ RLN_TARGET_SUBDIR := debug
+endif
+RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/$(RLN_TARGET_SUBDIR)
 RLN_STATIC ?= false
 ifeq ($(RLN_STATIC),false)
  RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
@@ -114,7 +122,10 @@ else
 endif
 
 $(RLN_LIB):
-	cd vendor/nim-waku && $(MAKE) rlnlib
+	cd vendor/nim-waku && \
+		cargo build \
+			--manifest-path vendor/rln/Cargo.toml \
+			$(RLN_CARGO_BUILD_FLAGS)
 ifeq ($(detected_OS),macOS)
 	install_name_tool -id \
 		@rpath/librln.$(SHARED_LIB_EXT) \
@@ -384,8 +395,6 @@ else
   SQLCIPHER_LDFLAGS := $(shell pwd)/$(SQLCIPHER)
  endif
 endif
-
-RELEASE ?= false
 
 RUN_AFTER_BUILD ?= true
 
