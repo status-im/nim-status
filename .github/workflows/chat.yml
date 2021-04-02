@@ -30,7 +30,8 @@ jobs:
             shell: bash --noprofile --norc -eo pipefail
           }
         pcre:      [ true ]
-        release:   [ true, false ]
+        # release:   [ true, false ]
+        release:   [ false ]
         rln:       [ false ]
         sqlcipher: [ true ]
         ssl:   [ true ]
