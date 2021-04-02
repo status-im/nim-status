@@ -50,6 +50,7 @@ proc buildAndRun(name: string,
   exec "nim " &
     lang &
     (if getEnv("RELEASE").strip != "false": release_opts else: debug_opts) &
+    (if getEnv("WIN_STATIC").strip != "false": " --passC:\"-static\" --passL:\"-static\"" else: "") &
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
     # (if getEnv("RLN_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") else: "") &
     # usually `--dynlibOverride` is used in case of static linking and so would
@@ -59,7 +60,7 @@ proc buildAndRun(name: string,
     # of this repo) it needs to be used in the case of shared or static linking
     (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") &
     " --define:ssl" &
-    (if getEnv("SSL_STATIC").strip != "false": " --dynlibOverride:ssl" else: "") &
+    (if getEnv("SSL_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:ssl- --dynlibOverride:crypto- --define:noOpenSSLHacks --define:sslVersion:\"(\"" else: " --dynlibOverride:ssl --dynlibOverride:crypto") else: "") &
     " --nimcache:nimcache/" & (if getEnv("RELEASE").strip != "false": "release/" else: "debug/") & name &
     " --out:" & outDir & name &
     (if getEnv("NIMSTATUS_CFLAGS").strip != "": " --passC:\"" & getEnv("NIMSTATUS_CFLAGS") & "\"" else: "") &

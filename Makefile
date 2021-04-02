@@ -110,8 +110,12 @@ RELEASE ?= false
 ifneq ($(RELEASE),false)
  RLN_CARGO_BUILD_FLAGS := --release
  RLN_TARGET_SUBDIR := release
+ ifeq ($(detected_OS),Windows)
+  WIN_STATIC := true
+ endif
 else
  RLN_TARGET_SUBDIR := debug
+ WIN_STATIC := false
 endif
 RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/$(RLN_TARGET_SUBDIR)
 RLN_STATIC ?= false
@@ -184,7 +188,11 @@ ifndef SSL_LDFLAGS
 endif
 NIM_PARAMS += --define:ssl
 ifneq ($(SSL_STATIC),false)
- NIM_PARAMS += --dynlibOverride:ssl
+ ifeq ($(detected_OS),Windows)
+  NIM_PARAMS += --dynlibOverride:ssl- --dynlibOverride:crypto- --define:noOpenSSLHacks --define:sslVersion:"("
+ else
+  NIM_PARAMS += --dynlibOverride:ssl --dynlibOverride:crypto
+ endif
 endif
 
 SQLCIPHER_STATIC ?= true
@@ -263,7 +271,11 @@ ifndef RLN_LDFLAGS
   ifeq ($(detected_OS),macOS)
    RLN_LDFLAGS := -L$(RLN_LIB_DIR) -lrln -rpath $(RLN_LIB_DIR)
   else ifeq ($(detected_OS),Windows)
-   RLN_LDFLAGS := -L$(shell cygpath -m $(RLN_LIB_DIR)) -lrln
+   ifneq ($(WIN_STATIC),false)
+    RLN_LDFLAGS := -L$(shell cygpath -m $(RLN_LIB_DIR)) -lrln -luserenv
+   else
+    RLN_LDFLAGS := -L$(shell cygpath -m $(RLN_LIB_DIR)) -lrln
+   endif
   else
    RLN_LDFLAGS := -L$(RLN_LIB_DIR) -lrln
   endif
@@ -410,6 +422,7 @@ ifeq ($(detected_OS),macOS)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
+        WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble chat
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
@@ -423,6 +436,7 @@ else ifeq ($(detected_OS),Windows)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
+	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble chat
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
@@ -436,6 +450,7 @@ else
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
+	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble chat
 endif
 
@@ -451,6 +466,7 @@ ifeq ($(detected_OS),macOS)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
+	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
@@ -464,6 +480,7 @@ else ifeq ($(detected_OS),Windows)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
+	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
@@ -477,6 +494,7 @@ else
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
+	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble tests
 endif
 
