@@ -124,20 +124,48 @@ endif
 rlnlib-sub: $(RLN_LIB)
 
 # These SSL variables and logic work like those in nim-sqlcipher's Makefile
+ifeq ($(detected_OS),macOS)
+ SSL_INCLUDE_DIR ?= /usr/local/opt/openssl/include
+ ifeq ($(SSL_INCLUDE_DIR),)
+  override SSL_INCLUDE_DIR = /usr/local/opt/openssl/include
+ endif
+ SSL_LIB_DIR ?= /usr/local/opt/openssl/lib
+ ifeq ($(SSL_LIB_DIR),)
+  override SSL_LIB_DIR = /usr/local/opt/openssl/lib
+ endif
+else ifeq ($(detected_OS),Windows)
+ SSL_INCLUDE_DIR ?= /mingw64/include/openssl
+ ifeq ($(SSL_INCLUDE_DIR),)
+  override SSL_INCLUDE_DIR = /mingw64/include/openssl
+ endif
+ SSL_LIB_DIR ?= /mingw64/lib
+ ifeq ($(SSL_LIB_DIR),)
+  override SSL_LIB_DIR = /mingw64/lib
+ endif
+else
+ SSL_INCLUDE_DIR ?= /usr/include
+ ifeq ($(SSL_INCLUDE_DIR),)
+  override SSL_INCLUDE_DIR = /usr/include
+ endif
+ SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ ifeq ($(SSL_LIB_DIR),)
+  override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
+ endif
+endif
 SSL_STATIC ?= true
-SSL_INCLUDE_DIR ?= /usr/include
-ifeq ($(SSL_INCLUDE_DIR),)
- override SSL_INCLUDE_DIR = /usr/include
-endif
-SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
-ifeq ($(SSL_LIB_DIR),)
- override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
-endif
 ifndef SSL_LDFLAGS
  ifeq ($(SSL_STATIC),false)
-  SSL_LDFLAGS := -L$(SSL_LIB_DIR) -lssl -lcrypto
+  ifeq ($(detected_OS),Windows)
+   SSL_LDFLAGS := -L$(shell cygpath -m $(SSL_LIB_DIR)) -lssl -lcrypto
+  else
+   SSL_LDFLAGS := -L$(SSL_LIB_DIR) -lssl -lcrypto
+  endif
  else
-  SSL_LDFLAGS := $(SSL_LIB_DIR)/libssl.a $(SSL_LIB_DIR)/libcrypto.a
+  ifeq ($(detected_OS),Windows)
+   SSL_LDFLAGS := $(shell cygpath -m $(SSL_LIB_DIR)/libssl.a) $(shell cygpath -m $(SSL_LIB_DIR)/libcrypto.a)
+  else
+   SSL_LDFLAGS := $(SSL_LIB_DIR)/libssl.a $(SSL_LIB_DIR)/libcrypto.a
+  endif
  endif
  ifeq ($(detected_OS),Windows)
   SSL_LDFLAGS += -lws2_32
@@ -157,24 +185,58 @@ endif
 $(SQLCIPHER): | deps
 	echo -e $(BUILD_MSG) "$@"
 	+ cd vendor/nim-sqlcipher && \
-		$(ENV_SCRIPT) $(MAKE) USE_SYSTEM_NIM=1 sqlcipher
+		$(ENV_SCRIPT) $(MAKE) \
+			SQLCIPHER_STATIC="$(SQLCIPHER_STATIC)" \
+			SSL_INCLUDE_DIR="$(SSL_INCLUDE_DIR)" \
+			SSL_LIB_DIR="$(SSL_LIB_DIR)" \
+			SSL_STATIC="$(SSL_STATIC)" \
+			USE_SYSTEM_NIM=1 \
+			sqlcipher
 
 sqlcipher: $(SQLCIPHER)
 
+ifeq ($(detected_OS),macOS)
+ PCRE_INCLUDE_DIR ?= /usr/local/opt/pcre/include
+ ifeq ($(PCRE_INCLUDE_DIR),)
+  override PCRE_INCLUDE_DIR = /usr/local/opt/pcre/include
+ endif
+ PCRE_LIB_DIR ?= /usr/local/opt/pcre/lib
+ ifeq ($(PCRE_LIB_DIR),)
+  override PCRE_LIB_DIR = /usr/local/opt/pcre/lib
+ endif
+else ifeq ($(detected_OS),Windows)
+ PCRE_INCLUDE_DIR ?= /mingw64/include
+ ifeq ($(PCRE_INCLUDE_DIR),)
+  override PCRE_INCLUDE_DIR = /mingw64/include
+ endif
+ PCRE_LIB_DIR ?= /mingw64/lib
+ ifeq ($(PCRE_LIB_DIR),)
+  override PCRE_LIB_DIR = /mingw64/lib
+ endif
+else
+ PCRE_INCLUDE_DIR ?= /usr/include
+ ifeq ($(PCRE_INCLUDE_DIR),)
+  override PCRE_INCLUDE_DIR = /usr/include
+ endif
+ PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ ifeq ($(PCRE_LIB_DIR),)
+  override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
+ endif
+endif
 PCRE_STATIC ?= true
-PCRE_INCLUDE_DIR ?= /usr/include
-ifeq ($(PCRE_INCLUDE_DIR),)
- override PCRE_INCLUDE_DIR = /usr/include
-endif
-PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
-ifeq ($(PCRE_LIB_DIR),)
- override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
-endif
 ifndef PCRE_LDFLAGS
  ifeq ($(PCRE_STATIC),false)
-  PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
+  ifeq ($(detected_OS),Windows)
+   PCRE_LDFLAGS := -L$(shell cygpath -m $(PCRE_LIB_DIR)) -lpcre
+  else
+   PCRE_LDFLAGS := -L$(PCRE_LIB_DIR) -lpcre
+  endif
  else
-  PCRE_LDFLAGS := $(PCRE_LIB_DIR)/libpcre.a
+  ifeq ($(detected_OS),Windows)
+   PCRE_LDFLAGS := $(shell cygpath -m $(PCRE_LIB_DIR)/libpcre.a)
+  else
+   PCRE_LDFLAGS := $(PCRE_LIB_DIR)/libpcre.a
+  endif
  endif
 endif
 ifneq ($(PCRE_STATIC),false)
@@ -217,7 +279,7 @@ endif
 ifndef NIMSTATUS_CFLAGS
  ifneq ($(PCRE_STATIC),false)
   ifeq ($(detected_OS),Windows)
-   NIMSTATUS_CFLAGS := -DPCRE_STATIC -I$(PCRE_INCLUDE_DIR)
+   NIMSTATUS_CFLAGS := -DPCRE_STATIC -I$(shell cygpath -m $(PCRE_INCLUDE_DIR))
   else
    NIMSTATUS_CFLAGS := -I$(PCRE_INCLUDE_DIR)
   endif
@@ -322,14 +384,9 @@ else
  endif
 endif
 
-CHAT_RUN ?= true
-ifeq ($(CHAT_RUN),true)
- CHAT_TASK := chat
-else
- CHAT_TASK := chat_build
-endif
-
 RELEASE ?= false
+
+RUN_AFTER_BUILD ?= true
 
 chat: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
@@ -343,7 +400,7 @@ ifeq ($(detected_OS),macOS)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	$(ENV_SCRIPT) nimble $(CHAT_TASK)
+	$(ENV_SCRIPT) nimble chat
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
@@ -356,7 +413,7 @@ else ifeq ($(detected_OS),Windows)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	$(ENV_SCRIPT) nimble $(CHAT_TASK)
+	$(ENV_SCRIPT) nimble chat
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
@@ -369,7 +426,7 @@ else
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC="$(SSL_STATIC)" \
-	$(ENV_SCRIPT) nimble $(CHAT_TASK)
+	$(ENV_SCRIPT) nimble chat
 endif
 
 test: $(SQLCIPHER) $(MIGRATIONS)

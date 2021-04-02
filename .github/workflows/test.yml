@@ -17,29 +17,17 @@ jobs:
           - {
             icon: 🏁,
             os: windows,
-            shell: msys2,
-            pcre_include: /mingw64/include,
-            pcre_lib: /mingw64/lib,
-            ssl_include: /mingw64/include/openssl,
-            ssl_lib: /mingw64/lib,
+            shell: msys2
           }
           - {
             icon: 🍎,
             os: macos,
-            shell: bash --noprofile --norc -eo pipefail,
-            pcre_include: /usr/local/opt/pcre/include,
-            pcre_lib: /usr/local/opt/pcre/lib,
-            ssl_include: /usr/local/opt/openssl/include,
-            ssl_lib: /usr/local/opt/openssl/lib,
+            shell: bash --noprofile --norc -eo pipefail
           }
           - {
             icon: 🐧,
             os: ubuntu,
-            shell: bash --noprofile --norc -eo pipefail,
-            pcre_include: ,
-            pcre_lib: ,
-            ssl_include: ,
-            ssl_lib: ,
+            shell: bash --noprofile --norc -eo pipefail
           }
         pcre:      [ true, false ]
         rln:       [ false ]
@@ -101,7 +89,6 @@ jobs:
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
       - name: Build and run tests
-        if: matrix.platform.os != 'windows'
         run: |
           # workaround for limitations of BSD `ar` on macOS
           # see: https://github.com/nim-lang/Nim/issues/15589
@@ -111,31 +98,9 @@ jobs:
           export PATH="${HOME}/.local/bin:${PATH}"
           make \
             NIMFLAGS="--parallelBuild:${NPROC}" \
-            PCRE_INCLUDE_DIR="${{ matrix.platform.pcre_include }}" \
-            PCRE_LIB_DIR="${{ matrix.platform.pcre_lib }}" \
             PCRE_STATIC=${{ matrix.pcre }} \
             RLN_STATIC=${{ matrix.rln }} \
             SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
-            SSL_INCLUDE_DIR="${{ matrix.platform.ssl_include }}" \
-            SSL_LIB_DIR="${{ matrix.platform.ssl_lib }}" \
-            SSL_STATIC=${{ matrix.ssl }} \
-            V=1 \
-            test
-
-      - name: Build and run tests (Windows)
-        if: matrix.platform.os == 'windows'
-        # specify `C:/msys64/` include/lib paths (via `cygpath -m`) to avoid
-        # problems with msys2 path conversion
-        run: |
-          make \
-            NIMFLAGS="--parallelBuild:${NPROC}" \
-            PCRE_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.pcre_include }})" \
-            PCRE_LIB_DIR="$(cygpath -m ${{ matrix.platform.pcre_lib }})" \
-            PCRE_STATIC=${{ matrix.pcre }} \
-            RLN_STATIC=${{ matrix.rln }} \
-            SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
-            SSL_INCLUDE_DIR="$(cygpath -m ${{ matrix.platform.ssl_include }})" \
-            SSL_LIB_DIR="$(cygpath -m ${{ matrix.platform.ssl_lib }})" \
             SSL_STATIC=${{ matrix.ssl }} \
             V=1 \
             test
