@@ -112,6 +112,8 @@ ifneq ($(RELEASE),false)
  RLN_TARGET_SUBDIR := release
  ifeq ($(detected_OS),Windows)
   WIN_STATIC := true
+ else
+  WIN_STATIC := false
  endif
 else
  RLN_TARGET_SUBDIR := debug
