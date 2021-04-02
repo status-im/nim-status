@@ -79,6 +79,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
+            vendor/nim-sqlcipher/lib
             vendor/nim-waku/vendor/rln/target
             vendor/nimbus-build-system/vendor/Nim/bin
           key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}

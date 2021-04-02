@@ -122,7 +122,11 @@ endif
 RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/$(RLN_TARGET_SUBDIR)
 RLN_STATIC ?= false
 ifeq ($(RLN_STATIC),false)
- RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
+ ifeq ($(detected_OS),Windows)
+  RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT).a
+ else
+  RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT)
+ endif
 else
  RLN_LIB := $(RLN_LIB_DIR)/librln.a
 endif
