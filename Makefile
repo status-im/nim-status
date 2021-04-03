@@ -428,7 +428,7 @@ ifeq ($(detected_OS),macOS)
 	SQLCIPHER_LDFLAGS="$(SQLCIPHER_LDFLAGS)" \
 	SSL_LDFLAGS="$(SSL_LDFLAGS)" \
 	SSL_STATIC=$(SSL_STATIC) \
-        WIN_STATIC=$(WIN_STATIC) \
+	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble chat
 else ifeq ($(detected_OS),Windows)
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
