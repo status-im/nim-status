@@ -288,8 +288,10 @@ ifndef RLN_LDFLAGS
  else
   ifeq ($(detected_OS),Windows)
    RLN_LDFLAGS := $(shell cygpath -m $(RLN_LIB)) -luserenv
-  else
+  else ifeq ($(detected_OS),macOS)
    RLN_LDFLAGS := $(RLN_LIB)
+  else
+   RLN_LDFLAGS := $(RLN_LIB) -lm
   endif
  endif
 endif
