@@ -50,6 +50,7 @@ proc buildAndRun(name: string,
   exec "nim " &
     lang &
     (if getEnv("RELEASE").strip != "false": release_opts else: debug_opts) &
+    (if defined(windows): " --define:chronicles_colors:AnsiColors" else: "") &
     (if getEnv("WIN_STATIC").strip != "false": " --passC:\"-static\" --passL:\"-static\"" else: "") &
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
     # (if getEnv("RLN_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") else: "") &
