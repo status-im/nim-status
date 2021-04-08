@@ -17,12 +17,13 @@ procSuite "waku_smoke":
   asyncTest "waku_smoke":
     let
       futures = [newFuture[int](), newFuture[int]()]
+      cTopic = "test"
       message1 = WakuMessage(payload: cast[seq[byte]]("hello"),
-        contentTopic: ContentTopic(1))
+        contentTopic: ContentTopic(cTopic))
       message2 = WakuMessage(payload: cast[seq[byte]]("world"),
-        contentTopic: ContentTopic(1))
+        contentTopic: ContentTopic(cTopic))
       done = WakuMessage(payload: cast[seq[byte]]("test done"),
-        contentTopic: ContentTopic(1))
+        contentTopic: ContentTopic(cTopic))
       timeout = 5.minutes
       topic = "testing"
     var nodeConfig = WakuNodeConf.load()
