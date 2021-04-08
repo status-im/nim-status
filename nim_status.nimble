@@ -41,7 +41,6 @@ proc buildAndRun(name: string,
                  params = "",
                  cmdParams = "",
                  lang = "c") =
-  rmDir outDir
   mkDir outDir
   # allow something like "nim test --verbosity:0 --hints:off beacon_chain.nims"
   var extra_params = params
@@ -84,4 +83,5 @@ task chat, "Build and run the example chat client":
   buildAndRun "chat", "examples/", "build/"
 
 task tests, "Build and run all tests":
+  rmDir "test/build/"
   buildAndRun "test_all"
