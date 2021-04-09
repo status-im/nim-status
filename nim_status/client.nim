@@ -7,6 +7,7 @@ import # vendor libs
   sqlcipher
 
 import # nim-status libs
+  ./account,
   ./accounts,
   ./chats,
   ./config,
@@ -48,6 +49,15 @@ proc login*(self: StatusObject, keyUid: string, password: string) =
   let result = self.userDB.value("SELECT public_key from settings") # check if decryption worked
   echo "Result: "
   echo $result
+
+proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject, mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]): seq[MultiAccount] =
+  return generateAndDeriveAddresses(mnemonicPhraseLength, n, bip39Passphrase, paths)
+
+proc multiAccountStoreDerivedAccounts*(self: StatusObject, multiAcc: MultiAccount, password: string, pathStrings: seq[string] = newSeq[string]()) =
+  return storeDerivedAccounts(multiAcc, password, pathStrings)
+
+proc loadAccount*(self: StatusObject, address: string, password: string, dir: string = ""): Account =
+  return loadAccount(address, password, dir)
 
 proc closeUserDB*(self: StatusObject) =
   self.userDB.close()
