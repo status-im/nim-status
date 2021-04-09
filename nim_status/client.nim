@@ -7,12 +7,14 @@ import # vendor libs
   sqlcipher
 
 import # nim-status libs
+  ./account,
   ./accounts,
   ./chats,
   ./config,
   ./database,
   ./migrations/sql_scripts_accounts as acc_migration,
   ./migrations/sql_scripts_app as app_migration,
+  ./multiaccount,
   ./settings
 
 type StatusObject* = ref object
@@ -25,10 +27,10 @@ proc init*(config: StatusConfig): StatusObject =
   result.config = config
   result.accountsDB = initializeDB(config.rootDataDir / config.accountsDbFileName, acc_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
 
-proc getAccounts*(self: StatusObject): seq[Account] =
+proc getAccounts*(self: StatusObject): seq[accounts.Account] =
   getAccounts(self.accountsDB)
 
-proc saveAccount*(self: StatusObject, account: Account) =
+proc saveAccount*(self: StatusObject, account: accounts.Account) =
   saveAccount(self.accountsDB, account)
 
 proc updateAccountTimestamp*(self: StatusObject, timestamp: int64, keyUid: string) =
@@ -48,6 +50,15 @@ proc login*(self: StatusObject, keyUid: string, password: string) =
   let result = self.userDB.value("SELECT public_key from settings") # check if decryption worked
   echo "Result: "
   echo $result
+
+proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject, mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]): seq[MultiAccount] =
+  return generateAndDeriveAddresses(mnemonicPhraseLength, n, bip39Passphrase, paths)
+
+proc multiAccountStoreDerivedAccounts*(self: StatusObject, multiAcc: MultiAccount, password: string, dir: string, pathStrings: seq[string] = newSeq[string]()) =
+  storeDerivedAccounts(multiAcc, password, dir, pathStrings)
+
+proc loadAccount*(self: StatusObject, address: string, password: string, dir: string = ""): account.Account =
+  return loadAccount(address, password, dir)
 
 proc closeUserDB*(self: StatusObject) =
   self.userDB.close()

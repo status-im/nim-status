@@ -21,6 +21,8 @@ import
 
   ./mailservers,
   ./messages,
+  ./mnemonic,
+  ./multiaccount,
   ./migrations,
   ./pendingtxs,
   ./permissions,

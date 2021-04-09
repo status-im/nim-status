@@ -13,6 +13,16 @@ type Account* = ref object
   address*: string
   publicKey*: string
   privateKey*: string
+  path*: string
+
+proc `$`*(acc: Account): string =
+  echo "Account begin"
+  echo "Addr: ", acc.address
+  echo "PrivateKey: ", acc.privateKey
+  echo "PublicKey: ", acc.publicKey
+  echo "Path: ", acc.path
+  echo "Account end"
+
 
 proc getSeed*(mnemonic: Mnemonic, password: KeystorePass = ""): KeySeed =
   let salt = toNFKD("mnemonic" & password)
