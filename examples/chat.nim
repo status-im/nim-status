@@ -1,5 +1,4 @@
-## chat2 is an example of usage of Waku v2. For suggested usage options, please
-## see dingpu tutorial in docs folder.
+## chat is an example demonstrating usage of nim-status.
 
 when not(compileOption("threads")):
   {.fatal: "Please, compile this program with the --threads:on option!".}
@@ -372,7 +371,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
   #await allFuturesThrowing(libp2pFuts)
 
 proc main() {.async.} =
-  let rng = crypto.newRng() # Singe random number source for the whole application
+  let rng = crypto.newRng() # Single random number source for the whole application
   let (rfd, wfd) = createAsyncPipe()
   if rfd == asyncInvalidPipe or wfd == asyncInvalidPipe:
     raise newException(ValueError, "Could not initialize pipe!")
