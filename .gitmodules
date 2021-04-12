@@ -85,3 +85,6 @@
 [submodule "vendor/nim-unicodedb"]
 	path = vendor/nim-unicodedb
 	url = https://github.com/nitely/nim-unicodedb
+[submodule "vendor/nim-task-runner"]
+	path = vendor/nim-task-runner
+	url = https://github.com/status-im/nim-task-runner.git
