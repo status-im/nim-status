@@ -26,8 +26,9 @@ procSuite "multiaccount":
 
     let password = "qwerty"
     let dir = "test_accounts"
-    removeDir(dir)
+
     createDir(dir)
+
     storeDerivedAccounts(multiAccounts[0], password, dir)
 
     let chatAddress = multiAcc.accounts[2].address
@@ -38,3 +39,5 @@ procSuite "multiaccount":
     echo chatAccount
 
     assert chatAccount.address == chatAddress
+
+    removeDir(dir)
