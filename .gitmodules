@@ -18,7 +18,7 @@
 	url = https://github.com/status-im/nim-serialization.git
 [submodule "vendor/nim-chronos"]
 	path = vendor/nim-chronos
-	url = https://github.com/status-im/nim-chronos.git
+	url = https://github.com/michaelsbradleyjr/nim-chronos.git
 [submodule "vendor/nim-stew"]
 	path = vendor/nim-stew
 	url = https://github.com/status-im/nim-stew.git
