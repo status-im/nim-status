@@ -29,6 +29,7 @@ const Help = """
   help: Prints this help
   connect: dials a remote peer
   nick: change nickname for current chat session
+  exit: exits chat session
 """
 
 const
@@ -202,14 +203,11 @@ proc writeAndPrint(c: Chat) {.async.} =
       c.nick = await readNick(c.transp)
       echo "You are now known as " & c.nick
 
-#    elif line.startsWith("/exit"):
-#      if p.connected and p.conn.closed.not:
-#        await p.conn.close()
-#        p.connected = false
-#
-#      await p.switch.stop()
-#      echo "quitting..."
-#      quit(0)
+    elif line.startsWith("/exit"):
+     await c.node.stop()
+
+     echo "quitting..."
+     quit(QuitSuccess)
     else:
       # XXX connected state problematic
       if c.started:
@@ -303,7 +301,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
         echo &"{chatLine}"
       info "Hit store handler"
 
-    await node.query(HistoryQuery(topics: @[DefaultContentTopic]), storeHandler)
+    await node.query(HistoryQuery(contentFilters: @[HistoryContentFilter(contentTopic: DefaultContentTopic)]), storeHandler)
 
   if conf.filternode != "":
     node.mountFilter()
@@ -319,7 +317,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
       info "Hit filter handler"
 
     await node.subscribe(
-      FilterRequest(contentFilters: @[ContentFilter(topics: @[DefaultContentTopic])], topic: DefaultTopic, subscribe: true),
+      FilterRequest(contentFilters: @[ContentFilter(contentTopics: @[DefaultContentTopic])], pubSubTopic: DefaultTopic, subscribe: true),
       filterHandler
     )
 
@@ -367,6 +365,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
   node.subscribe(topic, handler)
 
   await chat.readWriteLoop()
+
   runForever()
   #await allFuturesThrowing(libp2pFuts)
 
