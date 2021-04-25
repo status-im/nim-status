@@ -3,6 +3,7 @@
 .vscode
 /.update.timestamp
 /build
+/data
 /nim_status.nims
 /nimcache
 /test/build
