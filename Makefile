@@ -109,13 +109,13 @@ endif
 # older versions of macOS (older relative to the machine that's used to build
 # the executable); for that to work linking must be done against builds of
 # OpenSSL, PCRE, rln, etc. that are properly built to support the same older
-# version of macOS we desire to target. That means downloading pre-built
-# homebrew bottles for that older version of macOS, tweaking Rust compiler
-# flags, etc. That logic should probably be triggered with respect to
-# `RELEASE=true` and then setting up and/or overriding variables and running
-# targets in this Makefile (via `$(MAKE) [target]`) to do steps that are
-# unnecessary apart from release builds for macOS.
-# MACOSX_DEPLOYMENT_TARGET ?= 10.7
+# version of macOS we desire to target. That means compiling them or
+# downloading pre-built homebrew bottles for that older version of macOS,
+# tweaking Rust compiler flags, etc. That logic should probably be triggered
+# with respect to `RELEASE=true` and then setting up and/or overriding
+# variables and running targets in this Makefile (via `$(MAKE) [target]`) to do
+# steps that are unnecessary apart from release builds for macOS.
+# MACOSX_DEPLOYMENT_TARGET ?= 10.14
 
 RELEASE ?= false
 
