@@ -10,7 +10,15 @@ import # chat libs
   ./chat/[chat_impl, tui]
 
 proc main() {.async.} =
-  ChatTUI.new(ChatClient.new(ChatClientConfig.load())).start()
+  var tui = ChatTUI.new(ChatClient.new(ChatClientConfig.load()))
+  var tuiPtr {.threadvar.}: pointer
+  tuiPtr = cast[pointer](tui)
 
-when isMainModule:
-  waitFor(main())
+  proc stop() {.noconv.} = cast[ChatTUI](tuiPtr).stop()
+
+  setControlCHook(stop)
+
+  tui.start()
+  while tui.running: poll()
+
+when isMainModule: waitFor(main())

@@ -13,9 +13,8 @@ type
   TaskRunner* = ref object
     marathon*: Marathon
 
-proc newTaskRunner*(): TaskRunner =
-  new(result)
-  result.marathon = newMarathon()
+proc new*(T: type TaskRunner): T =
+  T(marathon: Marathon.new())
 
 proc init*(self: TaskRunner) =
   self.marathon.init()
