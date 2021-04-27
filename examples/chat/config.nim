@@ -1,5 +1,8 @@
+import # std libs
+  os
+
 import # vendor libs
-  confutils, os
+  confutils
 
 export confutils
 

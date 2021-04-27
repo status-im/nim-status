@@ -20,31 +20,10 @@ type
 proc newWorkerTable*(): WorkerTable =
   newTable[string, tuple[kind: WorkerKind, worker: Worker]]()
 
-proc `$`*(self: WorkerTable): string =
-  result = "{"
-  var
-    count = 0
-    l = self.len
-    upcast: string
-  for k in self.keys:
-    count = count + 1
-    let (kind, worker) = self[k]
-    if kind == pool:
-      upcast = $cast[WorkerPool](worker)
-    else:
-      upcast = $cast[WorkerThread](worker)
-    result = result & "\"" & k & "\": " &
-      "(kind: " & $kind & ", " &
-      "worker: " & upcast & ")"
-    if count < l:
-      result = result & ", "
-  result = result & "}"
-
 proc new*(T: type TaskRunner, workers: WorkerTable = newWorkerTable()): T =
   T(workers: workers)
 
 proc start*(self: TaskRunner) =
-  echo "workers: " & $self.workers
   echo "starting task runner..."
   for v in self.workers.values:
     let (kind, worker) = v

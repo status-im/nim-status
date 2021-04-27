@@ -7,9 +7,6 @@ type WorkerThread* = ref object of Worker
 proc new*(T: type WorkerThread, id: int, name: string): T =
   T(id: id, name: name)
 
-proc `$`*(self: WorkerThread): string =
-  $(id: self.id, name: self.name, running: self.running)
-
 proc start*(self: WorkerThread) =
   echo "starting worker thread named " & self.name & "..."
   self.running = true
