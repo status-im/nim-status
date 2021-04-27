@@ -70,6 +70,7 @@ proc buildAndRun(name: string,
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
     " --threads:on" &
     " --tlsEmulation:off" &
+    " --showAllMismatches:on" &
     " " &
     extra_params &
     " " &
