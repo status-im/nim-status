@@ -1,7 +1,7 @@
 import # chat libs
-  ./chat_impl, ./tasks
+  ./chat_impl, ./task_runner
 
-export tasks
+export task_runner
 
 # TUI: https://en.wikipedia.org/wiki/Text-based_user_interface
 

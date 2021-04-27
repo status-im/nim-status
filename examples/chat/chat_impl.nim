@@ -2,9 +2,9 @@ import # vendor libs
   os
 
 import # chat libs
-  ./config, ./tasks
+  ./config, ./task_runner
 
-export config, tasks
+export config, task_runner
 
 type ChatClient* = ref object
   config*: ChatClientConfig
