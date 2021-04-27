@@ -7,7 +7,7 @@ import # vendor libs
   chronos
 
 import # chat libs
-  ./chat/[chat_impl, tui]
+  ./chat/[client, tui]
 
 proc main() {.async.} =
   var tui = ChatTUI.new(ChatClient.new(ChatClientConfig.load()))

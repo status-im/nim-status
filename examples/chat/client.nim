@@ -1,4 +1,4 @@
-import # vendor libs
+import # std libs
   os
 
 import # chat libs

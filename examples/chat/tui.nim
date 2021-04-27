@@ -1,5 +1,5 @@
 import # chat libs
-  ./chat_impl, ./task_runner
+  ./client, ./task_runner
 
 export task_runner
 
