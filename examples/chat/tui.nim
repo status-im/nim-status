@@ -1,5 +1,5 @@
 import # chat libs
-  ./client, ./task_runner
+  ./client, ./task_runner, ./tui/tasks
 
 export task_runner
 
@@ -17,7 +17,7 @@ type ChatTUI* = ref object
 
 proc new*(T: type ChatTUI, client: ChatClient): T =
   var tasks = TaskRunner.new()
-  tasks.workers["input"] = (kind: thread, worker: WorkerThread.new(1, "input"))
+  tasks.worker(thread, "input")
   T(client: client, running: true, tasks: tasks)
 
 proc start*(self: ChatTUI) =

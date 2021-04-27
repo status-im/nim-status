@@ -13,6 +13,7 @@ proc defaultDataDir*(): string =
 
 type ChatClientConfig* = object
   dataDir* {.
+    abbr: "d"
     defaultValue: defaultDataDir()
     desc: "Chat client data directory"
-    abbr: "d" .}: string
+  .}: string

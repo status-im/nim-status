@@ -1,20 +1,24 @@
+import # vendor libs
+  chronicles
+
 import # chat libs
   ./worker
 
-type WorkerPool* = ref object of Worker
-  size: int
+logScope:
+  topics = "task-runner"
 
-proc new*(T: type WorkerPool, id: int, size: int = 8): T =
-  T(id: id, size: size)
+const DefaultWorkerPoolSize* = 16
+
+type WorkerPool* = ref object of Worker
+  size*: int
+
+proc new*(T: type WorkerPool, name: string, size: int = DefaultWorkerPoolSize): T =
+  T(name: name, size: size)
 
 proc start*(self: WorkerPool) =
-  echo "starting worker pool with id " &
-    $self.id &
+  echo "starting worker pool named " & self.name &
     " (" & $self.size & " threads)..."
-  self.running = true
 
 proc stop*(self: WorkerPool) =
-  echo "stopping worker pool with id " &
-     $self.id &
-     " (" & $self.size & " threads)..."
-  self.running = false
+  echo "stopping worker pool named " & self.name &
+    " (" & $self.size & " threads)..."

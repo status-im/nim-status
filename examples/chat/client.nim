@@ -2,7 +2,7 @@ import # std libs
   os
 
 import # chat libs
-  ./config, ./task_runner
+  ./client/tasks, ./config, ./task_runner
 
 export config, task_runner
 
@@ -16,9 +16,9 @@ type ChatClient* = ref object
 
 proc new*(T: type ChatClient, config: ChatClientConfig): T =
   var tasks = TaskRunner.new()
-  tasks.workers["pool1"] = (kind: pool, worker: WorkerPool.new(1))
-  tasks.workers["pool2"] = (kind: pool, worker: WorkerPool.new(2, 4))
-  tasks.workers["pool3"] = (kind: pool, worker: WorkerPool.new(3))
+  tasks.worker(pool, "pool1")
+  tasks.worker(pool, "pool2", emptyContext, 4)
+  tasks.worker(pool, "pool3")
   T(config: config, dataDir: absolutePath(expandTilde(config.dataDir)),
     tasks: tasks)
 

@@ -1,16 +1,19 @@
+import # vendor libs
+  chronicles
+
 import # chat libs
   ./worker
 
-type WorkerThread* = ref object of Worker
-  name: string
+logScope:
+  topics = "task-runner"
 
-proc new*(T: type WorkerThread, id: int, name: string): T =
-  T(id: id, name: name)
+type WorkerThread* = ref object of Worker
+
+proc new*(T: type WorkerThread, name: string): T =
+  T(name: name)
 
 proc start*(self: WorkerThread) =
   echo "starting worker thread named " & self.name & "..."
-  self.running = true
 
 proc stop*(self: WorkerThread) =
   echo "stopping worker thread named " & self.name & "..."
-  self.running = false
