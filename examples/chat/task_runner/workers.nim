@@ -1,5 +1,5 @@
 import # chat libs
-  ./workers/worker_pool, ./workers/worker_thread, ./workers/worker
+  ./workers/[worker, worker_pool, worker_thread]
 
 export worker_pool, worker_thread, worker
 
