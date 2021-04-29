@@ -11,9 +11,20 @@ proc defaultDataDir*(): string =
   # like the `defaultDataDir()` of status-desktop
   joinPath(getCurrentDir(), "data")
 
-type ChatClientConfig* = object
+proc defaultLogFile*(): string =
+  joinPath(defaultDataDir(), "chat.log")
+
+type ChatConfig* = object
   dataDir* {.
     abbr: "d"
     defaultValue: defaultDataDir()
-    desc: "Chat client data directory"
+    desc: "Chat data directory. Default is ${PWD}/data. If user supplied " &
+          "path is relative it will be resolved from ${PWD}"
+  .}: string
+
+  logFile* {.
+    abbr: "l"
+    defaultValue: defaultLogFile()
+    desc: "Chat log file. Default is ./chat.log relative to data directory. " &
+          "If user supplied path is relative it will be resolved from ${PWD}"
   .}: string

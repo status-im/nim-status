@@ -47,9 +47,9 @@ proc stop*(self: TaskRunner) =
       of thread:
         cast[WorkerThread](worker).stop()
 
-proc worker*(self: TaskRunner, kind: WorkerKind, name: string,
-             context: WorkerContext = emptyContext,
-             size = DefaultWorkerPoolSize) =
+proc createWorker*(self: TaskRunner, kind: WorkerKind, name: string,
+                   context: WorkerContext = emptyContext,
+                   size = DefaultWorkerPoolSize) =
   case kind:
     of pool:
       self.workers[name] = (kind: kind, worker: WorkerPool.new(name, size))

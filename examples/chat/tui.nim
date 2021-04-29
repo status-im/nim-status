@@ -13,6 +13,7 @@ logScope:
 
 type ChatTUI* = ref object
   client*: ChatClient
+  dataDir*: string
   running*: bool
   tasks*: TaskRunner
 
@@ -21,13 +22,13 @@ type ChatTUI* = ref object
 # action/s based on user events, e.g. calling a client proc to send a message
 # or displaying a list of possible commands when user enters `/help` or `/?`
 
-proc new*(T: type ChatTUI, client: ChatClient): T =
+proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
   var tasks = TaskRunner.new()
-  tasks.worker(thread, "input")
-  T(client: client, running: true, tasks: tasks)
+  tasks.createWorker(thread, "input")
+  T(client: client, dataDir: dataDir, running: true, tasks: tasks)
 
 proc start*(self: ChatTUI) =
-  trace "starting client"
+  trace "starting TUI"
   # before starting the client or tui's task runner, should prep tui to accept
   # events coming from the client and user
   # before starting the client, start tui's task runner, which in turn starts a
@@ -37,6 +38,6 @@ proc start*(self: ChatTUI) =
 
 proc stop*(self: ChatTUI) =
   self.client.stop()
-  trace "stopping client"
+  trace "stopping TUI"
   self.tasks.stop()
   self.running = false

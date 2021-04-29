@@ -71,7 +71,6 @@ proc buildAndRun(name: string,
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
     " --threads:on" &
     " --tlsEmulation:off" &
-    " --showAllMismatches:on" &
     " " &
     extra_params &
     " " &
@@ -82,7 +81,8 @@ proc buildAndRun(name: string,
     exec outDir & name
 
 task chat, "Build and run the example chat client":
-  buildAndRun "chat", "examples/", "build/"
+  buildAndRun "chat", "examples/", "build/",
+              " -d:chronicles_sinks=textlines[file]"
 
 task tests, "Build and run all tests":
   rmDir "test/build/"
