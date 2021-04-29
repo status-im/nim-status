@@ -7,7 +7,7 @@ import # vendor libs
 import # chat libs
   ./tasks, ./workers
 
-export tables, task_runner, tasks, workers
+export chronos, tables, task_runner, tasks, workers
 
 logScope:
   topics = "task-runner"
@@ -29,23 +29,23 @@ proc newWorkerTable*(): WorkerTable =
 proc new*(T: type TaskRunner, workers: WorkerTable = newWorkerTable()): T =
   T(workers: workers)
 
-proc start*(self: TaskRunner) =
+proc start*(self: TaskRunner) {.async.} =
   for v in self.workers.values:
     let (kind, worker) = v
     case kind:
       of pool:
-        cast[WorkerPool](worker).start()
+        await cast[WorkerPool](worker).start()
       of thread:
-        cast[WorkerThread](worker).start()
+        await cast[WorkerThread](worker).start()
 
-proc stop*(self: TaskRunner) =
+proc stop*(self: TaskRunner) {.async.} =
   for v in self.workers.values:
     let (kind, worker) = v
     case kind:
       of pool:
-        cast[WorkerPool](worker).stop()
+        await cast[WorkerPool](worker).stop()
       of thread:
-        cast[WorkerThread](worker).stop()
+        await cast[WorkerThread](worker).stop()
 
 proc createWorker*(self: TaskRunner, kind: WorkerKind, name: string,
   context: WorkerContext = emptyContext, size = DefaultWorkerPoolSize) =

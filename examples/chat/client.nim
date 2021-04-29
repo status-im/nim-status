@@ -1,5 +1,5 @@
 import # vendor libs
-  chronicles
+  chronicles, chronos
 
 import # chat libs
   ./client/tasks, ./task_runner
@@ -23,14 +23,14 @@ proc new*(T: type ChatClient, dataDir: string): T =
   taskRunner.createWorker(pool, "pool3")
   T(dataDir: dataDir, taskRunner: taskRunner)
 
-proc start*(self: ChatClient) =
+proc start*(self: ChatClient) {.async.} =
   trace "starting client"
   # before starting the client's task runner, should prep client to accept
   # events coming from the nim-status/waku
   # start the client's task runner, which in turn starts nim-status/waku on
   # another thread
-  self.taskRunner.start()
+  await self.taskRunner.start()
 
-proc stop*(self: ChatClient) =
+proc stop*(self: ChatClient) {.async.} =
   trace "stopping client"
-  self.taskRunner.stop()
+  await self.taskRunner.stop()

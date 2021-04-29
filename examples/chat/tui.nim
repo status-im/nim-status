@@ -27,17 +27,17 @@ proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
   taskRunner.createWorker(thread, "input")
   T(client: client, dataDir: dataDir, running: true, taskRunner: taskRunner)
 
-proc start*(self: ChatTUI) =
+proc start*(self: ChatTUI) {.async.} =
   trace "starting TUI"
   # before starting the client or tui's task runner, should prep tui to accept
   # events coming from the client and user
   # before starting the client, start tui's task runner, which in turn starts a
   # thread dedicated to monitoring user input/actions
-  self.taskRunner.start()
-  self.client.start()
+  await self.taskRunner.start()
+  await self.client.start()
 
-proc stop*(self: ChatTUI) =
-  self.client.stop()
+proc stop*(self: ChatTUI) {.async.} =
+  await self.client.stop()
   trace "stopping TUI"
-  self.taskRunner.stop()
+  await self.taskRunner.stop()
   self.running = false

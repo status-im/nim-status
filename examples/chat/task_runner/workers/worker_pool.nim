@@ -1,5 +1,5 @@
 import # vendor libs
-  chronicles
+  chronicles, chronos
 
 import # chat libs
   ./worker
@@ -15,8 +15,8 @@ type WorkerPool* = ref object of Worker
 proc new*(T: type WorkerPool, name: string, size: int = DefaultWorkerPoolSize): T =
   T(name: name, size: size)
 
-proc start*(self: WorkerPool) =
+proc start*(self: WorkerPool) {.async.} =
   trace "starting worker pool", name=self.name, size=self.size
 
-proc stop*(self: WorkerPool) =
+proc stop*(self: WorkerPool) {.async.} =
   trace "stopping worker pool", name=self.name, size=self.size

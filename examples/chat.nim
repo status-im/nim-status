@@ -31,12 +31,10 @@ proc main() {.async.} =
   var tui = ChatTUI.new(ChatClient.new(dataDir), dataDir)
   var tuiPtr {.threadvar.}: pointer
   tuiPtr = cast[pointer](tui)
-
-  proc stop() {.noconv.} = cast[ChatTUI](tuiPtr).stop()
+  proc stop() {.noconv.} = waitFor cast[ChatTUI](tuiPtr).stop()
   setControlCHook(stop)
-
-  tui.start()
+  await tui.start()
   while tui.running: poll()
   notice "EXIT PROGRAM"
 
-when isMainModule: waitFor(main())
+when isMainModule: waitFor main()
