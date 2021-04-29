@@ -30,7 +30,6 @@ proc new*(T: type TaskRunner, workers: WorkerTable = newWorkerTable()): T =
   T(workers: workers)
 
 proc start*(self: TaskRunner) =
-  echo "starting task runner..."
   for v in self.workers.values:
     let (kind, worker) = v
     case kind:
@@ -40,7 +39,6 @@ proc start*(self: TaskRunner) =
         cast[WorkerThread](worker).start()
 
 proc stop*(self: TaskRunner) =
-  echo "stopping task runner..."
   for v in self.workers.values:
     let (kind, worker) = v
     case kind:

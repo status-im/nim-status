@@ -13,7 +13,7 @@ proc new*(T: type WorkerThread, name: string): T =
   T(name: name)
 
 proc start*(self: WorkerThread) =
-  echo "starting worker thread named " & self.name & "..."
+  trace "starting worker thread", name=self.name
 
 proc stop*(self: WorkerThread) =
-  echo "stopping worker thread named " & self.name & "..."
+  trace "stopping worker thread", name=self.name

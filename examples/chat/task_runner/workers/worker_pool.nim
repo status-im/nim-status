@@ -16,9 +16,7 @@ proc new*(T: type WorkerPool, name: string, size: int = DefaultWorkerPoolSize): 
   T(name: name, size: size)
 
 proc start*(self: WorkerPool) =
-  echo "starting worker pool named " & self.name &
-    " (" & $self.size & " threads)..."
+  trace "starting worker pool", name=self.name, size=self.size
 
 proc stop*(self: WorkerPool) =
-  echo "stopping worker pool named " & self.name &
-    " (" & $self.size & " threads)..."
+  trace "stopping worker pool", name=self.name, size=self.size

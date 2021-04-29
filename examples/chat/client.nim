@@ -1,10 +1,16 @@
 import # std libs
   os
 
+import # vendor libs
+  chronicles
+
 import # chat libs
   ./client/tasks, ./config, ./task_runner
 
 export config, task_runner
+
+logScope:
+  topics = "client"
 
 type ChatClient* = ref object
   config*: ChatClientConfig
@@ -23,7 +29,7 @@ proc new*(T: type ChatClient, config: ChatClientConfig): T =
     tasks: tasks)
 
 proc start*(self: ChatClient) =
-  echo "starting the client..."
+  trace "starting client"
   # before starting the client's task runner, should prep client to accept
   # events coming from the StatusObject
   createDir(self.dataDir)
@@ -32,5 +38,5 @@ proc start*(self: ChatClient) =
   self.tasks.start()
 
 proc stop*(self: ChatClient) =
-  echo "stopping the client..."
+  trace "stopping client"
   self.tasks.stop()

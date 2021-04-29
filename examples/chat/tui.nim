@@ -1,7 +1,13 @@
+import # vendor libs
+  chronicles
+
 import # chat libs
   ./client, ./task_runner, ./tui/tasks
 
 export task_runner
+
+logScope:
+  topics = "TUI"
 
 # TUI: https://en.wikipedia.org/wiki/Text-based_user_interface
 
@@ -21,7 +27,7 @@ proc new*(T: type ChatTUI, client: ChatClient): T =
   T(client: client, running: true, tasks: tasks)
 
 proc start*(self: ChatTUI) =
-  echo "starting the TUI..."
+  trace "starting client"
   # before starting the client or tui's task runner, should prep tui to accept
   # events coming from the client and user
   # before starting the client, start tui's task runner, which in turn starts a
@@ -30,8 +36,7 @@ proc start*(self: ChatTUI) =
   self.client.start()
 
 proc stop*(self: ChatTUI) =
-  echo "\n"
   self.client.stop()
-  echo "stopping the TUI..."
+  trace "stopping client"
   self.tasks.stop()
   self.running = false

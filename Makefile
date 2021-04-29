@@ -97,11 +97,11 @@ update: | update-common
 
 ifndef SHARED_LIB_EXT
  ifeq ($(detected_OS),macOS)
-   SHARED_LIB_EXT := dylib
+  SHARED_LIB_EXT := dylib
  else ifeq ($(detected_OS),Windows)
-   SHARED_LIB_EXT := dll
+  SHARED_LIB_EXT := dll
  else
-   SHARED_LIB_EXT := so
+  SHARED_LIB_EXT := so
  endif
 endif
 
@@ -118,6 +118,15 @@ endif
 # MACOSX_DEPLOYMENT_TARGET ?= 10.14
 
 RELEASE ?= false
+
+ifneq ($(RELEASE),false)
+ LOG_LEVEL ?= INFO
+else
+ LOG_LEVEL ?= DEBUG
+endif
+ifeq ($(LOG_LEVEL),)
+ override LOG_LEVEL = DEBUG
+endif
 
 ifneq ($(RELEASE),false)
  RLN_CARGO_BUILD_FLAGS := --release
@@ -434,6 +443,7 @@ RUN_AFTER_BUILD ?= true
 
 chat: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
+	LOG_LEVEL=$(LOG_LEVEL) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -448,6 +458,7 @@ ifeq ($(detected_OS),macOS)
 	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble chat
 else ifeq ($(detected_OS),Windows)
+	LOG_LEVEL=$(LOG_LEVEL) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -464,6 +475,7 @@ else ifeq ($(detected_OS),Windows)
 	$(ENV_SCRIPT) nimble chat
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
+	LOG_LEVEL=$(LOG_LEVEL) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -481,6 +493,7 @@ endif
 
 test: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
+	LOG_LEVEL=$(LOG_LEVEL) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -495,6 +508,7 @@ ifeq ($(detected_OS),macOS)
 	WIN_STATIC=$(WIN_STATIC) \
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
+	LOG_LEVEL=$(LOG_LEVEL) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -511,6 +525,7 @@ else ifeq ($(detected_OS),Windows)
 	$(ENV_SCRIPT) nimble tests
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
+	LOG_LEVEL=$(LOG_LEVEL) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
