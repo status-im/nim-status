@@ -15,7 +15,7 @@ type ChatTUI* = ref object
   client*: ChatClient
   dataDir*: string
   running*: bool
-  tasks*: TaskRunner
+  taskRunner*: TaskRunner
 
 # ChatTUI's purpose is to dispatch on event type to appropriate proc/s, which
 # will mainly involve printing messages in events from the client and taking
@@ -23,9 +23,9 @@ type ChatTUI* = ref object
 # or displaying a list of possible commands when user enters `/help` or `/?`
 
 proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
-  var tasks = TaskRunner.new()
-  tasks.createWorker(thread, "input")
-  T(client: client, dataDir: dataDir, running: true, tasks: tasks)
+  var taskRunner = TaskRunner.new()
+  taskRunner.createWorker(thread, "input")
+  T(client: client, dataDir: dataDir, running: true, taskRunner: taskRunner)
 
 proc start*(self: ChatTUI) =
   trace "starting TUI"
@@ -33,11 +33,11 @@ proc start*(self: ChatTUI) =
   # events coming from the client and user
   # before starting the client, start tui's task runner, which in turn starts a
   # thread dedicated to monitoring user input/actions
-  self.tasks.start()
+  self.taskRunner.start()
   self.client.start()
 
 proc stop*(self: ChatTUI) =
   self.client.stop()
   trace "stopping TUI"
-  self.tasks.stop()
+  self.taskRunner.stop()
   self.running = false
