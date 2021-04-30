@@ -16,25 +16,20 @@ logScope:
   topics = "chat"
 
 proc main() {.async.} =
-  let config = ChatConfig.load()
-  let dataDir = absolutePath(expandTilde(config.dataDir))
-  let logFile =
-    if config.dataDir != defaultDataDir() and config.logFile == defaultLogFile():
-      joinPath(dataDir, extractFilename(defaultLogFile()))
-    else:
-      absolutePath(expandTilde(config.logFile))
+  let dataDir = handleConfig(ChatConfig.load())
 
-  createDir(dataDir)
-  discard defaultChroniclesStream.output.open(logFile, fmAppend)
+  notice "start program"
 
-  notice "START PROGRAM"
   var tui = ChatTUI.new(ChatClient.new(dataDir), dataDir)
   var tuiPtr {.threadvar.}: pointer
   tuiPtr = cast[pointer](tui)
+
   proc stop() {.noconv.} = waitFor cast[ChatTUI](tuiPtr).stop()
   setControlCHook(stop)
+
   await tui.start()
   while tui.running: poll()
-  notice "EXIT PROGRAM"
+
+  notice "exit program"
 
 when isMainModule: waitFor main()

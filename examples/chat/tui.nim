@@ -1,5 +1,5 @@
 import # vendor libs
-  chronicles
+  chronicles, chronos
 
 import # chat libs
   ./client, ./task_runner, ./tui/tasks

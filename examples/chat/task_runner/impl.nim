@@ -7,7 +7,7 @@ import # vendor libs
 import # chat libs
   ./tasks, ./workers
 
-export chronos, tables, task_runner, tasks, workers
+export tables, task_runner, tasks, workers
 
 logScope:
   topics = "task-runner"

@@ -2,7 +2,7 @@ import # std libs
   os
 
 import # vendor libs
-  confutils
+  chronicles, confutils
 
 export confutils
 
@@ -28,3 +28,15 @@ type ChatConfig* = object
     desc: "Chat log file. Default is ./chat.log relative to data directory. " &
           "If user supplied path is relative it will be resolved from ${PWD}"
   .}: string
+
+proc handleConfig*(config: ChatConfig): string =
+  let dataDir = absolutePath(expandTilde(config.dataDir))
+  let logFile =
+    if config.dataDir != defaultDataDir() and config.logFile == defaultLogFile():
+      joinPath(dataDir, extractFilename(defaultLogFile()))
+    else:
+      absolutePath(expandTilde(config.logFile))
+
+  createDir(dataDir)
+  discard defaultChroniclesStream.output.open(logFile, fmAppend)
+  return dataDir
