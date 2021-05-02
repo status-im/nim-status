@@ -42,7 +42,8 @@ proc stop*(self: TaskRunner) {.async.} =
         await cast[WorkerThread](worker).stop()
 
 proc createWorker*(self: TaskRunner, kind: WorkerKind, name: string,
-  context: Context = emptyContext, size = DefaultWorkerPoolSize) =
+  context: Context = emptyContext,
+  contextArg: ContextArg = ContextArg(), size = DefaultWorkerPoolSize) =
   case kind:
     of pool:
       self.workers[name] = (kind: kind,

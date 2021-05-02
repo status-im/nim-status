@@ -13,8 +13,8 @@ type WorkerPool* = ref object of Worker
   size*: int
 
 proc new*(T: type WorkerPool, name: string, context: Context = emptyContext,
-  size: int = DefaultWorkerPoolSize): T =
-  T(context: context, name: name, size: size)
+  contextArg: ContextArg = ContextArg(), size: int = DefaultWorkerPoolSize): T =
+  T(context: context, contextArg: contextArg, name: name, size: size)
 
 proc start*(self: WorkerPool) {.async.} =
   trace "starting worker pool", name=self.name, size=self.size
