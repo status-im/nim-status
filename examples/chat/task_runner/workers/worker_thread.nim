@@ -40,19 +40,19 @@ proc start*(self: WorkerThread) {.async.} =
   self.chanRecvFromThread.open()
   self.chanSendToThread.open()
   let arg = WorkerThreadArg(
-    chanSendToHost: self.chanRecvFromThread,
     chanRecvFromHost: self.chanSendToThread,
+    chanSendToHost: self.chanRecvFromThread,
     context: self.context,
     contextArg: self.contextArg,
     workerName: self.name,
   )
   createThread(self.thread, workerThread, arg)
   trace "waiting for worker thread to start", worker=self.name
-  discard $(self.chanRecvFromThread.recvSync())
+  discard $(await self.chanRecvFromThread.recv())
 
 proc stop*(self: WorkerThread) {.async.} =
   trace "stopping worker thread", worker=self.name
-  self.chanSendToThread.sendSync("stop".safe)
+  await self.chanSendToThread.send("stop".safe)
   self.chanRecvFromThread.close()
   self.chanSendToThread.close()
   trace "waiting for worker thread to stop", worker=self.name
@@ -68,6 +68,8 @@ proc worker(arg: WorkerThreadArg) {.async.} =
   chanSendToHost.open()
 
   await arg.context(arg.contextArg)
+  trace "worker thread sending notice to host", notice="ready",
+    worker=workerName
   await chanSendToHost.send("ready".safe)
 
   while true:
@@ -89,9 +91,9 @@ proc worker(arg: WorkerThreadArg) {.async.} =
       try:
         asyncSpawn task(message)
       except Exception as e:
-        error "worker thread task exception", error=e.msg, task=taskName,
+        error "worker thread exception", error=e.msg, task=taskName,
           worker=workerName
-    except Exception as e:
+    except:
       error "worker thread received unknown message", message=message,
         worker=workerName
 

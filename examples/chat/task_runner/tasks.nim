@@ -16,14 +16,6 @@ type
   TaskArgRts* = ref object of TaskArg
     rcptr*: ByteAddress # pointer to return-channel for sender
 
-# the reason it's important to have Context is that in a WorkerPool all of its
-# threads need to be setup with the context; while for a WorkerThread that's
-# easy to accomplish with an rts task that's called (by user of TaskRunner)
-# immediately after the TaskRunner instance has finished starting, it's not so
-# easily accomplished for a pool since the task would need to run in every
-# thread. So that's effectively what Context is: a proc that will be called
-# during thread/s startup of WorkerThread and WorkerPool; can rely on std lib's
-# `createThread` deepCopy behavior when creating a thread
 const emptyContext*: Context =
   proc(arg: ContextArg) {.async, gcsafe, nimcall.} = discard
 

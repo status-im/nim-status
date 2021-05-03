@@ -18,6 +18,7 @@ type ChatClient* = ref object
 
 proc new*(T: type ChatClient, dataDir: string): T =
   var taskRunner = TaskRunner.new()
+  taskRunner.createWorker(thread, "nim-status")
   taskRunner.createWorker(pool, "pool1")
   taskRunner.createWorker(pool, "pool2", emptyContext, ContextArg(), 4)
   taskRunner.createWorker(pool, "pool3")
