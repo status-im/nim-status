@@ -11,11 +11,12 @@ logScope:
   topics = "task-runner"
 
 type
-  WorkerThreadArg = object
+  WorkerThreadArg = ref object
     chanSendToHost: AsyncChannel[ThreadSafeString]
     chanRecvFromHost: AsyncChannel[ThreadSafeString]
     context: Context
     contextArg: ContextArg
+    workerName: string
   WorkerThread* = ref object of Worker
     chanRecvFromThread: AsyncChannel[ThreadSafeString]
     chanSendToThread: AsyncChannel[ThreadSafeString]
@@ -30,18 +31,72 @@ proc new*(T: type WorkerThread, name: string,
     chanSendToThread = newAsyncChannel[ThreadSafeString](-1)
     thread = Thread[WorkerThreadArg]()
 
-  T(context: context, contextArg: contextArg name: name,
+  T(context: context, contextArg: contextArg, name: name,
     chanRecvFromThread: chanRecvFromThread, chanSendToThread: chanSendToThread,
     thread: thread)
 
 proc start*(self: WorkerThread) {.async.} =
-  trace "starting worker thread", name=self.name
+  trace "starting worker thread", worker=self.name
+  self.chanRecvFromThread.open()
+  self.chanSendToThread.open()
+  let arg = WorkerThreadArg(
+    chanSendToHost: self.chanRecvFromThread,
+    chanRecvFromHost: self.chanSendToThread,
+    context: self.context,
+    contextArg: self.contextArg,
+    workerName: self.name,
+  )
+  createThread(self.thread, workerThread, arg)
+  trace "waiting for worker thread to start", worker=self.name
+  discard $(self.chanRecvFromThread.recvSync())
 
 proc stop*(self: WorkerThread) {.async.} =
-  trace "stopping worker thread", name=self.name
+  trace "stopping worker thread", worker=self.name
+  self.chanSendToThread.sendSync("stop".safe)
+  self.chanRecvFromThread.close()
+  self.chanSendToThread.close()
+  trace "waiting for worker thread to stop", worker=self.name
+  joinThread(self.thread)
 
-proc thread(arg: WorkerThreadArg) {.async.} =
-  discard
+proc worker(arg: WorkerThreadArg) {.async.} =
+  let
+    chanRecvFromHost = arg.chanRecvFromHost
+    chanSendToHost = arg.chanSendToHost
+    workerName = arg.workerName
+
+  chanRecvFromHost.open()
+  chanSendToHost.open()
+
+  await arg.context(arg.contextArg)
+  await chanSendToHost.send("ready".safe)
+
+  while true:
+    trace "worker thread waiting for message", worker=workerName
+    let received = $(await chanRecvFromHost.recv())
+    trace "worker thread received message", message=received, worker=workerName
+
+    if received == "stop":
+      trace "worker thread received 'stop'", worker=workerName
+      break
+
+    try:
+      let
+        parsed = parseJson(received)
+        task = cast[Task](parsed{"tptr"}.getInt)
+        taskName = parsed{"tname"}.getStr
+
+      trace "worker thread initiating task", task=taskName, worker=workerName
+      try:
+        asyncSpawn task(received)
+      except Exception as e:
+        error "worker thread task exception", error=e.msg, task=taskName,
+          worker=workerName
+    except Exception as e:
+      error "worker thread received unknown message", message=received,
+        worker=workerName
+
+  chanRecvFromHost.close()
+  chanSendToHost.close()
 
 proc workerThread(arg: WorkerThreadArg) {.thread.} =
-  waitFor thread(arg)
+  waitFor worker(arg)

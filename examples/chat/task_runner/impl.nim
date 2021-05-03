@@ -42,14 +42,15 @@ proc stop*(self: TaskRunner) {.async.} =
         await cast[WorkerThread](worker).stop()
 
 proc createWorker*(self: TaskRunner, kind: WorkerKind, name: string,
-  context: Context = emptyContext,
-  contextArg: ContextArg = ContextArg(), size = DefaultWorkerPoolSize) =
+  context: Context = emptyContext, contextArg: ContextArg = ContextArg(),
+  size = DefaultWorkerPoolSize) =
   case kind:
     of pool:
       self.workers[name] = (kind: kind,
-        worker: WorkerPool.new(name, context, size))
+        worker: WorkerPool.new(name, context, contextArg, size))
     of thread:
-      self.workers[name] = (kind: kind, worker: WorkerThread.new(name, context))
+      self.workers[name] = (kind: kind,
+        worker: WorkerThread.new(name, context, contextArg))
 
 # the createTask template needs to be implemented here because it needs to know
 # about worker types, task types, and the TaskRunner type

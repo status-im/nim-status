@@ -10,9 +10,11 @@ type
   TaskKind* = enum async, async_rts, sync, sync_rts # rts == "return to sender"
   TaskArg* = ref object of RootObj
     kind*: TaskKind
+    hcptr*: ByteAddress # pointer to channel for sending to host
+    tname*: string
     tptr*: ByteAddress # pointer to task proc
   TaskArgRts* = ref object of TaskArg
-    cptr*: ByteAddress # pointer to return-channel for sender
+    rcptr*: ByteAddress # pointer to return-channel for sender
 
 # the reason it's important to have Context is that in a WorkerPool all of its
 # threads need to be setup with the context; while for a WorkerThread that's
@@ -22,7 +24,8 @@ type
 # thread. So that's effectively what Context is: a proc that will be called
 # during thread/s startup of WorkerThread and WorkerPool; can rely on std lib's
 # `createThread` deepCopy behavior when creating a thread
-const emptyContext*: Context = proc() {.async, gcsafe, nimcall.} = discard
+const emptyContext*: Context =
+  proc(arg: ContextArg) {.async, gcsafe, nimcall.} = discard
 
 proc decode*[T](arg: string): T =
   Json.decode(arg, T, allowUnknownFields = true)
