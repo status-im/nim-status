@@ -1,5 +1,5 @@
 import # vendor libs
-  chronicles, chronos
+  chronicles, chronos, task_runner
 
 import # chat libs
   ./worker
@@ -7,10 +7,34 @@ import # chat libs
 logScope:
   topics = "task-runner"
 
-const DefaultWorkerPoolSize* = 16
+type
+  WorkerPoolArg = ref object
+    chanSendToHost: AsyncChannel[ThreadSafeString]
+    chanRecvFromHost: AsyncChannel[ThreadSafeString]
+    context: Context
+    contextArg: ContextArg
+    poolName: string
+    size: int
+  WorkerPool* = ref object of Worker
+    chanRecvFromPool: AsyncChannel[ThreadSafeString]
+    chanSendToPool: AsyncChannel[ThreadSafeString]
+    size: int
+    thread: Thread[WorkerPoolArg]
+  WorkerPoolThreadArg = ref object
+    chanSendToHost: AsyncChannel[ThreadSafeString]
+    chanSendToPoolManager: AsyncChannel[ThreadSafeString]
+    chanRecvFromPoolManager: AsyncChannel[ThreadSafeString]
+    context: Context
+    contextArg: ContextArg
+    poolName: string
+  WorkerPoolThread = ref object of Worker
+    chanRecvFromPoolThread: AsyncChannel[ThreadSafeString]
+    chanSendToPoolThread: AsyncChannel[ThreadSafeString]
+    thread: Thread[WorkerPoolThreadArg]
 
-type WorkerPool* = ref object of Worker
-  size*: int
+proc poolThread(arg: WorkerPoolArg) {.thread.}
+
+const DefaultWorkerPoolSize* = 16
 
 proc new*(T: type WorkerPool, name: string, context: Context = emptyContext,
   contextArg: ContextArg = ContextArg(), size: int = DefaultWorkerPoolSize): T =
