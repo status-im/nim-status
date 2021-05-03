@@ -7,9 +7,8 @@ type
   ContextArg* = ref object of RootObj
   Context* = proc(arg: ContextArg): Future[void] {.gcsafe, nimcall.}
   Task* = proc(arg: string): Future[void] {.gcsafe, nimcall.}
-  TaskKind* = enum async, async_rts, sync, sync_rts # rts == "return to sender"
+  TaskKind* = enum no_rts, rts # rts == "return to sender"
   TaskArg* = ref object of RootObj
-    kind*: TaskKind
     hcptr*: ByteAddress # pointer to channel for sending to host
     tname*: string
     tptr*: ByteAddress # pointer to task proc

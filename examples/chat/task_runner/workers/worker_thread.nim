@@ -18,8 +18,8 @@ type
     contextArg: ContextArg
     workerName: string
   WorkerThread* = ref object of Worker
-    chanRecvFromThread: AsyncChannel[ThreadSafeString]
-    chanSendToThread: AsyncChannel[ThreadSafeString]
+    chanRecvFromThread*: AsyncChannel[ThreadSafeString]
+    chanSendToThread*: AsyncChannel[ThreadSafeString]
     thread: Thread[WorkerThreadArg]
 
 proc workerThread(arg: WorkerThreadArg) {.thread.}

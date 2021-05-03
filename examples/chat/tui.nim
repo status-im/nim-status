@@ -31,8 +31,6 @@ proc start*(self: ChatTUI) {.async.} =
   trace "starting TUI"
   # before starting the client or tui's task runner, should prep tui to accept
   # events coming from the client and user
-  # before starting the client, start tui's task runner, which in turn starts a
-  # thread dedicated to monitoring user input/actions
   await self.taskRunner.start()
   await self.client.start()
 

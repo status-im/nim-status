@@ -19,9 +19,9 @@ type
     poolName: string
     poolSize: int
   WorkerPool* = ref object of Worker
-    chanRecvFromPool: AsyncChannel[ThreadSafeString]
-    chanSendToPool: AsyncChannel[ThreadSafeString]
-    size: int
+    chanRecvFromPool*: AsyncChannel[ThreadSafeString]
+    chanSendToPool*: AsyncChannel[ThreadSafeString]
+    size*: int
     thread: Thread[WorkerPoolThreadArg]
   WorkerPoolWorkerThreadArg = ref object
     chanRecvFromPool: AsyncChannel[ThreadSafeString]
