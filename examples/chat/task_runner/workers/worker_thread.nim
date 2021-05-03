@@ -72,27 +72,27 @@ proc worker(arg: WorkerThreadArg) {.async.} =
 
   while true:
     trace "worker thread waiting for message", worker=workerName
-    let received = $(await chanRecvFromHost.recv())
-    trace "worker thread received message", message=received, worker=workerName
+    let message = $(await chanRecvFromHost.recv())
+    trace "worker thread received message", message=message, worker=workerName
 
-    if received == "stop":
+    if message == "stop":
       trace "worker thread received 'stop'", worker=workerName
       break
 
     try:
       let
-        parsed = parseJson(received)
+        parsed = parseJson(message)
         task = cast[Task](parsed{"tptr"}.getInt)
         taskName = parsed{"tname"}.getStr
 
       trace "worker thread initiating task", task=taskName, worker=workerName
       try:
-        asyncSpawn task(received)
+        asyncSpawn task(message)
       except Exception as e:
         error "worker thread task exception", error=e.msg, task=taskName,
           worker=workerName
     except Exception as e:
-      error "worker thread received unknown message", message=received,
+      error "worker thread received unknown message", message=message,
         worker=workerName
 
   chanRecvFromHost.close()
