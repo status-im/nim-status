@@ -179,8 +179,6 @@ proc pool(arg: WorkerPoolThreadArg) {.async.} =
 
   await chanSendToHost.send("ready".safe)
 
-  var allPoolThreads: seq[Thread[WorkerPoolWorkerThreadArg]] = @[]
-
   trace "worker pool starting workers", pool=poolName
   for i in 0..<poolSize:
     let
@@ -188,7 +186,6 @@ proc pool(arg: WorkerPoolThreadArg) {.async.} =
       poolWorker = WorkerPoolWorkerThread.new(poolName, id,
         chanRecvFromHostOrPoolWorker, arg.context, arg.contextArg)
 
-    allPoolThreads.add poolWorker.thread
     asyncSpawn poolWorker.start()
     trace "adding worker to workersIdle", pool=poolName, workerId=id
     workersIdle[i] = poolWorker
