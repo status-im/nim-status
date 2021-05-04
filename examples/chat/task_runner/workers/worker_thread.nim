@@ -12,14 +12,14 @@ logScope:
 
 type
   WorkerThreadArg = ref object
-    chanSendToHost: AsyncChannel[ThreadSafeString]
-    chanRecvFromHost: AsyncChannel[ThreadSafeString]
+    chanSendToHost: WorkerChannel
+    chanRecvFromHost: WorkerChannel
     context: Context
     contextArg: ContextArg
     workerName: string
   WorkerThread* = ref object of Worker
-    chanRecvFromThread*: AsyncChannel[ThreadSafeString]
-    chanSendToThread*: AsyncChannel[ThreadSafeString]
+    chanRecvFromThread*: WorkerChannel
+    chanSendToThread*: WorkerChannel
     thread: Thread[WorkerThreadArg]
 
 proc workerThread(arg: WorkerThreadArg) {.thread.}
@@ -27,8 +27,8 @@ proc workerThread(arg: WorkerThreadArg) {.thread.}
 proc new*(T: type WorkerThread, name: string,
   context: Context = emptyContext, contextArg: ContextArg = ContextArg()): T =
   let
-    chanRecvFromThread = newAsyncChannel[ThreadSafeString](-1)
-    chanSendToThread = newAsyncChannel[ThreadSafeString](-1)
+    chanRecvFromThread = newWorkerChannel()
+    chanSendToThread = newWorkerChannel()
     thread = Thread[WorkerThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,

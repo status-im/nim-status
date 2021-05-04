@@ -12,27 +12,27 @@ logScope:
 
 type
   WorkerPoolThreadArg = ref object
-    chanSendToHost: AsyncChannel[ThreadSafeString]
-    chanRecvFromHost: AsyncChannel[ThreadSafeString]
+    chanSendToHost: WorkerChannel
+    chanRecvFromHost: WorkerChannel
     context: Context
     contextArg: ContextArg
     poolName: string
     poolSize: int
   WorkerPool* = ref object of Worker
-    chanRecvFromPool*: AsyncChannel[ThreadSafeString]
-    chanSendToPool*: AsyncChannel[ThreadSafeString]
+    chanRecvFromPool*: WorkerChannel
+    chanSendToPool*: WorkerChannel
     size*: int
     thread: Thread[WorkerPoolThreadArg]
   WorkerPoolWorkerThreadArg = ref object
-    chanRecvFromPool: AsyncChannel[ThreadSafeString]
-    chanSendToPool: AsyncChannel[ThreadSafeString]
+    chanRecvFromPool: WorkerChannel
+    chanSendToPool: WorkerChannel
     context: Context
     contextArg: ContextArg
     poolName: string
     workerId: int
   WorkerPoolWorkerThread = ref object of Worker
-    chanRecvFromPoolWorker: AsyncChannel[ThreadSafeString]
-    chanSendToPoolWorker: AsyncChannel[ThreadSafeString]
+    chanRecvFromPoolWorker: WorkerChannel
+    chanSendToPoolWorker: WorkerChannel
     id: int
     thread: Thread[WorkerPoolWorkerThreadArg]
   WorkerNotification = ref object
@@ -48,8 +48,8 @@ const DefaultWorkerPoolSize* = 16
 proc new*(T: type WorkerPool, name: string, context: Context = emptyContext,
   contextArg: ContextArg = ContextArg(), size: int = DefaultWorkerPoolSize): T =
   let
-    chanRecvFromPool = newAsyncChannel[ThreadSafeString](-1)
-    chanSendToPool = newAsyncChannel[ThreadSafeString](-1)
+    chanRecvFromPool = newWorkerChannel()
+    chanSendToPool = newWorkerChannel()
     thread = Thread[WorkerPoolThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,
@@ -81,10 +81,10 @@ proc stop*(self: WorkerPool) {.async.} =
   joinThread(self.thread)
 
 proc new*(T: type WorkerPoolWorkerThread, name: string, id: int,
-  chanRecvFromPoolWorker: AsyncChannel[ThreadSafeString],
+  chanRecvFromPoolWorker: WorkerChannel,
   context: Context = emptyContext, contextArg: ContextArg = ContextArg()): T =
   let
-    chanSendToPoolWorker = newAsyncChannel[ThreadSafeString](-1)
+    chanSendToPoolWorker = newWorkerChannel()
     thread = Thread[WorkerPoolWorkerThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,

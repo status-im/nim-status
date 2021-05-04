@@ -15,37 +15,36 @@ const helloTaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.} 
   echo "!!! this is " & arg.tname  & " saying 'hello' to " & arg.to & " !!!"
 
 proc helloTask*(taskRunner: TaskRunner, workerName: string, to: string) =
-  var hcptr: ByteAddress
-  let workerKind = taskRunner.workers[workerName].kind
+  var
+    chanToHost: WorkerChannel
+    chanToWorker: WorkerChannel
+  let
+    kind = taskRunner.workers[workerName].kind
+    worker = taskRunner.workers[workerName].worker
+
+  case kind
+    of pool:
+      let workerPool = cast[WorkerPool](worker)
+      chanToHost = workerPool.chanRecvFromPool
+      chanToWorker = workerPool.chanSendToPool
+    of thread:
+      let workerThread = cast[WorkerThread](worker)
+      chanToHost = workerThread.chanRecvFromThread
+      chanToWorker = workerThread.chanSendToThread
 
   # !!!!!!!!! there's definitely a race condition in worker pool where
   # !!!!!!!!! sometimes helloTask is executed when went to a pool, but not
   # !!!!!!!!! always; probably a race re: taskQueue and allReady in worker_pool
 
-  # the following code is ugly, but only serves the purpose of exploring how a
-  # task could be executed on a WorkerThread or WorkerPool without the code
-  # invoking the task needing to differentiate except for `workerName`; the
-  # `createTask` template/macro should help paper over such complications
-  case workerKind
-    of pool:
-      let worker = cast[WorkerPool](taskRunner.workers[workerName].worker)
-      hcptr = cast[ByteAddress](cast[pointer](worker.chanRecvFromPool))
-    of thread:
-      let worker = cast[WorkerThread](taskRunner.workers[workerName].worker)
-      hcptr = cast[ByteAddress](cast[pointer](worker.chanRecvFromThread))
   let arg = HelloTaskArg(
-    hcptr: hcptr,
+    # does it need to be `cast[ByteAddress](cast[pointer](chanToHost))` ?
+    # when implementing example `rts` task can check
+    hcptr: cast[ByteAddress](chanToHost),
     tname: "helloTask",
     tptr: cast[ByteAddress](helloTaskImpl),
     to: to
   )
-  case workerKind
-    of pool:
-      let worker = cast[WorkerPool](taskRunner.workers[workerName].worker)
-      worker.chanSendToPool.sendSync(arg.encode.safe)
-    of thread:
-      let worker = cast[WorkerThread](taskRunner.workers[workerName].worker)
-      worker.chanSendToThread.sendSync(arg.encode.safe)
+  chanToWorker.sendSync(arg.encode.safe)
 
 # when `createTask` template/macro is implemented, would prefer to write
 # something like...
@@ -78,7 +77,7 @@ const hello2TaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.}
 proc hello2Task*(taskRunner: TaskRunner, workerName: string) =
   let worker = cast[WorkerThread](taskRunner.workers[workerName].worker)
   let arg = Hello2TaskArg(
-    hcptr: cast[ByteAddress](cast[pointer](worker.chanSendToThread)),
+    hcptr: cast[ByteAddress](worker.chanSendToThread),
     tname: "hello2Task",
     tptr: cast[ByteAddress](hello2TaskImpl)
   )
