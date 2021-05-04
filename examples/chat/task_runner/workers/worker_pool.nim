@@ -226,6 +226,8 @@ proc pool(arg: WorkerPoolThreadArg) {.async.} =
               workerId = notification.id
               notice = notification.notice
 
+            var err = false
+
             if notice == "ready":
               allReady = allReady + 1
               trace "received 'ready' from a worker", allReady=allReady,
@@ -242,27 +244,29 @@ proc pool(arg: WorkerPoolThreadArg) {.async.} =
                 workerId=poolWorker.id
               workersBusy.del workerId
 
-              if taskQueue.len > 0:
-                trace "removing message from taskQueue",
-                  newlength=(taskQueue.len - 1), pool=poolName
-                message = taskQueue[0]
-                taskQueue.delete 0, 0
-
-                trace "removing worker from workersIdle",
-                  newLength=(workersIdle.len - 1), pool=poolName
-                let poolWorker = workersIdle[0]
-                workersIdle.delete 0, 0
-                trace "adding worker to workersBusy",
-                  newLength=(workersBusy.len + 1), pool=poolName,
-                  workerId=poolWorker.id
-                workersBusy.add poolWorker.id, poolWorker
-                trace "sending task to worker", pool=poolName,
-                  workerId=poolWorker.id
-                await poolWorker.chanSendToPoolWorker.send(message.safe)
-
             else:
+              err = true
               error "unknown worker notification", notice=notice, pool=poolName,
                 workerId=workerId
+
+            if taskQueue.len > 0 and not err and allReady == poolSize and
+               workersBusy.len != poolSize:
+              trace "removing message from taskQueue",
+                newlength=(taskQueue.len - 1), pool=poolName
+              message = taskQueue[0]
+              taskQueue.delete 0, 0
+
+              trace "removing worker from workersIdle",
+                newLength=(workersIdle.len - 1), pool=poolName
+              let poolWorker = workersIdle[0]
+              workersIdle.delete 0, 0
+              trace "adding worker to workersBusy",
+                newLength=(workersBusy.len + 1), pool=poolName,
+                workerId=poolWorker.id
+              workersBusy.add poolWorker.id, poolWorker
+              trace "sending task to worker", pool=poolName,
+                workerId=poolWorker.id
+              await poolWorker.chanSendToPoolWorker.send(message.safe)
 
           except Exception as e:
             error "unknown error while handling worker notification",
