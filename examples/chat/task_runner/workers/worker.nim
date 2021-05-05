@@ -7,11 +7,13 @@ import # chat libs
 export tasks, task_runner
 
 type
+  WorkerChannel* = AsyncChannel[ThreadSafeString]
   Worker* = ref object of RootObj
+    chanRecvFromWorker*: WorkerChannel
+    chanSendToWorker*: WorkerChannel
     context*: Context
     contextArg*: ContextArg
     name*: string
-  WorkerChannel* = AsyncChannel[ThreadSafeString]
 
 proc newWorkerChannel*(): WorkerChannel =
   newAsyncChannel[ThreadSafeString](-1)

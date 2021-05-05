@@ -19,8 +19,6 @@ type
     poolName: string
     poolSize: int
   PoolWorker* = ref object of Worker
-    chanRecvFromPool*: WorkerChannel
-    chanSendToPool*: WorkerChannel
     size*: int
     thread: Thread[PoolThreadArg]
   WorkerThreadArg = ref object
@@ -30,9 +28,7 @@ type
     contextArg: ContextArg
     poolName: string
     workerId: int
-  PoolWorkerThreadWorker = ref object of Worker
-    chanRecvFromPoolWorker: WorkerChannel
-    chanSendToPoolWorker: WorkerChannel
+  ThreadWorker = ref object of Worker
     id: int
     thread: Thread[WorkerThreadArg]
   WorkerNotification = ref object
@@ -48,53 +44,53 @@ const DefaultPoolSize* = 16
 proc new*(T: type PoolWorker, name: string, context: Context = emptyContext,
   contextArg: ContextArg = ContextArg(), size: int = DefaultPoolSize): T =
   let
-    chanRecvFromPool = newWorkerChannel()
-    chanSendToPool = newWorkerChannel()
+    chanRecvFromWorker = newWorkerChannel()
+    chanSendToWorker = newWorkerChannel()
     thread = Thread[PoolThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,
-    chanRecvFromPool: chanRecvFromPool, chanSendToPool: chanSendToPool,
+    chanRecvFromWorker: chanRecvFromWorker, chanSendToWorker: chanSendToWorker,
     size: size, thread: thread)
 
 proc start*(self: PoolWorker) {.async.} =
   trace "pool starting", pool=self.name, poolSize=self.size
-  self.chanRecvFromPool.open()
-  self.chanSendToPool.open()
+  self.chanRecvFromWorker.open()
+  self.chanSendToWorker.open()
   let arg = PoolThreadArg(
-    chanRecvFromHost: self.chanSendToPool,
-    chanSendToHost: self.chanRecvFromPool,
+    chanRecvFromHost: self.chanSendToWorker,
+    chanSendToHost: self.chanRecvFromWorker,
     context: self.context,
     contextArg: self.contextArg,
     poolName: self.name,
     poolSize: self.size
   )
   createThread(self.thread, poolThread, arg)
-  discard $(await self.chanRecvFromPool.recv())
+  discard $(await self.chanRecvFromWorker.recv())
   trace "pool started", pool=self.name, poolSize=self.size
 
 proc stop*(self: PoolWorker) {.async.} =
-  await self.chanSendToPool.send("stop".safe)
-  self.chanRecvFromPool.close()
-  self.chanSendToPool.close()
+  await self.chanSendToWorker.send("stop".safe)
+  self.chanRecvFromWorker.close()
+  self.chanSendToWorker.close()
   joinThread(self.thread)
   trace "pool stopped", pool=self.name, poolSize=self.size
 
-proc new*(T: type PoolWorkerThreadWorker, name: string, id: int,
-  chanRecvFromPoolWorker: WorkerChannel,
-  context: Context = emptyContext, contextArg: ContextArg = ContextArg()): T =
+proc new*(T: type ThreadWorker, name: string, id: int,
+  chanRecvFromWorker: WorkerChannel, context: Context = emptyContext,
+  contextArg: ContextArg = ContextArg()): T =
   let
-    chanSendToPoolWorker = newWorkerChannel()
+    chanSendToWorker = newWorkerChannel()
     thread = Thread[WorkerThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,
-    chanRecvFromPoolWorker: chanRecvFromPoolWorker,
-    chanSendToPoolWorker: chanSendToPoolWorker, id: id, thread: thread)
+    chanRecvFromWorker: chanRecvFromWorker,
+    chanSendToWorker: chanSendToWorker, id: id, thread: thread)
 
-proc start*(self: PoolWorkerThreadWorker) {.async.} =
-  self.chanSendToPoolWorker.open()
+proc start*(self: ThreadWorker) {.async.} =
+  self.chanSendToWorker.open()
   let arg = WorkerThreadArg(
-    chanRecvFromPool: self.chanSendToPoolWorker,
-    chanSendToPool: self.chanRecvFromPoolWorker,
+    chanRecvFromPool: self.chanSendToWorker,
+    chanSendToPool: self.chanRecvFromWorker,
     context: self.context,
     contextArg: self.contextArg,
     poolName: self.name,
@@ -102,20 +98,20 @@ proc start*(self: PoolWorkerThreadWorker) {.async.} =
   )
   createThread(self.thread, workerThread, arg)
 
-proc stop*(self: PoolWorkerThreadWorker) {.async.} =
-  await self.chanSendToPoolWorker.send("stop".safe)
-  self.chanSendToPoolWorker.close()
+proc stop*(self: ThreadWorker) {.async.} =
+  await self.chanSendToWorker.send("stop".safe)
+  self.chanSendToWorker.close()
   joinThread(self.thread)
   trace "pool worker stopped", pool=self.name, workerId=self.id
 
 proc pool(arg: PoolThreadArg) {.async.} =
   let
-    chanRecvFromHostOrPoolWorker = arg.chanRecvFromHost
+    chanRecvFromHostOrWorker = arg.chanRecvFromHost
     chanSendToHost = arg.chanSendToHost
     pool = arg.poolName
     poolSize = arg.poolSize
 
-  chanRecvFromHostOrPoolWorker.open()
+  chanRecvFromHostOrWorker.open()
   chanSendToHost.open()
 
   let notice = "ready"
@@ -124,15 +120,15 @@ proc pool(arg: PoolThreadArg) {.async.} =
 
   var
     taskQueue: seq[string] = @[] # FIFO queue
-    workersBusy = newTable[int, PoolWorkerThreadWorker]()
-    workersIdle: seq[PoolWorkerThreadWorker] = @[]
+    workersBusy = newTable[int, ThreadWorker]()
+    workersIdle: seq[ThreadWorker] = @[]
     workersStarted = 0
 
   for i in 0..<poolSize:
     let
       workerId = i + 1
-      worker = PoolWorkerThreadWorker.new(pool, workerId,
-        chanRecvFromHostOrPoolWorker, arg.context, arg.contextArg)
+      worker = ThreadWorker.new(pool, workerId,
+        chanRecvFromHostOrWorker, arg.context, arg.contextArg)
 
     workersBusy[workerId] = worker
     trace "pool worker starting", pool, workerId
@@ -152,16 +148,16 @@ proc pool(arg: PoolThreadArg) {.async.} =
   while true:
     trace "pool waiting for message", pool
     var
-      message = $(await chanRecvFromHostOrPoolWorker.recv())
+      message = $(await chanRecvFromHostOrWorker.recv())
       shouldSendToWorker = false
 
     if message == "stop":
       trace "pool received notification from host", notice=message, pool
       trace "pool stopping", pool, poolSize
-      for poolWorker in workersIdle:
-        await poolWorker.stop()
-      for poolWorker in workersBusy.values:
-        await poolWorker.stop()
+      for worker in workersIdle:
+        await worker.stop()
+      for worker in workersBusy.values:
+        await worker.stop()
       trace "all pool workers stopped", pool, poolSize
       break
 
@@ -236,9 +232,9 @@ proc pool(arg: PoolThreadArg) {.async.} =
       trace "pool sent task to worker", pool, workerId
       trace "pool marked worker as busy", pool, poolSize, workerId,
         workersBusy=workersBusy.len, workersIdle=workersIdle.len
-      await worker.chanSendToPoolWorker.send(message.safe)
+      await worker.chanSendToWorker.send(message.safe)
 
-  chanRecvFromHostOrPoolWorker.close()
+  chanRecvFromHostOrWorker.close()
   chanSendToHost.close()
 
 proc poolThread(arg: PoolThreadArg) {.thread.} =

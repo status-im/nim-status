@@ -15,31 +15,19 @@ const helloTaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.} 
   echo "!!! this is " & arg.tname  & " saying 'hello' to " & arg.to & " !!!"
 
 proc helloTask*(taskRunner: TaskRunner, workerName: string, to: string) =
-  var
-    chanToHost: WorkerChannel
-    chanToWorker: WorkerChannel
   let
-    kind = taskRunner.workers[workerName].kind
     worker = taskRunner.workers[workerName].worker
+    chanToHost = worker.chanRecvFromWorker
+    chanToWorker = worker.chanSendToWorker
+    arg = HelloTaskArg(
+      # does it need to be `cast[ByteAddress](cast[pointer](chanToHost))` ?
+      # when implementing example `rts` task can check
+      hcptr: cast[ByteAddress](chanToHost),
+      tname: "helloTask",
+      tptr: cast[ByteAddress](helloTaskImpl),
+      to: to
+    )
 
-  case kind
-    of pool:
-      let workerPool = cast[PoolWorker](worker)
-      chanToHost = workerPool.chanRecvFromPool
-      chanToWorker = workerPool.chanSendToPool
-    of thread:
-      let workerThread = cast[ThreadWorker](worker)
-      chanToHost = workerThread.chanRecvFromThread
-      chanToWorker = workerThread.chanSendToThread
-
-  let arg = HelloTaskArg(
-    # does it need to be `cast[ByteAddress](cast[pointer](chanToHost))` ?
-    # when implementing example `rts` task can check
-    hcptr: cast[ByteAddress](chanToHost),
-    tname: "helloTask",
-    tptr: cast[ByteAddress](helloTaskImpl),
-    to: to
-  )
   chanToWorker.sendSync(arg.encode.safe)
 
 # when `createTask` template/macro is implemented, would prefer to write
@@ -71,10 +59,12 @@ const hello2TaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.}
   echo "!!! this is " & arg.tname  & " saying 'hello' to " & someName & " !!!"
 
 proc hello2Task*(taskRunner: TaskRunner, workerName: string) =
-  let worker = cast[ThreadWorker](taskRunner.workers[workerName].worker)
-  let arg = Hello2TaskArg(
-    hcptr: cast[ByteAddress](worker.chanSendToThread),
-    tname: "hello2Task",
-    tptr: cast[ByteAddress](hello2TaskImpl)
-  )
-  worker.chanSendToThread.sendSync(arg.encode.safe)
+  let
+    worker = taskRunner.workers[workerName].worker
+    arg = Hello2TaskArg(
+      hcptr: cast[ByteAddress](worker.chanSendToWorker),
+      tname: "hello2Task",
+      tptr: cast[ByteAddress](hello2TaskImpl)
+    )
+
+  worker.chanSendToWorker.sendSync(arg.encode.safe)

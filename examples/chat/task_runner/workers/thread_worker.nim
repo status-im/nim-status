@@ -18,8 +18,6 @@ type
     contextArg: ContextArg
     workerName: string
   ThreadWorker* = ref object of Worker
-    chanRecvFromThread*: WorkerChannel
-    chanSendToThread*: WorkerChannel
     thread: Thread[ThreadArg]
 
 proc workerThread(arg: ThreadArg) {.thread.}
@@ -27,33 +25,33 @@ proc workerThread(arg: ThreadArg) {.thread.}
 proc new*(T: type ThreadWorker, name: string,
   context: Context = emptyContext, contextArg: ContextArg = ContextArg()): T =
   let
-    chanRecvFromThread = newWorkerChannel()
-    chanSendToThread = newWorkerChannel()
+    chanRecvFromWorker = newWorkerChannel()
+    chanSendToWorker = newWorkerChannel()
     thread = Thread[ThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,
-    chanRecvFromThread: chanRecvFromThread, chanSendToThread: chanSendToThread,
+    chanRecvFromWorker: chanRecvFromWorker, chanSendToWorker: chanSendToWorker,
     thread: thread)
 
 proc start*(self: ThreadWorker) {.async.} =
   trace "worker starting", worker=self.name
-  self.chanRecvFromThread.open()
-  self.chanSendToThread.open()
+  self.chanRecvFromWorker.open()
+  self.chanSendToWorker.open()
   let arg = ThreadArg(
-    chanRecvFromHost: self.chanSendToThread,
-    chanSendToHost: self.chanRecvFromThread,
+    chanRecvFromHost: self.chanSendToWorker,
+    chanSendToHost: self.chanRecvFromWorker,
     context: self.context,
     contextArg: self.contextArg,
     workerName: self.name,
   )
   createThread(self.thread, workerThread, arg)
-  discard $(await self.chanRecvFromThread.recv())
+  discard $(await self.chanRecvFromWorker.recv())
   trace "worker started", worker=self.name
 
 proc stop*(self: ThreadWorker) {.async.} =
-  await self.chanSendToThread.send("stop".safe)
-  self.chanRecvFromThread.close()
-  self.chanSendToThread.close()
+  await self.chanSendToWorker.send("stop".safe)
+  self.chanRecvFromWorker.close()
+  self.chanSendToWorker.close()
   joinThread(self.thread)
   trace "worker stopped", worker=self.name
 
