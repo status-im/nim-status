@@ -28,29 +28,29 @@ proc start*(self: TaskRunner) {.async.} =
     let (kind, worker) = v
     case kind:
       of pool:
-        await cast[WorkerPool](worker).start()
+        await cast[PoolWorker](worker).start()
       of thread:
-        await cast[WorkerThread](worker).start()
+        await cast[ThreadWorker](worker).start()
 
 proc stop*(self: TaskRunner) {.async.} =
   for v in self.workers.values:
     let (kind, worker) = v
     case kind:
       of pool:
-        await cast[WorkerPool](worker).stop()
+        await cast[PoolWorker](worker).stop()
       of thread:
-        await cast[WorkerThread](worker).stop()
+        await cast[ThreadWorker](worker).stop()
 
 proc createWorker*(self: TaskRunner, kind: WorkerKind, name: string,
   context: Context = emptyContext, contextArg: ContextArg = ContextArg(),
-  size = DefaultWorkerPoolSize) =
+  size = DefaultPoolSize) =
   case kind:
     of pool:
       self.workers[name] = (kind: kind,
-        worker: WorkerPool.new(name, context, contextArg, size))
+        worker: PoolWorker.new(name, context, contextArg, size))
     of thread:
       self.workers[name] = (kind: kind,
-        worker: WorkerThread.new(name, context, contextArg))
+        worker: ThreadWorker.new(name, context, contextArg))
 
 # the `createTask` template needs to be implemented here because it needs to
 # know about worker types, task types, and the `TaskRunner` type

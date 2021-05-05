@@ -1,6 +1,6 @@
 import # chat libs
-  ./workers/[worker, worker_pool, worker_thread]
+  ./workers/[pool_worker, thread_worker, worker]
 
-export worker_pool, worker_thread, worker
+export pool_worker, thread_worker, worker
 
 type WorkerKind* = enum pool, thread

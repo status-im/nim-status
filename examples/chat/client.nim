@@ -7,7 +7,7 @@ import # chat libs
 export task_runner
 
 logScope:
-  topics = "client"
+  topics = "chat"
 
 type ChatClient* = ref object
   dataDir*: string
@@ -26,10 +26,20 @@ proc new*(T: type ChatClient, dataDir: string): T =
   T(dataDir: dataDir, taskRunner: taskRunner)
 
 proc start*(self: ChatClient) {.async.} =
-  trace "starting client"
+  debug "client starting"
+  # ... setup self.events channel (in constructor), open it here
+
+  await self.taskRunner.start()
   # before starting the client's task runner, should prep client to accept
   # events coming from the nim-status/waku
-  await self.taskRunner.start()
+
+  # IMPL (for above comments): now that taskRunner is started, in an
+  # `asyncSpawn` listen for messages from it and send them to self.events
+  # channel (happens on same thread so no need for serialization/copy-to-shared-heap)
+  debug "client started"
+
+  # task playground ------------------------------------------------------------
+
   helloTask(self.taskRunner, "nim-status", "foo")
   helloTask(self.taskRunner, "pool2", "bar")
 
@@ -43,5 +53,6 @@ proc start*(self: ChatClient) {.async.} =
   hello2Task(self.taskRunner, "context-experiment")
 
 proc stop*(self: ChatClient) {.async.} =
-  trace "stopping client"
+  debug "client stopping"
   await self.taskRunner.stop()
+  debug "client stopped"

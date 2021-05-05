@@ -11,35 +11,35 @@ logScope:
   topics = "task-runner"
 
 type
-  WorkerThreadArg = ref object
+  ThreadArg = ref object
     chanSendToHost: WorkerChannel
     chanRecvFromHost: WorkerChannel
     context: Context
     contextArg: ContextArg
     workerName: string
-  WorkerThread* = ref object of Worker
+  ThreadWorker* = ref object of Worker
     chanRecvFromThread*: WorkerChannel
     chanSendToThread*: WorkerChannel
-    thread: Thread[WorkerThreadArg]
+    thread: Thread[ThreadArg]
 
-proc workerThread(arg: WorkerThreadArg) {.thread.}
+proc workerThread(arg: ThreadArg) {.thread.}
 
-proc new*(T: type WorkerThread, name: string,
+proc new*(T: type ThreadWorker, name: string,
   context: Context = emptyContext, contextArg: ContextArg = ContextArg()): T =
   let
     chanRecvFromThread = newWorkerChannel()
     chanSendToThread = newWorkerChannel()
-    thread = Thread[WorkerThreadArg]()
+    thread = Thread[ThreadArg]()
 
   T(context: context, contextArg: contextArg, name: name,
     chanRecvFromThread: chanRecvFromThread, chanSendToThread: chanSendToThread,
     thread: thread)
 
-proc start*(self: WorkerThread) {.async.} =
-  trace "starting worker thread", worker=self.name
+proc start*(self: ThreadWorker) {.async.} =
+  trace "worker starting", worker=self.name
   self.chanRecvFromThread.open()
   self.chanSendToThread.open()
-  let arg = WorkerThreadArg(
+  let arg = ThreadArg(
     chanRecvFromHost: self.chanSendToThread,
     chanSendToHost: self.chanRecvFromThread,
     context: self.context,
@@ -47,38 +47,38 @@ proc start*(self: WorkerThread) {.async.} =
     workerName: self.name,
   )
   createThread(self.thread, workerThread, arg)
-  trace "waiting for worker thread to start", worker=self.name
   discard $(await self.chanRecvFromThread.recv())
+  trace "worker started", worker=self.name
 
-proc stop*(self: WorkerThread) {.async.} =
-  trace "stopping worker thread", worker=self.name
+proc stop*(self: ThreadWorker) {.async.} =
   await self.chanSendToThread.send("stop".safe)
   self.chanRecvFromThread.close()
   self.chanSendToThread.close()
-  trace "waiting for worker thread to stop", worker=self.name
   joinThread(self.thread)
+  trace "worker stopped", worker=self.name
 
-proc worker(arg: WorkerThreadArg) {.async.} =
+proc worker(arg: ThreadArg) {.async.} =
   let
     chanRecvFromHost = arg.chanRecvFromHost
     chanSendToHost = arg.chanSendToHost
-    workerName = arg.workerName
+    worker = arg.workerName
 
   chanRecvFromHost.open()
   chanSendToHost.open()
 
+  trace "worker running context", worker
   await arg.context(arg.contextArg)
-  trace "worker thread sending notice to host", notice="ready",
-    worker=workerName
-  await chanSendToHost.send("ready".safe)
+  let notice = "ready"
+  trace "worker sent notification to host", notice, worker
+  await chanSendToHost.send(notice.safe)
 
   while true:
-    trace "worker thread waiting for message", worker=workerName
+    trace "worker waiting for message", worker
     let message = $(await chanRecvFromHost.recv())
-    trace "worker thread received message", message=message, worker=workerName
 
     if message == "stop":
-      trace "worker thread received 'stop'", worker=workerName
+      trace "worker received notification from host", notice=message, worker
+      trace "worker stopping", worker
       break
 
     try:
@@ -87,18 +87,14 @@ proc worker(arg: WorkerThreadArg) {.async.} =
         task = cast[Task](parsed{"tptr"}.getInt)
         taskName = parsed{"tname"}.getStr
 
-      trace "worker thread initiating task", task=taskName, worker=workerName
-      try:
-        asyncSpawn task(message)
-      except Exception as e:
-        error "worker thread exception", error=e.msg, task=taskName,
-          worker=workerName
+      trace "worker received message", message, worker
+      trace "worker running task", task=taskName, worker
+      asyncSpawn task(message)
     except:
-      error "worker thread received unknown message", message=message,
-        worker=workerName
+      error "worker received unknown message", message, worker
 
   chanRecvFromHost.close()
   chanSendToHost.close()
 
-proc workerThread(arg: WorkerThreadArg) {.thread.} =
+proc workerThread(arg: ThreadArg) {.thread.} =
   waitFor worker(arg)

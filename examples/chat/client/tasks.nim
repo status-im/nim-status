@@ -24,17 +24,13 @@ proc helloTask*(taskRunner: TaskRunner, workerName: string, to: string) =
 
   case kind
     of pool:
-      let workerPool = cast[WorkerPool](worker)
+      let workerPool = cast[PoolWorker](worker)
       chanToHost = workerPool.chanRecvFromPool
       chanToWorker = workerPool.chanSendToPool
     of thread:
-      let workerThread = cast[WorkerThread](worker)
+      let workerThread = cast[ThreadWorker](worker)
       chanToHost = workerThread.chanRecvFromThread
       chanToWorker = workerThread.chanSendToThread
-
-  # !!!!!!!!! there's definitely a race condition in worker pool where
-  # !!!!!!!!! sometimes helloTask is executed when went to a pool, but not
-  # !!!!!!!!! always; probably a race re: taskQueue and allReady in worker_pool
 
   let arg = HelloTaskArg(
     # does it need to be `cast[ByteAddress](cast[pointer](chanToHost))` ?
@@ -75,7 +71,7 @@ const hello2TaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.}
   echo "!!! this is " & arg.tname  & " saying 'hello' to " & someName & " !!!"
 
 proc hello2Task*(taskRunner: TaskRunner, workerName: string) =
-  let worker = cast[WorkerThread](taskRunner.workers[workerName].worker)
+  let worker = cast[ThreadWorker](taskRunner.workers[workerName].worker)
   let arg = Hello2TaskArg(
     hcptr: cast[ByteAddress](worker.chanSendToThread),
     tname: "hello2Task",

@@ -18,21 +18,23 @@ type ChatConfig* = object
   dataDir* {.
     abbr: "d"
     defaultValue: defaultDataDir()
-    desc: "Chat data directory. Default is ${PWD}/data. If user supplied " &
-          "path is relative it will be resolved from ${PWD}"
+    desc: "Chat data directory. Default is ${PWD}/data. If supplied path is " &
+          "relative it will be resolved from ${PWD}"
   .}: string
 
   logFile* {.
     abbr: "l"
     defaultValue: defaultLogFile()
-    desc: "Chat log file. Default is ./chat.log relative to data directory. " &
-          "If user supplied path is relative it will be resolved from ${PWD}"
+    desc: "Chat log file. Default is ./chat.log relative to --dataDir " &
+          "(see above). If supplied path is relative it will be resolved " &
+          "from ${PWD}"
   .}: string
 
 proc handleConfig*(config: ChatConfig): string =
   let dataDir = absolutePath(expandTilde(config.dataDir))
   let logFile =
-    if config.dataDir != defaultDataDir() and config.logFile == defaultLogFile():
+    if config.dataDir != defaultDataDir() and
+       config.logFile == defaultLogFile():
       joinPath(dataDir, extractFilename(defaultLogFile()))
     else:
       absolutePath(expandTilde(config.logFile))
