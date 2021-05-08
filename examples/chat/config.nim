@@ -4,7 +4,7 @@ import # std libs
 import # vendor libs
   chronicles, confutils
 
-export confutils
+export chronicles, confutils, os
 
 proc defaultDataDir*(): string =
   # logic here could evolve to something more complex (e.g. platform-specific)

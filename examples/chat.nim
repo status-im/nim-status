@@ -3,12 +3,6 @@
 when not(compileOption("threads")):
   {.fatal: "Please compile this program with the --threads:on option!".}
 
-import # std libs
-  os
-
-import # vendor libs
-  chronicles, chronos
-
 import # chat libs
   ./chat/[client, config, tui]
 

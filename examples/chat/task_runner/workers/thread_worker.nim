@@ -1,5 +1,5 @@
 import # std libs
-  json
+  atomics, json
 
 import # vendor libs
   chronicles, chronos, task_runner
@@ -8,58 +8,60 @@ import # chat libs
   ./worker
 
 logScope:
-  topics = "task-runner"
+  topics = "task_runner"
 
 type
-  ThreadArg = ref object
-    chanSendToHost: WorkerChannel
-    chanRecvFromHost: WorkerChannel
-    context: Context
-    contextArg: ContextArg
+  WorkerThreadArg = ref object of ThreadArg
     workerName: string
   ThreadWorker* = ref object of Worker
-    thread: Thread[ThreadArg]
+    thread: Thread[WorkerThreadArg]
 
-proc workerThread(arg: ThreadArg) {.thread.}
+proc workerThread(arg: WorkerThreadArg) {.thread.}
 
-proc new*(T: type ThreadWorker, name: string,
-  context: Context = emptyContext, contextArg: ContextArg = ContextArg()): T =
+proc new*(T: type ThreadWorker, name: string, running: pointer,
+  context: Context = emptyContext, contextArg: ContextArg = ContextArg(),
+  awaitTasks = false): T =
   let
     chanRecvFromWorker = newWorkerChannel()
     chanSendToWorker = newWorkerChannel()
-    thread = Thread[ThreadArg]()
+    thread = Thread[WorkerThreadArg]()
 
-  T(context: context, contextArg: contextArg, name: name,
-    chanRecvFromWorker: chanRecvFromWorker, chanSendToWorker: chanSendToWorker,
-    thread: thread)
+  T(awaitTasks: awaitTasks, chanRecvFromWorker: chanRecvFromWorker,
+    chanSendToWorker: chanSendToWorker, context: context,
+    contextArg: contextArg, name: name, running: running, thread: thread)
 
 proc start*(self: ThreadWorker) {.async.} =
   trace "worker starting", worker=self.name
   self.chanRecvFromWorker.open()
   self.chanSendToWorker.open()
-  let arg = ThreadArg(
+  let arg = WorkerThreadArg(
+    awaitTasks: self.awaitTasks,
     chanRecvFromHost: self.chanSendToWorker,
     chanSendToHost: self.chanRecvFromWorker,
     context: self.context,
     contextArg: self.contextArg,
+    running: self.running,
     workerName: self.name,
   )
   createThread(self.thread, workerThread, arg)
-  discard $(await self.chanRecvFromWorker.recv())
-  trace "worker started", worker=self.name
+  let notice = $(await self.chanRecvFromWorker.recv())
+  trace "worker started", notice, worker=self.name
 
 proc stop*(self: ThreadWorker) {.async.} =
   await self.chanSendToWorker.send("stop".safe)
+  joinThread(self.thread)
   self.chanRecvFromWorker.close()
   self.chanSendToWorker.close()
-  joinThread(self.thread)
   trace "worker stopped", worker=self.name
 
-proc worker(arg: ThreadArg) {.async.} =
+proc worker(arg: WorkerThreadArg) {.async.} =
   let
+    awaitTasks = arg.awaitTasks
     chanRecvFromHost = arg.chanRecvFromHost
     chanSendToHost = arg.chanSendToHost
     worker = arg.workerName
+
+  var running = cast[ptr Atomic[bool]](arg.running)
 
   chanRecvFromHost.open()
   chanSendToHost.open()
@@ -75,24 +77,27 @@ proc worker(arg: ThreadArg) {.async.} =
     let message = $(await chanRecvFromHost.recv())
 
     if message == "stop":
-      trace "worker received notification from host", notice=message, worker
-      trace "worker stopping", worker
+      trace "worker stopping", notice=message, worker
       break
 
-    try:
-      let
-        parsed = parseJson(message)
-        task = cast[Task](parsed{"tptr"}.getInt)
-        taskName = parsed{"tname"}.getStr
+    if running[].load():
+      try:
+        let
+          parsed = parseJson(message)
+          task = cast[Task](parsed{"task"}.getInt)
+          taskName = parsed{"name"}.getStr
 
-      trace "worker received message", message, worker
-      trace "worker running task", task=taskName, worker
-      asyncSpawn task(message)
-    except:
-      error "worker received unknown message", message, worker
+        trace "worker received message", message, worker
+        trace "worker running task", task=taskName, worker
+        if awaitTasks:
+          await task(message)
+        else:
+          asyncSpawn task(message)
+      except:
+        error "worker received unknown message", message, worker
 
   chanRecvFromHost.close()
   chanSendToHost.close()
 
-proc workerThread(arg: ThreadArg) {.thread.} =
+proc workerThread(arg: WorkerThreadArg) {.thread.} =
   waitFor worker(arg)

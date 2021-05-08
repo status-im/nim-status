@@ -1,49 +1,44 @@
-import # vendor libs
-  chronicles, chronos
-
 import # chat libs
-  ./client, ./task_runner, ./tui/tasks
+  ./tui/events
 
-export task_runner
+export events
 
 logScope:
   topics = "chat"
 
 # TUI: https://en.wikipedia.org/wiki/Text-based_user_interface
 
-type ChatTUI* = ref object
-  client*: ChatClient
-  dataDir*: string
-  running*: bool
-  taskRunner*: TaskRunner
-
-# ChatTUI's purpose is to dispatch on event type to appropriate proc/s, which
-# will mainly involve printing messages in events from the client and taking
-# action/s based on user events, e.g. calling a client proc to send a message
-# or displaying a list of possible commands when user enters `/help` or `/?`
+# This module's purpose is to start the client and initiate listening for
+# events coming from the client and user
 
 proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, "input")
-  T(client: client, dataDir: dataDir, running: true, taskRunner: taskRunner)
+
+  T(client: client, dataDir: dataDir, events: newEventChannel(), running: false,
+    taskRunner: taskRunner)
 
 proc start*(self: ChatTUI) {.async.} =
   debug "TUI starting"
-  # ... setup self.events channel (in constructor), open it here
-
-  await self.taskRunner.start()
-  # before starting the client or tui's task runner, should prep tui to accept
-  # events coming from the client and user
-
-  # IMPL (for above comments): now that taskRunner is started, in an
-  # `asyncSpawn` listen for messages from it and send them to self.events
-  # channel (happens on same thread so no need for serialization/copy-to-shared-heap)
-  await self.client.start()
+  self.events.open()
+  var starting: seq[Future[void]] = @[]
+  starting.add self.taskRunner.start()
+  starting.add self.client.start()
+  await allFutures(starting)
   debug "TUI started"
+  # set `self.running = true` before any `asyncSpawn` so TUI logic can check
+  # `self.running` to know whether to run / continue running / stop running
+  self.running = true
+  asyncSpawn self.listen()
 
 proc stop*(self: ChatTUI) {.async.} =
   debug "TUI stopping"
-  await self.client.stop()
-  await self.taskRunner.stop()
-  self.running = false
+  var stopping: seq[Future[void]] = @[]
+  stopping.add self.client.stop()
+  stopping.add self.taskRunner.stop()
+  await allFutures(stopping)
+  self.events.close()
   debug "TUI stopped"
+  # set `self.running = true` as the the last step to facilitate clean program
+  # exit; see ../chat.nim
+  self.running = false

@@ -1,70 +1,164 @@
 import # chat libs
-  ../task_runner
+  ./events
 
-# Everything below is experimental atm
+export events
 
-# ------------------------------------------------------------------------------
+logScope:
+  topics = "chat"
+
+# when `createTask` template/macro is implemented, would prefer to write
+# something like...
+
+# createTask "helloTask", no_rts, (to: string):
+#   let
+#     taskName = arg.name
+#     to = arg.to
+#   echo "!!! this is " & name  & " saying 'hello' to " & arg.to & " !!!"
+
+# no_rts -----------------------------------------------------------------------
 
 type
   HelloTaskArg = ref object of TaskArg
     to: string
 
-# `no_rts` task
 const helloTaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.} =
   let arg = decode[HelloTaskArg](argEncoded)
-  echo "!!! this is " & arg.tname  & " saying 'hello' to " & arg.to & " !!!"
+  echo "!!! this is " & arg.name  & " saying 'hello' to " & arg.to & " !!!"
 
 proc helloTask*(taskRunner: TaskRunner, workerName: string, to: string) =
   let
     worker = taskRunner.workers[workerName].worker
-    chanToHost = worker.chanRecvFromWorker
-    chanToWorker = worker.chanSendToWorker
+    chanSendToHost = worker.chanRecvFromWorker
+    chanSendToWorker = worker.chanSendToWorker
     arg = HelloTaskArg(
-      # does it need to be `cast[ByteAddress](cast[pointer](chanToHost))` ?
-      # when implementing example `rts` task can check
-      hcptr: cast[ByteAddress](chanToHost),
-      tname: "helloTask",
-      tptr: cast[ByteAddress](helloTaskImpl),
+      chanSendToHost: cast[ByteAddress](chanSendToHost),
+      name: "helloTask",
+      running: cast[ByteAddress](addr taskRunner.running),
+      task: cast[ByteAddress](helloTaskImpl),
       to: to
     )
 
-  chanToWorker.sendSync(arg.encode.safe)
+  chanSendToWorker.sendSync(arg.encode.safe)
 
-# when `createTask` template/macro is implemented, would prefer to write
-# something like...
-
-# createTask "helloTask", taskRunner, workerName, no_rts, (to: string):
-#   echo "!!! this is " & arg.tname  & " saying 'hello' to " & arg.to & " !!!"
-
-# NOTE: would need helper template in this module that wraps `createTask`;
-# `helloTask` would likely itself be that helper template instead of being a
-# proc
-
-# ------------------------------------------------------------------------------
-
-# maybe global decl involving `{.threadvar.}` could be wrapped inside a
-# `createContext` template/macro
+# no_rts -----------------------------------------------------------------------
 
 var someName {.threadvar.}: string
 
-proc experimentalContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
+proc hello2Context*(arg: ContextArg) {.async, gcsafe, nimcall.} =
   someName = "baz"
 
 type
   Hello2TaskArg = ref object of TaskArg
 
-# `no_rts` task
 const hello2TaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.} =
   let arg = decode[Hello2TaskArg](argEncoded)
-  echo "!!! this is " & arg.tname  & " saying 'hello' to " & someName & " !!!"
+  echo "!!! this is " & arg.name  & " saying 'hello' to " & someName & " !!!"
 
 proc hello2Task*(taskRunner: TaskRunner, workerName: string) =
   let
     worker = taskRunner.workers[workerName].worker
+    chanSendToHost = worker.chanRecvFromWorker
+    chanSendToWorker = worker.chanSendToWorker
     arg = Hello2TaskArg(
-      hcptr: cast[ByteAddress](worker.chanSendToWorker),
-      tname: "hello2Task",
-      tptr: cast[ByteAddress](hello2TaskImpl)
+      chanSendToHost: cast[ByteAddress](chanSendToHost),
+      name: "hello2Task",
+      running: cast[ByteAddress](addr taskRunner.running),
+      task: cast[ByteAddress](hello2TaskImpl)
     )
 
-  worker.chanSendToWorker.sendSync(arg.encode.safe)
+  chanSendToWorker.sendSync(arg.encode.safe)
+
+# rts --------------------------------------------------------------------------
+
+type
+  Hello3TaskArg = ref object of TaskArgRts
+    to: string
+
+const hello3TaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.} =
+  let
+    arg = decode[Hello3TaskArg](argEncoded)
+    chanReturnToSender = cast[WorkerChannel](arg.chanReturnToSender)
+
+  chanReturnToSender.open()
+  await chanReturnToSender.send((arg.to & " YADA YADA YADA").encode.safe)
+  chanReturnToSender.close()
+
+proc hello3Task*(taskRunner: TaskRunner, workerName: string,
+  to: string): Future[string] {.async.} =
+  let
+    worker = taskRunner.workers[workerName].worker
+    chanReturnToSender = newWorkerChannel()
+    chanSendToHost = worker.chanRecvFromWorker
+    chanSendToWorker = worker.chanSendToWorker
+    arg = Hello3TaskArg(
+      chanSendToHost: cast[ByteAddress](chanSendToHost),
+      name: "hello3Task",
+      running: cast[ByteAddress](addr taskRunner.running),
+      task: cast[ByteAddress](hello3TaskImpl),
+      chanReturnToSender: cast[ByteAddress](chanReturnToSender),
+      to: to
+    )
+
+  chanReturnToSender.open()
+  await chanSendToWorker.send(arg.encode.safe)
+  let res = decode[string]($(await chanReturnToSender.recv()))
+  chanReturnToSender.close()
+  return res
+
+proc hello3TaskSync*(taskRunner: TaskRunner, workerName: string,
+  to: string): string =
+  let
+    worker = taskRunner.workers[workerName].worker
+    chanReturnToSender = newWorkerChannel()
+    chanSendToHost = worker.chanRecvFromWorker
+    chanSendToWorker = worker.chanSendToWorker
+    arg = Hello3TaskArg(
+      chanSendToHost: cast[ByteAddress](chanSendToHost),
+      name: "hello3Task",
+      running: cast[ByteAddress](addr taskRunner.running),
+      task: cast[ByteAddress](hello3TaskImpl),
+      chanReturnToSender: cast[ByteAddress](chanReturnToSender),
+      to: to
+    )
+
+  chanReturnToSender.open()
+  chanSendToWorker.sendSync(arg.encode.safe)
+  let res = decode[string]($chanReturnToSender.recvSync())
+  chanReturnToSender.close()
+  return res
+
+# no_rts -----------------------------------------------------------------------
+
+var counter {.threadvar.}: int
+
+proc hello4Context*(arg: ContextArg) {.async, gcsafe, nimcall.} =
+  counter = 0
+
+type
+  Hello4TaskArg = ref object of TaskArg
+
+const hello4TaskImpl: Task = proc(argEncoded: string) {.async, gcsafe, nimcall.} =
+  let
+    arg = decode[Hello4TaskArg](argEncoded)
+    chanSendToHost = cast[WorkerChannel](arg.chanSendToHost)
+
+  var running = cast[ptr Atomic[bool]](arg.running)
+
+  while running[].load():
+    counter = counter + 1
+    await chanSendToHost.send(counter.encode.safe)
+    await sleepAsync 1.milliseconds
+
+proc hello4Task*(taskRunner: TaskRunner, workerName: string) =
+  let
+    worker = taskRunner.workers[workerName].worker
+    chanSendToHost = worker.chanRecvFromWorker
+    chanSendToWorker = worker.chanSendToWorker
+    arg = Hello4TaskArg(
+      chanSendToHost: cast[ByteAddress](chanSendToHost),
+      name: "hello4Task",
+      running: cast[ByteAddress](addr taskRunner.running),
+      task: cast[ByteAddress](hello4TaskImpl)
+    )
+
+  chanSendToWorker.sendSync(arg.encode.safe)
