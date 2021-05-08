@@ -18,7 +18,7 @@ proc listenToClient(self: ChatTUI) {.async.} =
 
 proc listenToInput(self: ChatTUI) {.async.} =
   let worker = self.taskRunner.workers["input"].worker
-  while self.running:
+  while self.running and self.taskRunner.running.load():
     let event = $(await worker.chanRecvFromWorker.recv())
     await self.events.send(event)
 

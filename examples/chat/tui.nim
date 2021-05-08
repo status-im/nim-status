@@ -11,9 +11,11 @@ logScope:
 # This module's purpose is to start the client and initiate listening for
 # events coming from the client and user
 
+const input = "input"
+
 proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
   var taskRunner = TaskRunner.new()
-  taskRunner.createWorker(thread, "input")
+  taskRunner.createWorker(thread, input)
 
   T(client: client, dataDir: dataDir, events: newEventChannel(), running: false,
     taskRunner: taskRunner)
@@ -30,6 +32,7 @@ proc start*(self: ChatTUI) {.async.} =
   # `self.running` to know whether to run / continue running / stop running
   self.running = true
   asyncSpawn self.listen()
+  asyncSpawn readInput(self.taskRunner, input)
 
 proc stop*(self: ChatTUI) {.async.} =
   debug "TUI stopping"

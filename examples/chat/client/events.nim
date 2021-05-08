@@ -8,11 +8,11 @@ logScope:
 
 # define Event types
 
-proc listenToCounterWorker(self: ChatClient) {.async.} =
-  let worker = self.taskRunner.workers["counter"].worker
+proc listenToStatus(self: ChatClient) {.async.} =
+  let worker = self.taskRunner.workers["status"].worker
   while self.running and self.taskRunner.running.load():
     let event = $(await worker.chanRecvFromWorker.recv())
     await self.events.send(event)
 
 proc listen*(self: ChatClient) {.async.} =
-  asyncSpawn self.listenToCounterWorker()
+  asyncSpawn self.listenToStatus()
