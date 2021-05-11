@@ -4,7 +4,7 @@ import # chat libs
 export task_runner
 
 type
-  EventChannel* = AsyncChannel[string]
+  EventChannel* = AsyncChannel[ThreadSafeString]
   ChatClient* = ref object
     dataDir*: string
     events*: EventChannel
@@ -12,4 +12,4 @@ type
     taskRunner*: TaskRunner
 
 proc newEventChannel*(): EventChannel =
-  newAsyncChannel[string](-1)
+  newAsyncChannel[ThreadSafeString](-1)

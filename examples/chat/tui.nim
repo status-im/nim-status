@@ -22,6 +22,18 @@ proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
 
 proc start*(self: ChatTUI) {.async.} =
   debug "TUI starting"
+  # setup ncurses
+  self.locale = $setlocale(LC_ALL, "")
+  trace "TUI set the locale", locale=self.locale
+  self.mainWindow = initscr()
+  # `halfdelay(N)` will cause ncurses' `getch()` (used in ./tui/tasks) to
+  # return -1 after N tenths of a second if no input was supplied
+  discard halfdelay(1)
+  discard noecho()
+  discard keypad(self.mainWindow, true)
+  discard setescdelay(0)
+  trace "TUI initialized ncurses"
+
   self.events.open()
   var starting: seq[Future[void]] = @[]
   starting.add self.taskRunner.start()
@@ -41,7 +53,9 @@ proc stop*(self: ChatTUI) {.async.} =
   stopping.add self.taskRunner.stop()
   await allFutures(stopping)
   self.events.close()
+  discard endwin()
+  trace "TUI restored the terminal"
   debug "TUI stopped"
   # set `self.running = true` as the the last step to facilitate clean program
-  # exit; see ../chat.nim
+  # exit (see ../chat)
   self.running = false

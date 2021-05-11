@@ -7,6 +7,8 @@ import # vendor libs
 import # chat libs
   ./worker
 
+export json
+
 logScope:
   topics = "task_runner"
 
@@ -65,7 +67,7 @@ proc start*(self: PoolWorker) {.async.} =
   trace "pool started", notice, pool=self.name, poolSize=self.size
 
 proc stop*(self: PoolWorker) {.async.} =
-  await self.chanSendToWorker.send("stop".safe)
+  asyncSpawn self.chanSendToWorker.send("stop".safe)
   joinThread(self.thread)
   self.chanRecvFromWorker.close()
   self.chanSendToWorker.close()
@@ -98,7 +100,7 @@ proc start*(self: ThreadWorker) {.async.} =
   createThread(self.thread, workerThread, arg)
 
 proc stop*(self: ThreadWorker) {.async.} =
-  await self.chanSendToWorker.send("stop".safe)
+  asyncSpawn self.chanSendToWorker.send("stop".safe)
   joinThread(self.thread)
   self.chanSendToWorker.close()
   trace "pool worker stopped", pool=self.name, workerId=self.id
@@ -117,7 +119,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
 
   let notice = "ready"
   trace "pool sent notification to host", notice, pool
-  await chanSendToHost.send(notice.safe)
+  asyncSpawn chanSendToHost.send(notice.safe)
 
   var
     taskQueue: seq[string] = @[] # FIFO queue
@@ -236,7 +238,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
         trace "pool sent task to worker", pool, workerId
         trace "pool marked worker as busy", pool, poolSize, workerId,
           workersBusy=workersBusy.len, workersIdle=workersIdle.len
-        await worker.chanSendToWorker.send(message.safe)
+        asyncSpawn worker.chanSendToWorker.send(message.safe)
 
   chanRecvFromHostOrWorker.close()
   chanSendToHost.close()
@@ -264,7 +266,7 @@ proc worker(arg: WorkerThreadArg) {.async.} =
     notification = WorkerNotification(id: workerId, notice: notice)
 
   trace "pool worker sent notification to pool", notice, pool, workerId
-  await chanSendToHost.send(notification.encode.safe)
+  asyncSpawn chanSendToHost.send(notification.encode.safe)
 
   while true:
     trace "pool worker waiting for message", pool, workerId
@@ -295,7 +297,7 @@ proc worker(arg: WorkerThreadArg) {.async.} =
         notification = WorkerNotification(id: workerId, notice: notice)
 
       trace "pool worker sent notification to pool", notice, pool, workerId
-      await chanSendToHost.send(notification.encode.safe)
+      asyncSpawn chanSendToHost.send(notification.encode.safe)
 
   chanRecvFromHost.close()
   chanSendToHost.close()

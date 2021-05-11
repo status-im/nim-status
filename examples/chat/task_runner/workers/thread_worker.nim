@@ -7,6 +7,8 @@ import # vendor libs
 import # chat libs
   ./worker
 
+export json
+
 logScope:
   topics = "task_runner"
 
@@ -48,7 +50,7 @@ proc start*(self: ThreadWorker) {.async.} =
   trace "worker started", notice, worker=self.name
 
 proc stop*(self: ThreadWorker) {.async.} =
-  await self.chanSendToWorker.send("stop".safe)
+  asyncSpawn self.chanSendToWorker.send("stop".safe)
   joinThread(self.thread)
   self.chanRecvFromWorker.close()
   self.chanSendToWorker.close()
@@ -70,7 +72,7 @@ proc worker(arg: WorkerThreadArg) {.async.} =
   await arg.context(arg.contextArg)
   let notice = "ready"
   trace "worker sent notification to host", notice, worker
-  await chanSendToHost.send(notice.safe)
+  asyncSpawn chanSendToHost.send(notice.safe)
 
   while true:
     trace "worker waiting for message", worker
