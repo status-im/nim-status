@@ -21,9 +21,12 @@ proc new*(T: type ChatClient, dataDir: string): T =
 
 proc start*(self: ChatClient) {.async.} =
   debug "client starting"
+
   self.events.open()
   await self.taskRunner.start()
+
   debug "client started"
+
   # set `self.running = true` before any `asyncSpawn` so client logic can check
   # `self.running` to know whether to run / continue running / stop running
   self.running = true
@@ -31,7 +34,9 @@ proc start*(self: ChatClient) {.async.} =
 
 proc stop*(self: ChatClient) {.async.} =
   debug "client stopping"
+
   self.running = false
   await self.taskRunner.stop()
   self.events.close()
+
   debug "client stopped"

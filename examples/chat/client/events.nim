@@ -6,7 +6,10 @@ export common
 logScope:
   topics = "chat"
 
-# define Event types
+type
+  ClientEvent* = ref object of Event
+  UserMessage* = ref object of ClientEvent
+    message*: string
 
 proc listenToStatus(self: ChatClient) {.async.} =
   let worker = self.taskRunner.workers["status"].worker

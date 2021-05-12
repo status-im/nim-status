@@ -6,11 +6,12 @@ export common
 logScope:
   topics = "chat"
 
-# TUI Event types are defined in ./common because procs in this module and
-# `dispatch` et al. in ./events make use of them
-
 type
   ReadInputTaskArg = ref object of TaskArg
+
+const
+  ESCAPE* = "ESCAPE"
+  RETURN* = "RETURN"
 
 const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
   let
@@ -25,10 +26,17 @@ const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
     input = 0
     running = cast[ptr Atomic[bool]](arg.running)
 
-  # assume the terminal uses UTF-8 encoding; which encoding is actually used by
-  # the terminal/environment/OS that launched the chat program should probably
-  # be detected early in ../../chat and if it's not UTF-8 then the chat program
-  # should exit immediately with an error/explanation; it could be possible to
+  let
+    event = InputReady(ready: true)
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+  # assume terminal uses UTF-8 encoding; which encoding is actually used by the
+  # terminal/env/OS that launched the chat program should probably be detected
+  # early in ../../chat and if it's not UTF-8 then the chat program should
+  # maybe exit immediately with an error/explanation; it could be possible to
   # support other terminal/environment/OS encodings, but for now this is a
   # simplifying assumption for the sake of implementing `readInputTask`
 
@@ -40,12 +48,20 @@ const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
       break
     if input != -1:
       trace "task received input", input, task
-      var eventEnc: string
-      if input > 255:
-        let event = InputKeyEvent(key: input, name: $keyname(input.cint))
+      var
+        eventEnc: string
+        shouldSend = false
+      if input > 255 or input == 10 or input == 27:
+        var event: InputKey
+        if input == 10:
+          event = InputKey(key: input, name: RETURN)
+        elif input == 27:
+          event = InputKey(key: input, name: ESCAPE)
+        else:
+          event = InputKey(key: input, name: $keyname(input.cint))
         eventEnc = event.encode
-        trace "task sent event to host", event=eventEnc, task
-        asyncSpawn chanSendToHost.send(eventEnc.safe)
+        shouldSend = true
+
       else:
         if expected == 1:
           if input >= 240:
@@ -58,12 +74,15 @@ const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
         bytes.add input.byte
 
         if bytes.len == expected:
-          let event = InputStringEvent(str: cast[string](bytes))
+          let event = InputString(str: cast[string](bytes))
           eventEnc = event.encode
-          trace "task sent event to host", event=eventEnc, task
-          asyncSpawn chanSendToHost.send(eventEnc.safe)
+          shouldSend = true
           bytes = @[]
           expected = 1
+
+      if shouldSend:
+        trace "task sent event to host", event=eventEnc, task
+        asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc readInput*(taskRunner: TaskRunner, workerName: string) {.async.} =
   let

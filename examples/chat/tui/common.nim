@@ -1,10 +1,7 @@
-import # vendor libs
-  ncurses
-
 import # chat libs
-  ../client
+  ../client, ./ncurses_helpers
 
-export client, ncurses
+export client, ncurses_helpers
 
 type
   ChatTUI* = ref object
@@ -12,16 +9,18 @@ type
     currentInput*: string
     dataDir*: string
     events*: EventChannel
+    inputReady*: bool
     locale*: string
     mainWindow*: PWindow
     running*: bool
     taskRunner*: TaskRunner
-  InputKeyEvent* = ref object
+  TUIEvent* = ref object of Event
+  InputKey* = ref object of TUIEvent
     key*: int
     name*: string
-  InputStringEvent* = ref object
+  InputReady* = ref object of TUIEvent
+    ready*: bool
+  InputString* = ref object of TUIEvent
     str*: string
 
 var LC_ALL* {.header: "<locale.h>".}: cint
-
-proc setlocale*(category: cint, locale: cstring): cstring {.importc: "setlocale", header: "<locale.h>".}
