@@ -26,4 +26,4 @@ proc listen*(self: ChatTUI) {.async, gcsafe, nimcall.} =
   while self.running:
     let event = $(await self.events.recv())
     debug "TUI received event", event
-    self.dispatchEvent(event)
+    dispatchEvent(self, event)

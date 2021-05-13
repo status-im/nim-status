@@ -36,8 +36,6 @@ type
 
 proc dispatchEvent*(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.}
 
-proc dispatchCommand*(self: ChatTUI, command: string) {.gcsafe, nimcall.}
-
 const processKey*: Action = proc(self: ChatTUI, event: Event) {.async, gcsafe, nimcall.} =
   # handle special keys e.g. arrow keys, ESCAPE, F1, RETURN, et al.
   let
@@ -106,21 +104,3 @@ proc dispatchEvent*(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.} =
 
     else:
       error "TUI received unknown event type", event=eventEnc
-
-proc dispatchCommand*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
-  let
-    args: seq[string] = @[]
-    cmd = ""
-
-  # match and/or decompose command string into command and arguments
-
-  case cmd:
-    # need cases for commands, but first may want to check against an
-    # "available commands set" that will vary depending on the state of the
-    # TUI, e.g. if already logged in or login is in progress, then login
-    # command shouldn't be available but logout command should be available
-
-    # of ...:
-
-  else:
-    waitFor self.sendMessage(SendMessage(message: command))
