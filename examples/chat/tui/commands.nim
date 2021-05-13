@@ -14,8 +14,6 @@ type
   SendMessage* = ref object of CommandEvent
     message*: string
 
-proc dispatchCommand*(self: ChatTUI, command: string) {.gcsafe, nimcall.}
-
 const sendMessage*: Command = proc(self: ChatTUI, cmd: CommandEvent) {.async, gcsafe, nimcall.} =
   let
     cmd = cast[SendMessage](cmd)

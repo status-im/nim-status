@@ -34,8 +34,6 @@ type
 # executing. The time budget for an action/command is 16 milliseconds so as to
 # maintain at least 60 FPS in the TUI.
 
-proc dispatchEvent*(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.}
-
 const processKey*: Action = proc(self: ChatTUI, event: Event) {.async, gcsafe, nimcall.} =
   # handle special keys e.g. arrow keys, ESCAPE, F1, RETURN, et al.
   let
