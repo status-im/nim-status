@@ -3,13 +3,11 @@ import # chat libs
 
 export actions
 
-# TUI Event types are defined in ./common because multiple modules in this
+# TUIEvent types are defined in ./common because multiple modules in this
 # directory make use of them
 
 logScope:
   topics = "chat"
-
-proc dispatch(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.}
 
 proc listenToClient(self: ChatTUI) {.async, gcsafe, nimcall.} =
   while self.client.running and self.running:
@@ -28,25 +26,4 @@ proc listen*(self: ChatTUI) {.async, gcsafe, nimcall.} =
   while self.running:
     let event = $(await self.events.recv())
     debug "TUI received event", event
-    self.dispatch(event)
-
-proc dispatch(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.} =
-  var eventType: string
-  try:
-    eventType = parseJson(eventEnc){"$type"}.getStr().split(':')[0]
-  except:
-    eventType = ""
-
-  case eventType:
-    of "InputKey":
-      discard
-      waitFor self.processKey(decode[InputKey](eventEnc))
-
-    of "InputReady":
-      waitFor self.processReady(decode[InputReady](eventEnc))
-
-    of "InputString":
-      waitFor self.processInput(decode[InputString](eventEnc))
-
-    else:
-      error "TUI received unknown event type", event=eventEnc
+    self.dispatchEvent(event)

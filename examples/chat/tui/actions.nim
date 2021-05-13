@@ -34,22 +34,9 @@ type
 # executing. The time budget for an action/command is 16 milliseconds so as to
 # maintain at least 60 FPS in the TUI.
 
-proc dispatchCommand(self: ChatTUI, input: string) {.gcsafe, nimcall.} =
-  case input:
-    # need cases for commands, but first may want to check against an
-    # "available commands set" that will vary depending on the state of the
-    # TUI, e.g. if already logged in or login is in progress, then login
-    # command shouldn't be available but logout command should be available
+proc dispatchEvent*(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.}
 
-    # of ...:
-
-  else:
-    waitFor self.sendMessage(SendMessage(message: input))
-
-proc drawScreen*(self: ChatTUI) =
-  discard printw("TUI is ready for input:\n\n")
-  if self.currentInput != "": discard printw(self.currentInput)
-  discard refresh()
+proc dispatchCommand*(self: ChatTUI, command: string) {.gcsafe, nimcall.}
 
 const processKey*: Action = proc(self: ChatTUI, event: Event) {.async, gcsafe, nimcall.} =
   # handle special keys e.g. arrow keys, ESCAPE, F1, RETURN, et al.
@@ -98,3 +85,42 @@ const processReady*: Action = proc(self: ChatTUI, event: Event) {.async, gcsafe,
   if ready:
     self.inputReady = true
     self.drawScreen()
+
+proc dispatchEvent*(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.} =
+  var eventType: string
+  try:
+    eventType = parseJson(eventEnc){"$type"}.getStr().split(':')[0]
+  except:
+    eventType = ""
+
+  case eventType:
+    of "InputKey":
+      discard
+      waitFor self.processKey(decode[InputKey](eventEnc))
+
+    of "InputReady":
+      waitFor self.processReady(decode[InputReady](eventEnc))
+
+    of "InputString":
+      waitFor self.processInput(decode[InputString](eventEnc))
+
+    else:
+      error "TUI received unknown event type", event=eventEnc
+
+proc dispatchCommand*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
+  let
+    args: seq[string] = @[]
+    cmd = ""
+
+  # match and/or decompose command string into command and arguments
+
+  case cmd:
+    # need cases for commands, but first may want to check against an
+    # "available commands set" that will vary depending on the state of the
+    # TUI, e.g. if already logged in or login is in progress, then login
+    # command shouldn't be available but logout command should be available
+
+    # of ...:
+
+  else:
+    waitFor self.sendMessage(SendMessage(message: command))
