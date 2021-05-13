@@ -23,4 +23,8 @@ type
   InputString* = ref object of TUIEvent
     str*: string
 
-var LC_ALL* {.header: "<locale.h>".}: cint
+const TUIEvents*: seq[string] = @[
+  "InputKey",
+  "InputReady",
+  "InputString"
+]

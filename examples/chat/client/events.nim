@@ -9,7 +9,12 @@ logScope:
 type
   ClientEvent* = ref object of Event
   UserMessage* = ref object of ClientEvent
+    username*: string
     message*: string
+
+const clientEvents*: seq[string] = @[
+  "UserMessage"
+]
 
 proc listenToStatus(self: ChatClient) {.async.} =
   let worker = self.taskRunner.workers["status"].worker
