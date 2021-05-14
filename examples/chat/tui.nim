@@ -14,19 +14,7 @@ logScope:
 const input = "input"
 
 proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
-  let locale = $setlocale(LC_ALL, "")
-  trace "TUI set the locale", locale
-
-  # initialize ncurses
-  let mainWindow = initscr()
-
-  # `halfdelay(N)` will cause ncurses' `getch()` (used in ./tui/tasks) to
-  # return -1 after N tenths of a second if no input was supplied
-  discard halfdelay(1)
-  discard noecho()
-  discard keypad(mainWindow, true)
-  discard setescdelay(0)
-  trace "TUI initialized ncurses"
+  let (locale, mainWindow) = initScreen()
 
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, input)

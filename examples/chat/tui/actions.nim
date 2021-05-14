@@ -36,17 +36,12 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
       discard
 
     of RETURN:
-      var x, y: cint
-      getyx(self.mainWindow, y, x)
-      discard move(y, 0)
-      discard clrtoeol()
-      discard refresh()
-
       let command = self.currentInput
-      self.dispatch(command)
-
       self.currentInput = ""
       trace "TUI reset current input", currentInput=self.currentInput
+
+      self.clearInput()
+      self.dispatch(command)
 
     else:
       discard
@@ -59,9 +54,7 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
   self.currentInput = self.currentInput & input
   trace "TUI updated current input", currentInput=self.currentInput
 
-  if shouldPrint:
-    discard printw(input)
-    discard refresh()
+  if shouldPrint: self.printInput(input)
 
 proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
   let
