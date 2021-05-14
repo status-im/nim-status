@@ -42,9 +42,9 @@ proc dispatch(self: ChatTUI, eventEnc: string) {.gcsafe, nimcall.} =
   except:
     eventType = ""
 
-  # should be able to gen this code with a template and constant `seq[string]`
-  # that contains the names of all the types in ./common and ../client/event
-  # that derive from the Event type in ../client/common
+  # should be able to gen the following code with a template and constant
+  # `seq[string]` that contains the names of all the types in ./common and
+  # ../client/event that derive from the Event type in ../client/common
   case eventType:
     of "InputKey":
       waitFor self.action(decode[InputKey](eventEnc))

@@ -65,22 +65,25 @@ proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
     self.drawScreen()
 
 proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
-  let
-    args: seq[string] = @[]
-    cmd = ""
+  var (cmd, args, isCmd) = parse(command)
 
-    # match and/or decompose command string into command and arguments
+  # need cases for commands, but first may want to check against an "available
+  # commands set" that will vary depending on the state of the TUI, e.g. if
+  # already logged in or login is in progress, then login command shouldn't be
+  # invokable but logout command should be invokable
 
-  # should be able to gen this code with a template and constant `seq[string]`
-  # that contains the names of all the types in ./commands that derive from the
-  # Command defined in that module
+  # should be able to gen the following code with a template and constant
+  # `seq[string]` that contains the names of all the types in ./commands that
+  # derive from the Command type defined in that module
+  const Send = "SendMessage"
+  if not isCmd:
+    cmd = Send
+    args.add command
   case cmd:
-    # need cases for commands, but first may want to check against an
-    # "available commands set" that will vary depending on the state of the
-    # TUI, e.g. if already logged in or login is in progress, then login
-    # command shouldn't be invokable but logout command should be invokable
-
     # of ...:
 
-  else:
-    waitFor self.command(SendMessage(message: command))
+    of Send:
+      waitFor self.command(SendMessage.new(args))
+
+    else:
+      error "TUI received unknown command type", command
