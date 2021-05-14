@@ -40,8 +40,9 @@ proc parse*(command: string): (string, seq[string], bool) =
   # left-trimmed before split, though message text shouldn't be trimmed so only
   # do it here)
 
-  # actually may not want to use `split` from strutils and instead of the first
-  # " " and the string before that is assigned to `cmd`, though also need to
-  # consider case where " " is not found so the whole string is `cmd`
+  # actually may not want to use `split` from strutils and instead after
+  # left-trim find the first " "; the part of the string before the first " "
+  # is assigned to `cmd`, though also need to consider case where " " is not
+  # found so the whole string is `cmd`
 
   if isCmd: (cmd, args, true) else: ("", @[], false)

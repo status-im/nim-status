@@ -37,11 +37,13 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
 
     of RETURN:
       let command = self.currentInput
-      self.currentInput = ""
-      trace "TUI reset current input", currentInput=self.currentInput
 
-      self.clearInput()
-      self.dispatch(command)
+      if command != "":
+        self.currentInput = ""
+        trace "TUI reset current input", currentInput=self.currentInput
+
+        self.clearInput()
+        self.dispatch(command)
 
     else:
       discard
