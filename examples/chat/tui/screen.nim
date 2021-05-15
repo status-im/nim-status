@@ -35,6 +35,8 @@ proc initScreen*(): (string, PWindow) =
     locale = $setlocale(LC_ALL, "")
     mainWindow = initscr()
 
+  discard refresh()
+
   trace "TUI set the locale", locale
   trace "TUI initialized ncurses"
 
