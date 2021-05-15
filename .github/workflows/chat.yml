@@ -30,9 +30,8 @@ jobs:
             shell: bash --noprofile --norc -eo pipefail
           }
         pcre:      [ true ]
-        # release:   [ true, false ]
-        release:   [ false ]
-        rln:       [ false ]
+        release:   [ true ]
+        rln:       [ true ]
         sqlcipher: [ true ]
         ssl:   [ true ]
     name: ${{ matrix.platform.icon }} - static linking - PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }} - RELEASE ${{ matrix.release }}
