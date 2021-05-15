@@ -42,10 +42,10 @@ jobs:
 
     steps:
 
-      - name: Install awk (gawk) and coreutils via Homebrew
+      - name: Install tools and libraries via Homebrew
         if: matrix.platform.os == 'macos'
         run: |
-          brew install coreutils gawk
+          brew install coreutils gawk ncurses
 
       - name: Link Homebrew OpenSSL 1.1 to /usr/local/opt/openssl
         if: matrix.platform.os == 'macos'
