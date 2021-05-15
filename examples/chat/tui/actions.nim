@@ -1,10 +1,7 @@
-import # std libs
-  strutils
-
 import # chat libs
   ./commands
 
-export commands, strutils
+export commands
 
 logScope:
   topics = "chat"
@@ -25,6 +22,8 @@ logScope:
 
 proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.}
 
+# InputKeuy --------------------------------------------------------------------
+
 proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
   # handle special keys e.g. arrow keys, ESCAPE, F1, RETURN, et al.
   let
@@ -38,7 +37,7 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
     of RETURN:
       let command = self.currentInput
 
-      if command != "":
+      if command.strip(trailing = false) != "":
         self.currentInput = ""
         trace "TUI reset current input", currentInput=self.currentInput
 
@@ -47,6 +46,18 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
 
     else:
       discard
+
+# InputReady -------------------------------------------------------------------
+
+proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
+  let
+    ready = event.ready
+
+  if ready:
+    self.inputReady = true
+    self.drawScreen()
+
+# InputString ------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
   let
@@ -58,34 +69,35 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
   if shouldPrint: self.printInput(input)
 
-proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
-  let
-    ready = event.ready
-
-  if ready:
-    self.inputReady = true
-    self.drawScreen()
+# ------------------------------------------------------------------------------
 
 proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
   var (cmd, args, isCmd) = parse(command)
 
-  # need cases for commands, but first may want to check against an "available
-  # commands set" that will vary depending on the state of the TUI, e.g. if
-  # already logged in or login is in progress, then login command shouldn't be
-  # invokable but logout command should be invokable
+  if isCmd:
+    # before `case..of` for commands, check against an "available commands set"
+    # that will vary depending on the state of the TUI, e.g. if already logged
+    # in or login is in progress, then login command shouldn't be invokable but
+    # logout command should be invokable
 
-  # should be able to gen the following code with a template and constant
-  # `seq[string]` that contains the names of all the types in ./commands that
-  # derive from the Command type defined in that module
-  const Send = "SendMessage"
-  if not isCmd:
-    cmd = Send
-    args.add command
-  case cmd:
-    # of ...:
+    # should be able to gen the following code with a template and constant
+    # `seq[string]` that contains the names of all the types in ./commands that
+    # derive from the Command type defined in that module
+    case cmd:
+      # of ...:
 
-    of Send:
-      waitFor self.command(SendMessage.new(args))
+      of "Help":
+        waitFor self.command(Help.new(args))
 
-    else:
-      error "TUI received unknown command type", command
+      of "Login":
+        waitFor self.command(Login.new(args))
+
+      of "Logout":
+        waitFor self.command(Logout.new(args))
+
+      of "SendMessage":
+        waitFor self.command(SendMessage.new(args))
+
+  else:
+    # should print an error/explanation to the screen as well
+    error "TUI received malformed or unknown command", command
