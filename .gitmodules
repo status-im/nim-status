@@ -90,4 +90,4 @@
 	url = https://github.com/status-im/nim-task-runner.git
 [submodule "vendor/nim-ncurses"]
 	path = vendor/nim-ncurses
-	url = https://github.com/rnowley/nim-ncurses.git
+	url = https://github.com/status-im/nim-ncurses.git
