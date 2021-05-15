@@ -13,8 +13,10 @@ logScope:
 
 const input = "input"
 
-proc new*(T: type ChatTUI, client: ChatClient, dataDir: string): T =
-  let (locale, mainWindow) = initScreen()
+proc new*(T: type ChatTUI, dataDir: string): T =
+  let
+    (locale, mainWindow) = initScreen()
+    client = ChatClient.new(dataDir)
 
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, input)

@@ -96,7 +96,7 @@ proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
     username = command.username
     password = command.password
 
-  trace "TUI requested client login", username, password
+  trace "TUI requested client login", username, password="***"
 
 # Logout -----------------------------------------------------------------------
 

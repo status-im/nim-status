@@ -1,10 +1,11 @@
-## chat is an example program demonstrating usage of nim-status
+## chat.nim is an example program demonstrating usage of nim-status,
+## nim-task-runner, and nim-ncurses
 
 when not(compileOption("threads")):
   {.fatal: "Please compile this program with the --threads:on option!".}
 
 import # chat libs
-  ./chat/[client, config, tui]
+  ./chat/[config, tui]
 
 logScope:
   topics = "chat"
@@ -15,7 +16,7 @@ proc main() {.async.} =
   notice "program started"
 
   var
-    tui = ChatTUI.new(ChatClient.new(dataDir), dataDir)
+    tui = ChatTUI.new(dataDir)
     tuiPtr {.threadvar.}: pointer
 
   tuiPtr = cast[pointer](tui)
