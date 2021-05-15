@@ -13,7 +13,7 @@ import libp2p/[switch,                   # manage transports, a single entry poi
                multiaddress,             # encode different addressing schemes. For example, /ip4/7.7.7.7/tcp/6543 means it is using IPv4 protocol and TCP
                peerinfo,                 # manage the information of a peer, such as peer ID and public / private key
                peerid,                   # Implement how peers interact
-               protobuf/minprotobuf,     # nessage serialisation/deserialisation from and to protobufs
+               protobuf/minprotobuf,     # message serialisation/deserialisation from and to protobufs
                protocols/protocol,       # define the protocol base type
                protocols/secure/secio,   # define the protocol of secure input / output, allows encrypted communication that uses public keys to validate signed messages instead of a certificate authority like in TLS
                muxers/muxer]             # define an interface for stream multiplexing, allowing peers to offer many protocols over a single connection
@@ -34,9 +34,8 @@ const Help = """
 
 const
   PayloadV1* {.booldefine.} = false
-  DefaultTopic = "/waku/2/default-waku/proto"
-
-  DefaultContentTopic = ContentTopic("dingpu")
+  DefaultTopic* = "/waku/2/default-waku/proto"
+  DefaultContentTopic* = ContentTopic("dingpu")
 
 # XXX Connected is a bit annoying, because incoming connections don't trigger state change
 # Could poll connection pool or something here, I suppose
@@ -242,15 +241,15 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
     (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
       Port(uint16(conf.tcpPort) + conf.portsShift),
       Port(uint16(conf.udpPort) + conf.portsShift))
-    node = WakuNode.init(conf.nodeKey, conf.listenAddress,
+    node = WakuNode.init(conf.nodekey, conf.listenAddress,
       Port(uint16(conf.tcpPort) + conf.portsShift), extIp, extTcpPort)
 
   await node.start()
 
   if conf.filternode != "":
-    node.mountRelay(conf.topics.split(" "), rlnRelayEnabled = conf.rlnrelay)
+    node.mountRelay(conf.topics.split(" "), rlnRelayEnabled = conf.rlnRelay, keepAlive = conf.keepAlive)
   else:
-    node.mountRelay(@[], rlnRelayEnabled = conf.rlnrelay)
+    node.mountRelay(@[], rlnRelayEnabled = conf.rlnRelay, keepAlive = conf.keepAlive)
 
   let nick = await readNick(transp)
   echo "Welcome, " & nick & "!"
@@ -277,7 +276,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
     node.mountSwap()
 
   if (conf.storenode != "") or (conf.store == true):
-    node.mountStore()
+    node.mountStore(persistMessages = conf.persistMessages)
 
     var storenode: string
 
@@ -317,7 +316,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
       info "Hit filter handler"
 
     await node.subscribe(
-      FilterRequest(contentFilters: @[ContentFilter(contentTopics: @[DefaultContentTopic])], pubSubTopic: DefaultTopic, subscribe: true),
+      FilterRequest(contentFilters: @[ContentFilter(contentTopic: DefaultContentTopic)], pubSubTopic: DefaultTopic, subscribe: true),
       filterHandler
     )
 

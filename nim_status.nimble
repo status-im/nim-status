@@ -84,6 +84,9 @@ task chat, "Build and run the example chat client":
   buildAndRun "chat", "examples/", "build/",
               " -d:chronicles_sinks=textlines[file] --dynlibOverride:ncurses --passL:\"/usr/local/opt/ncurses/lib/libncursesw.a\""
 
+task chat2_waku, "Build and run the example chat2_waku client":
+  buildAndRun "chat2_waku", "examples/", "build/"
+
 task tests, "Build and run all tests":
   rmDir "test/build/"
   buildAndRun "test_all"
