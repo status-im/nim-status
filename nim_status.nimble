@@ -81,8 +81,11 @@ proc buildAndRun(name: string,
     exec outDir & name
 
 task chat, "Build and run the example chat client":
-  buildAndRun "chat", "examples/", "build/",
-              " -d:chronicles_sinks=textlines[file] --dynlibOverride:ncurses --passL:\"/usr/local/opt/ncurses/lib/libncursesw.a\""
+  buildAndRun(
+    "chat", "examples/", "build/",
+    " -d:chronicles_sinks=textlines[file]" &
+    (if getEnv("NCURSES_STATIC").strip != "false": " --dynlibOverride:ncurses" else: "") &
+    (if getEnv("NCURSES_LDFLAGS").strip != "": " --passL:\"" & getEnv("NCURSES_LDFLAGS") & "\"" else: ""))
 
 task chat2_waku, "Build and run the example chat2_waku client":
   buildAndRun "chat2_waku", "examples/", "build/"

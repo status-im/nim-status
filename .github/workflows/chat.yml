@@ -29,18 +29,24 @@ jobs:
             os: ubuntu,
             shell: bash --noprofile --norc -eo pipefail
           }
+        ncurses:   [ true ]
         pcre:      [ true ]
         release:   [ true ]
         rln:       [ true ]
         sqlcipher: [ true ]
         ssl:   [ true ]
-    name: ${{ matrix.platform.icon }} - static linking - PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }} - RELEASE ${{ matrix.release }}
+    name: ${{ matrix.platform.icon }} - static linking - NCURSES ${{ matrix.ncurses }} | PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }} - RELEASE ${{ matrix.release }}
     runs-on: ${{ matrix.platform.os }}-latest
     defaults:
       run:
         shell: ${{ matrix.platform.shell }} {0}
 
     steps:
+
+      - name: Install Valgrind via APT
+        if: matrix.platform.os == 'ubuntu'
+        run: |
+          sudo apt install -y libncurses-dev
 
       - name: Install tools and libraries via Homebrew
         if: matrix.platform.os == 'macos'
@@ -66,6 +72,7 @@ jobs:
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-pcre
             mingw-w64-x86_64-rust
+            ncurses-devel
 
       - uses: actions/checkout@v2
         with:
@@ -101,6 +108,7 @@ jobs:
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar") || true)
           export PATH="${HOME}/.local/bin:${PATH}"
           make \
+            NCURSES_STATIC=${{ matrix.ncurses }} \
             NIMFLAGS="--parallelBuild:${NPROC}" \
             PCRE_STATIC=${{ matrix.pcre }} \
             RELEASE=${{ matrix.release }} \

@@ -142,7 +142,7 @@ else
  WIN_STATIC := false
 endif
 RLN_LIB_DIR := $(shell pwd)/vendor/nim-waku/vendor/rln/target/$(RLN_TARGET_SUBDIR)
-RLN_STATIC ?= false
+RLN_STATIC ?= true
 ifeq ($(RLN_STATIC),false)
  ifeq ($(detected_OS),Windows)
   RLN_LIB := $(RLN_LIB_DIR)/librln.$(SHARED_LIB_EXT).a
@@ -292,6 +292,42 @@ ifneq ($(PCRE_STATIC),false)
 else ifeq ($(detected_OS),Windows)
  # to avoid Nim looking for pcre64.dll since we assume msys2 environment
  NIM_PARAMS += --define:usePcreHeader
+endif
+
+ifeq ($(detected_OS),macOS)
+ NCURSES_LIB_DIR ?= /usr/local/opt/ncurses/lib
+ ifeq ($(NCURSES_LIB_DIR),)
+  override NCURSES_LIB_DIR = /usr/local/opt/ncurses/lib
+ endif
+else ifeq ($(detected_OS),Windows)
+ NCURSES_LIB_DIR ?= /usr/lib
+ ifeq ($(NCURSES_LIB_DIR),)
+  override NCURSES_LIB_DIR = /usr/lib
+ endif
+else
+ NCURSES_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+ ifeq ($(NCURSES_LIB_DIR),)
+  override NCURSES_LIB_DIR = /usr/lib/x86_64-linux-gnu
+ endif
+endif
+NCURSES_STATIC ?= true
+ifndef NCURSES_LDFLAGS
+ ifeq ($(NCURSES_STATIC),false)
+  ifeq ($(detected_OS),Windows)
+   NCURSES_LDFLAGS := -L$(shell cygpath -m $(NCURSES_LIB_DIR)) -lncursesw
+  else
+   NCURSES_LDFLAGS := -L$(NCURSES_LIB_DIR) -lncursesw
+  endif
+ else
+  ifeq ($(detected_OS),Windows)
+   NCURSES_LDFLAGS := $(shell cygpath -m $(NCURSES_LIB_DIR)/libncursesw.a)
+  else
+   NCURSES_LDFLAGS := $(NCURSES_LIB_DIR)/libncursesw.a
+  endif
+ endif
+endif
+ifneq ($(PCRE_STATIC),false)
+ NIM_PARAMS += --dynlibOverride:ncurses
 endif
 
 ifndef RLN_LDFLAGS
@@ -445,6 +481,8 @@ RUN_AFTER_BUILD ?= true
 chat: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -460,6 +498,8 @@ ifeq ($(detected_OS),macOS)
 	$(ENV_SCRIPT) nimble chat
 else ifeq ($(detected_OS),Windows)
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -477,6 +517,8 @@ else ifeq ($(detected_OS),Windows)
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -495,6 +537,8 @@ endif
 chat2_waku: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -510,6 +554,8 @@ ifeq ($(detected_OS),macOS)
 	$(ENV_SCRIPT) nimble chat2_waku
 else ifeq ($(detected_OS),Windows)
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -527,6 +573,8 @@ else ifeq ($(detected_OS),Windows)
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -545,6 +593,8 @@ endif
 test: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -560,6 +610,8 @@ ifeq ($(detected_OS),macOS)
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -577,6 +629,8 @@ else ifeq ($(detected_OS),Windows)
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	LOG_LEVEL=$(LOG_LEVEL) \
+	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
+	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
