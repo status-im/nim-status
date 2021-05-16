@@ -327,7 +327,7 @@ ifndef NCURSES_LDFLAGS
  endif
 endif
 ifneq ($(PCRE_STATIC),false)
- NIM_PARAMS += --dynlibOverride:ncurses
+ NIM_PARAMS += --dynlibOverride:ncursesw
 endif
 
 ifndef RLN_LDFLAGS
