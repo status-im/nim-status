@@ -321,6 +321,8 @@ ifndef NCURSES_LDFLAGS
  else
   ifeq ($(detected_OS),Windows)
    NCURSES_LDFLAGS := $(shell cygpath -m $(NCURSES_LIB_DIR)/libncursesw.a)
+  else ifeq ($(detected_OS),macOS)
+   NCURSES_LDFLAGS := $(NCURSES_LIB_DIR)/libncursesw.a
   else
    NCURSES_LDFLAGS := $(NCURSES_LIB_DIR)/libncursesw.a $(NCURSES_LIB_DIR)/libtinfo.a
   endif
