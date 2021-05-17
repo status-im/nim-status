@@ -155,7 +155,7 @@ endif
 
 $(RLN_LIB):
 	cd vendor/nim-waku && \
-		cargo build \
+		cargo build -vv \
 			--manifest-path vendor/rln/Cargo.toml \
 			$(RLN_CARGO_BUILD_FLAGS)
 ifeq ($(detected_OS),macOS)
