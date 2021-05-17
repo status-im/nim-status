@@ -155,9 +155,11 @@ endif
 
 $(RLN_LIB):
 	cd vendor/nim-waku && \
-		cargo build -vv \
-			--manifest-path vendor/rln/Cargo.toml \
-			$(RLN_CARGO_BUILD_FLAGS)
+		cargo build \
+			 -vv \
+			$(RLN_CARGO_BUILD_FLAGS) \
+			--manifest-path vendor/rln/Cargo.toml
+
 ifeq ($(detected_OS),macOS)
 	install_name_tool -id \
 		@rpath/librln.$(SHARED_LIB_EXT) \
@@ -541,8 +543,6 @@ endif
 chat2_waku: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	LOG_LEVEL=$(LOG_LEVEL) \
-	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
-	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -558,8 +558,6 @@ ifeq ($(detected_OS),macOS)
 	$(ENV_SCRIPT) nimble chat2_waku
 else ifeq ($(detected_OS),Windows)
 	LOG_LEVEL=$(LOG_LEVEL) \
-	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
-	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -577,8 +575,6 @@ else ifeq ($(detected_OS),Windows)
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	LOG_LEVEL=$(LOG_LEVEL) \
-	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
-	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -597,8 +593,6 @@ endif
 test: $(SQLCIPHER) $(MIGRATIONS)
 ifeq ($(detected_OS),macOS)
 	LOG_LEVEL=$(LOG_LEVEL) \
-	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
-	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \
@@ -614,8 +608,6 @@ ifeq ($(detected_OS),macOS)
 	$(ENV_SCRIPT) nimble tests
 else ifeq ($(detected_OS),Windows)
 	LOG_LEVEL=$(LOG_LEVEL) \
-	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
-	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PATH="$(PATH_NIMBLE)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
@@ -633,8 +625,6 @@ else ifeq ($(detected_OS),Windows)
 else
 	LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)" \
 	LOG_LEVEL=$(LOG_LEVEL) \
-	NCURSES_LDFLAGS="$(NCURSES_LDFLAGS)" \
-	NCURSES_STATIC=$(NCURSES_STATIC) \
 	NIMSTATUS_CFLAGS="$(NIMSTATUS_CFLAGS)" \
 	PCRE_LDFLAGS="$(PCRE_LDFLAGS)" \
 	PCRE_STATIC=$(PCRE_STATIC) \

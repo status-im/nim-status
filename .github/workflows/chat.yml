@@ -97,8 +97,12 @@ jobs:
       - name: Install and build dependencies
         run: |
           # make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
+          RELEASE=${{ matrix.release }} \
+          RLN_STATIC=${{ matrix.rln }} \
           make V=1 update
           # make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
+          RELEASE=${{ matrix.release }} \
+          RLN_STATIC=${{ matrix.rln }} \
           make V=1 deps
 
       - name: Build the example chat client
