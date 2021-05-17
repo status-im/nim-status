@@ -156,7 +156,7 @@ endif
 $(RLN_LIB):
 	cd vendor/nim-waku && \
 		cargo build \
-			 -vv \
+			-vv \
 			$(RLN_CARGO_BUILD_FLAGS) \
 			--manifest-path vendor/rln/Cargo.toml
 
