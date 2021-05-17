@@ -69,19 +69,11 @@ jobs:
             git
             unzip
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-ncurses
-            mingw-w64-x86_64-ntldd
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-pcre
             mingw-w64-x86_64-rust
-
-      - name: Check stuff with ntldd
-        if: matrix.platform.os == 'windows'
-        run: |
-          ntldd /mingw64/bin/cargo.exe || true
-          ls /mingw64/bin/rust*.exe | (xargs ntldd || true)
-          ls /mingw64/bin/rust*.dll | (xargs ntldd || true)
-          exit 1
 
       - uses: actions/checkout@v2
         with:
