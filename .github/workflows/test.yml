@@ -41,27 +41,26 @@ jobs:
 
     steps:
 
-      - name: Install awk (gawk) and coreutils via Homebrew
+      - name: Install tools and libraries via Homebrew
         if: matrix.platform.os == 'macos'
         run: |
           brew install coreutils gawk
-
-      - name: Link Homebrew OpenSSL 1.1 to /usr/local/opt/openssl
-        if: matrix.platform.os == 'macos'
-        run: |
-            rm -f /usr/local/opt/openssl
-            ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
+          rm -f /usr/local/opt/openssl
+          ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
 
       - uses: msys2/setup-msys2@v2
         if: matrix.platform.os == 'windows'
         with:
           msystem: MINGW64
           update: true
+          # installing mingw-w64-x86_64-libxml2 is a workaround for:
+          # https://github.com/msys2/MINGW-packages/issues/8658
           install: >
             base-devel
             git
             unzip
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-pcre
             mingw-w64-x86_64-rust
@@ -84,7 +83,7 @@ jobs:
             vendor/nim-waku/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc
             vendor/nim-waku/vendor/rln/target
             vendor/nimbus-build-system/vendor/Nim/bin
-          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-sqlcipher_static-${{ matrix.sqlcipher }}-bump
+          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-sqlcipher_static-${{ matrix.sqlcipher }}
 
       - name: Install and build dependencies
         run: |

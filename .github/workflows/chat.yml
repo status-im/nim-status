@@ -43,7 +43,7 @@ jobs:
 
     steps:
 
-      - name: Install Valgrind via APT
+      - name: Install tools and libraries via APT
         if: matrix.platform.os == 'ubuntu'
         run: |
           sudo apt install -y libncurses-dev
@@ -52,18 +52,16 @@ jobs:
         if: matrix.platform.os == 'macos'
         run: |
           brew install coreutils gawk ncurses
-
-      - name: Link Homebrew OpenSSL 1.1 to /usr/local/opt/openssl
-        if: matrix.platform.os == 'macos'
-        run: |
-            rm -f /usr/local/opt/openssl
-            ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
+          rm -f /usr/local/opt/openssl
+          ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
 
       - uses: msys2/setup-msys2@v2
         if: matrix.platform.os == 'windows'
         with:
           msystem: MINGW64
           update: true
+          # installing mingw-w64-x86_64-libxml2 is a workaround for:
+          # https://github.com/msys2/MINGW-packages/issues/8658
           install: >
             base-devel
             git
@@ -93,18 +91,24 @@ jobs:
             vendor/nim-waku/vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc
             vendor/nim-waku/vendor/rln/target
             vendor/nimbus-build-system/vendor/Nim/bin
-          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-release-${{ matrix.release }}-bump
+          key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-release-${{ matrix.release }}
 
       - name: Install and build dependencies
         run: |
-          # make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
-          RELEASE=${{ matrix.release }} \
-          RLN_STATIC=${{ matrix.rln }} \
-          make V=1 update
-          # make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
-          RELEASE=${{ matrix.release }} \
-          RLN_STATIC=${{ matrix.rln }} \
-          make V=1 deps
+          make \
+            -j${NPROC} \
+            NIMFLAGS="--parallelBuild:${NPROC}" \
+            RELEASE=${{ matrix.release }} \
+            RLN_STATIC=${{ matrix.rln }} \
+            V=1 \
+            update
+          make \
+            -j${NPROC} \
+            NIMFLAGS="--parallelBuild:${NPROC}" \
+            RELEASE=${{ matrix.release }} \
+            RLN_STATIC=${{ matrix.rln }} \
+            V=1 \
+            deps
 
       - name: Build the example chat client
         run: |
