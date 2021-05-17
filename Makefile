@@ -300,9 +300,9 @@ ifeq ($(detected_OS),macOS)
   override NCURSES_LIB_DIR = /usr/local/opt/ncurses/lib
  endif
 else ifeq ($(detected_OS),Windows)
- NCURSES_LIB_DIR ?= /usr/lib
+ NCURSES_LIB_DIR ?= /mingw64/lib
  ifeq ($(NCURSES_LIB_DIR),)
-  override NCURSES_LIB_DIR = /usr/lib
+  override NCURSES_LIB_DIR = /mingw64/lib
  endif
 else
  NCURSES_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
