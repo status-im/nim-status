@@ -96,6 +96,7 @@ jobs:
 
       - name: Install and build dependencies
         run: |
+          git clean -dfx && rm -rf .git/modules && rm -rf vendor/*
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
