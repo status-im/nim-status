@@ -108,14 +108,16 @@ endif
 
 # For release builds of e.g. `examples/chat.nim`, it would be good to support
 # older versions of macOS (older relative to the machine that's used to build
-# the executable); for that to work linking must be done against builds of
-# OpenSSL, PCRE, rln, etc. that are properly built to support the same older
-# version of macOS we desire to target. That means compiling them or
-# downloading pre-built homebrew bottles for that older version of macOS,
-# tweaking Rust compiler flags, etc. That logic should probably be triggered
-# with respect to `RELEASE=true` and then setting up and/or overriding
-# variables and running targets in this Makefile (via `$(MAKE) [target]`) to do
-# steps that are unnecessary apart from release builds for macOS.
+# the executable); for that to work, linking must be done against builds of
+# OpenSSL, PCRE, RLN, etc. that are properly built to support the same older
+# version of macOS we desire to target. That means compiling them ourselves or
+# downloading pre-built Homebrew bottles for that older version of macOS
+# (keeping in mind the oldest version of macOS that Homebrew supports,
+# currently 10.14), tweaking Rust compiler flags, etc. That logic should
+# probably be triggered with respect to `RELEASE=true` and then setting up
+# and/or overriding variables and running targets in this Makefile (via
+# `$(MAKE) [target]`) to do steps that are unnecessary apart from release
+# builds for macOS.
 # MACOSX_DEPLOYMENT_TARGET ?= 10.14
 
 RELEASE ?= false
@@ -166,6 +168,15 @@ ifeq ($(detected_OS),macOS)
 endif
 
 rlnlib-sub: $(RLN_LIB)
+
+MIGRATIONS ?= nim_status/migrations/sql_scripts_app.nim
+
+$(MIGRATIONS): | deps
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --verbosity:0 nim_status/migrations/sql_generate.nim
+	nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
+	nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
+
+migrations: clean-migration-files $(MIGRATIONS)
 
 # These SSL variables and logic work like those in nim-sqlcipher's Makefile
 ifeq ($(detected_OS),macOS)
@@ -371,6 +382,20 @@ else
 endif
 # endif
 
+ifeq ($(SQLCIPHER_STATIC),false)
+ ifeq ($(detected_OS),Windows)
+  SQLCIPHER_LDFLAGS := -L$(shell cygpath -m $(shell pwd)/$(shell dirname $(SQLCIPHER))) -lsqlcipher
+ else
+  SQLCIPHER_LDFLAGS := -L$(shell pwd)/$(shell dirname $(SQLCIPHER)) -lsqlcipher
+ endif
+else
+ ifeq ($(detected_OS),Windows)
+  SQLCIPHER_LDFLAGS := $(shell cygpath -m $(shell pwd)/$(SQLCIPHER))
+ else
+  SQLCIPHER_LDFLAGS := $(shell pwd)/$(SQLCIPHER)
+ endif
+endif
+
 ifndef NIMSTATUS_CFLAGS
  ifneq ($(PCRE_STATIC),false)
   ifeq ($(detected_OS),Windows)
@@ -384,99 +409,22 @@ ifneq ($(NIMSTATUS_CFLAGS),)
  NIM_PARAMS += --passC:"$(NIMSTATUS_CFLAGS)"
 endif
 
-MIGRATIONS ?= nim_status/migrations/sql_scripts_app.nim
-
-$(MIGRATIONS): | deps
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --verbosity:0 nim_status/migrations/sql_generate.nim
-	nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
-	nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
-
-migrations: clean-migration-files $(MIGRATIONS)
-
+# for NCURSES, PCRE, SSL assume linkable from default location, e.g. /usr/lib/x86_64-linux-gnu
+LD_LIBRARY_PATH_NIMBLE := $${LD_LIBRARY_PATH}
+ifeq ($(RLN_STATIC),false)
+ LD_LIBRARY_PATH_NIMBLE := $(RLN_LIB_DIR):$(LD_LIBRARY_PATH_NIMBLE)
+endif
 ifeq ($(SQLCIPHER_STATIC),false)
- ifeq ($(RLN_STATIC),false)
-  PATH_NIMBLE ?= $(RLN_LIB_DIR):$(shell pwd)/$(shell dirname $(SQLCIPHER)):$${PATH}
- else
-  PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$${PATH}
- endif
- ifeq ($(PCRE_STATIC),false)
-  ifeq ($(SSL_STATIC),false)
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   endif
-  else
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PCRE_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   endif
-  endif
- else
-  ifeq ($(SSL_STATIC),false)
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   endif
-  else
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(shell pwd)/$(shell dirname $(SQLCIPHER))$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   endif
-  endif
- endif
-else
- ifeq ($(RLN_STATIC),false)
-  PATH_NIMBLE ?= $(RLN_LIB_DIR):$${PATH}
- else
-  PATH_NIMBLE ?= $${PATH}
- endif
- ifeq ($(PCRE_STATIC),false)
-  ifeq ($(SSL_STATIC),false)
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(PCRE_LIB_DIR):$(SSL_LIB_DIR):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(PCRE_LIB_DIR):$(SSL_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   endif
-  else
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(PCRE_LIB_DIR):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(PCRE_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   endif
-  endif
- else
-  ifeq ($(SSL_STATIC),false)
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(SSL_LIB_DIR):$(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $(SSL_LIB_DIR)$${LD_LIBRARY_PATH}}
-   endif
-  else
-   ifeq ($(RLN_STATIC),false)
-    LD_LIBRARY_PATH_NIMBLE ?= $(RLN_LIB_DIR)$${LD_LIBRARY_PATH:+:$${LD_LIBRARY_PATH}}
-   else
-    LD_LIBRARY_PATH_NIMBLE ?= $${LD_LIBRARY_PATH}}
-   endif
-  endif
- endif
+ LD_LIBRARY_PATH_NIMBLE := $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(LD_LIBRARY_PATH_NIMBLE)
 endif
 
+# for NCURSES, PCRE, SSL assume already in PATH of MSYS2 shell, e.g. in /mingw64/bin
+PATH_NIMBLE := $${PATH}
+ifeq ($(RLN_STATIC),false)
+ PATH_NIMBLE := $(RLN_LIB_DIR):$(PATH_NIMBLE)
+endif
 ifeq ($(SQLCIPHER_STATIC),false)
- ifeq ($(detected_OS),Windows)
-  SQLCIPHER_LDFLAGS := -L$(shell cygpath -m $(shell pwd)/$(shell dirname $(SQLCIPHER))) -lsqlcipher
- else
-  SQLCIPHER_LDFLAGS := -L$(shell pwd)/$(shell dirname $(SQLCIPHER)) -lsqlcipher
- endif
-else
- ifeq ($(detected_OS),Windows)
-  SQLCIPHER_LDFLAGS := $(shell cygpath -m $(shell pwd)/$(SQLCIPHER))
- else
-  SQLCIPHER_LDFLAGS := $(shell pwd)/$(SQLCIPHER)
- endif
+ PATH_NIMBLE := $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(PATH_NIMBLE)
 endif
 
 RUN_AFTER_BUILD ?= true
