@@ -69,6 +69,11 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
   if shouldPrint: self.printInput(input)
 
+# UserMessage ------------------------------------------------------------------
+
+proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
+  discard
+
 # ------------------------------------------------------------------------------
 
 proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =

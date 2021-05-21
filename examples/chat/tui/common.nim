@@ -23,7 +23,7 @@ type
   InputString* = ref object of TUIEvent
     str*: string
 
-const TUIEvents*: seq[string] = @[
+const TUIEvents* = [
   "InputKey",
   "InputReady",
   "InputString"

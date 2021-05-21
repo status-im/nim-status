@@ -12,7 +12,7 @@ type
     username*: string
     message*: string
 
-const clientEvents*: seq[string] = @[
+const clientEvents* = [
   "UserMessage"
 ]
 
