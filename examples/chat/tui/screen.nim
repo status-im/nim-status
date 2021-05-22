@@ -1,6 +1,8 @@
 import # chat libs
   ./common
 
+export common
+
 logScope:
   topics = "chat"
 

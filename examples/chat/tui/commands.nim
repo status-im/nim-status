@@ -2,42 +2,15 @@ import # std libs
   strutils
 
 import # chat libs
-  ./screen, ./tasks
+  ./macros, ./screen, ./tasks
 
 export screen, strutils, tasks
 
 logScope:
   topics = "chat"
 
-type
-  Command* = ref object of RootObj
-  # all fields on types that derive from Command should be of type `string`
-  Help* = ref object of Command
-    command*: string
-  Login* = ref object of Command
-    username*: string
-    password*: string
-  Logout* = ref object of Command
-  SendMessage* = ref object of Command
-    message*: string
-
-const DEFAULT_COMMAND* = ""
-
-const
-  commands* = {
-    DEFAULT_COMMAND: "SendMessage",
-    "help": "Help",
-    "login": "Login",
-    "logout": "Logout"
-  }.toTable
-
-  aliases* = {
-    "?": "help"
-  }.toTable
-
-  aliased* = {
-    "help": ["?"]
-  }
+# Command types are defined in ./common to avoid a circular dependency because
+# multiple modules in this directory make use of them
 
 # `parse` procs for command args should only be concerned about splitting the
 # string appropriately and avoid validation logic beyond bare minimum to
@@ -143,7 +116,7 @@ proc parse*(commandRaw: string): (string, seq[string], bool) =
         else:
           argsRaw = stripped[argsStart..^1]
 
-      if aliases.hasKey(maybeCommand):
+      if tables.hasKey(aliases, maybeCommand):
         maybeCommand = aliases[maybeCommand]
 
       if commands.hasKey(maybeCommand):
@@ -151,7 +124,7 @@ proc parse*(commandRaw: string): (string, seq[string], bool) =
         isCommand = true
 
   if isCommand:
-    # should be able to gen the following code with a template
+    # should be able to gen the following code with a macro
     case command:
       # of ...:
 

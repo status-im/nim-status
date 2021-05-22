@@ -14,6 +14,7 @@ type
     mainWindow*: PWindow
     running*: bool
     taskRunner*: TaskRunner
+
   TUIEvent* = ref object of Event
   InputKey* = ref object of TUIEvent
     key*: int
@@ -23,8 +24,37 @@ type
   InputString* = ref object of TUIEvent
     str*: string
 
-const TUIEvents* = [
-  "InputKey",
-  "InputReady",
-  "InputString"
-]
+  Command* = ref object of RootObj
+  # all fields on types that derive from Command should be of type `string`
+  Help* = ref object of Command
+    command*: string
+  Login* = ref object of Command
+    username*: string
+    password*: string
+  Logout* = ref object of Command
+  SendMessage* = ref object of Command
+    message*: string
+
+const
+  TUIEvents* = [
+    "InputKey",
+    "InputReady",
+    "InputString"
+  ]
+
+  DEFAULT_COMMAND* = ""
+
+  commands* = {
+    DEFAULT_COMMAND: "SendMessage",
+    "help": "Help",
+    "login": "Login",
+    "logout": "Logout"
+  }.toTable
+
+  aliases* = {
+    "?": "help"
+  }.toTable
+
+  aliased* = {
+    "help": @["?"]
+  }.toTable

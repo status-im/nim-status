@@ -20,7 +20,13 @@ logScope:
 # the execution time of procs it may call, is 16 milliseconds so as to maintain
 # at least 60 FPS in the TUI.
 
-proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.}
+proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
+  let (commandType, args, isCommand) = parse(command)
+
+  if isCommand: commandCases()
+  else:
+    # should print an error/explanation to the screen as well
+    error "TUI received malformed or unknown command", command
 
 # InputKeuy --------------------------------------------------------------------
 
@@ -73,13 +79,3 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
 proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
   discard
-
-# ------------------------------------------------------------------------------
-
-proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
-  let (commandType, args, isCommand) = parse(command)
-
-  if isCommand: commandCases()
-  else:
-    # should print an error/explanation to the screen as well
-    error "TUI received malformed or unknown command", command

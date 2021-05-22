@@ -3,11 +3,11 @@ import # chat libs
 
 export actions
 
-# TUIEvent types are defined in ./common because multiple modules in this
-# directory make use of them
-
 logScope:
   topics = "chat"
+
+# TUIEvent types are defined in ./common to avoid a circular dependency because
+# multiple modules in this directory make use of them
 
 proc dispatch(self: ChatTUI, event: string) {.gcsafe, nimcall.}
 

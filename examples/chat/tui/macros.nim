@@ -2,7 +2,9 @@ import # std libs
   std/macros
 
 import # chat libs
-  ./commands as comm, ./common
+  ./common
+
+export common
 
 macro values[K, V](a: Table[K, V]): untyped =
   result = nnkBracket.newTree()
