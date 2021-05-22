@@ -4,10 +4,17 @@ import # std libs
 import # chat libs
   ./macros, ./screen, ./tasks
 
-export screen, strutils, tasks
+export macros, screen, strutils, tasks
 
 logScope:
   topics = "chat"
+
+# workaround for a problem (compiler bug?) affecting exported tables; if this is
+# not done the compiler will fail with error `undeclared identifier: 'hasKey'`
+const
+  aliased = macros.common.aliased
+  aliases = macros.common.aliases
+  commands = macros.common.commands
 
 # Command types are defined in ./common to avoid a circular dependency because
 # multiple modules in this directory make use of them
@@ -116,7 +123,7 @@ proc parse*(commandRaw: string): (string, seq[string], bool) =
         else:
           argsRaw = stripped[argsStart..^1]
 
-      if tables.hasKey(aliases, maybeCommand):
+      if aliases.hasKey(maybeCommand):
         maybeCommand = aliases[maybeCommand]
 
       if commands.hasKey(maybeCommand):
