@@ -2,21 +2,48 @@ import # std libs
   std/macros
 
 import # chat libs
-  ./common
+  ./commands as comm, ./common
 
-export common
+macro values[K, V](a: Table[K, V]): untyped =
+  result = nnkBracket.newTree()
+
+  let a = a.getImpl()
+
+  for val in a[1][1]:
+    if val[0] != newLit(0): result.add val[2]
+
+const commands = values(commands)
+
+macro commandCases*(): untyped =
+  result = newStmtList()
+
+  let argsId = ident("args")
+
+  var casenode = newNimNode(nnkCaseStmt)
+  casenode.add(ident("commandType"))
+
+  for command in commands:
+    let commandType = ident(command)
+    var
+      ofbranch = newNimNode(nnkOfBranch)
+      ofstmt = newStmtList()
+
+    ofbranch.add(newLit(command))
+    ofstmt.add(quote do: waitFor self.command(`commandType`.new(`argsId`)))
+    ofbranch.add(ofstmt)
+    casenode.add(ofbranch)
+
+  result.add(casenode)
 
 macro `&`[T; A, B: static int](a: array[A, T], b: array[B, T]): untyped =
-  var
-    a = a.getImpl
-    b = b.getImpl
+  result = nnkBracket.newTree()
 
-  result = nnkBracket.newTree
+  let
+    a = a.getImpl()
+    b = b.getImpl()
 
-  for val in a:
-    result.add val
-  for val in b:
-    result.add val
+  for val in a: result.add val
+  for val in b: result.add val
 
 const events = clientEvents & TUIEvents
 

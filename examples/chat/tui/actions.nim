@@ -1,5 +1,5 @@
 import # chat libs
-  ./commands
+  ./commands, ./macros
 
 export commands
 
@@ -77,32 +77,9 @@ proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
 # ------------------------------------------------------------------------------
 
 proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
-  var (cmd, args, isCmd) = parse(command)
+  let (commandType, args, isCommand) = parse(command)
 
-  if isCmd:
-    # before `case..of` for commands, check against an "available commands set"
-    # that will vary depending on the state of the TUI, e.g. if already logged
-    # in or login is in progress, then login command shouldn't be invokable but
-    # logout command should be invokable
-
-    # should be able to gen the following code with a template and constant
-    # `seq[string]` that contains the names of all the types in ./commands that
-    # derive from the Command type defined in that module
-    case cmd:
-      # of ...:
-
-      of "Help":
-        waitFor self.command(Help.new(args))
-
-      of "Login":
-        waitFor self.command(Login.new(args))
-
-      of "Logout":
-        waitFor self.command(Logout.new(args))
-
-      of "SendMessage":
-        waitFor self.command(SendMessage.new(args))
-
+  if isCommand: commandCases()
   else:
     # should print an error/explanation to the screen as well
     error "TUI received malformed or unknown command", command

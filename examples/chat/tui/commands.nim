@@ -111,45 +111,48 @@ proc command*(self: ChatTUI, command: Logout) {.async, gcsafe, nimcall.} =
 
 # ------------------------------------------------------------------------------
 
-proc parse*(command: string): (string, seq[string], bool) =
+proc parse*(commandRaw: string): (string, seq[string], bool) =
   var
     args: seq[string]
     argsRaw: string
-    cmd: string
-    isCmd = false
-    stripped = command.strip(trailing = false)
+    command: string
+    isCommand = false
+    stripped = commandRaw.strip(trailing = false)
 
   if stripped != "" :
     if stripped[0] != '/':
-      cmd = commands[DEFAULT_COMMAND]
+      command = commands[DEFAULT_COMMAND]
       argsRaw = command
-      isCmd = true
+      isCommand = true
+
     elif stripped.strip() != "/" and
          stripped.len >= 2 and
          stripped[1..^1].strip(trailing = false) ==
            stripped[1..^1]:
       let firstSpace = stripped.find(" ")
-      var maybeCmd: string
+      var maybeCommand: string
+
       if firstSpace == -1:
-        maybeCmd = stripped[1..^1]
+        maybeCommand = stripped[1..^1]
       else:
-        maybeCmd = stripped[1..<firstSpace]
+        maybeCommand = stripped[1..<firstSpace]
         let argsStart = firstSpace + 1
+
         if stripped.len == argsStart:
           argsRaw = ""
         else:
           argsRaw = stripped[argsStart..^1]
 
-      if aliases.hasKey(maybeCmd):
-        maybeCmd = aliases[maybeCmd]
+      if aliases.hasKey(maybeCommand):
+        maybeCommand = aliases[maybeCommand]
 
-      if commands.hasKey(maybeCmd):
-        cmd = commands[maybeCmd]
-        isCmd = true
+      if commands.hasKey(maybeCommand):
+        command = commands[maybeCommand]
+        isCommand = true
 
-  if isCmd:
+  if isCommand:
     # should be able to gen the following code with a template
-    case cmd:
+    case command:
       # of ...:
 
       of "Help":
@@ -164,7 +167,7 @@ proc parse*(command: string): (string, seq[string], bool) =
       of "SendMessage":
         args = SendMessage.parse(argsRaw)
 
-    (cmd, args, true)
+    (command, args, true)
 
   else:
     ("", @[], false)
