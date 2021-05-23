@@ -6,16 +6,16 @@ export commands, macros
 logScope:
   topics = "chat"
 
-# action and command (see ./commands) procs are `{.async.}` for the convenience
-# of e.g. interaction with channels and tasks. However, they should be
-# self-contained with respect to their effects (with allowance for `await`-ing
-# or `waitFor`-ing invocation of another `{.async.}` proc or blocking until
-# return of a synchronous proc), i.e. other than invoking tasks (to do work on
-# other threads) or sending to a channel (using `asyncSpawn`), they *should
-# not* spawn independent asynchronous routines to cause side effects in the
-# main thread that would happen *after* the current action/command has
-# returned. They should also return as soon as possible and should be
-# considered to effectively "block the main thread" while they are
+# `action` and `command` (see ./commands) procs are `{.async.}` for the
+# convenience of e.g. interaction with channels and tasks. However, they should
+# be self-contained with respect to their effects (with allowance for
+# `await`-ing or `waitFor`-ing invocation of another `{.async.}` proc or
+# blocking until return of a synchronous proc), i.e. other than invoking tasks
+# (to do work on other threads) or sending to a channel (using `asyncSpawn`),
+# they *should not* spawn independent asynchronous routines to cause side
+# effects in the main thread that would happen *after* the current
+# action/command has returned. They should also return as soon as possible and
+# should be considered to effectively "block the main thread" while they are
 # executing. The time budget for an action, from start to finish and including
 # the execution time of procs it may call, is 16 milliseconds so as to maintain
 # at least 60 FPS in the TUI.

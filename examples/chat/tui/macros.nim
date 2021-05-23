@@ -37,6 +37,32 @@ macro commandCases*(): untyped =
 
   result.add(casenode)
 
+macro commandSplitCases*(): untyped =
+  result = newStmtList()
+
+  let
+    argsId = ident("args")
+    argsRawId = ident("argsRaw")
+
+  var casenode = newNimNode(nnkCaseStmt)
+  casenode.add(ident("command"))
+
+  for command in commands:
+    let commandType = ident(command)
+    var
+      ofbranch = newNimNode(nnkOfBranch)
+      ofstmt = newStmtList()
+
+    ofbranch.add(newLit(command))
+    ofstmt.add(quote do: `argsId` = `commandType`.split(`argsRawId`))
+    ofbranch.add(ofstmt)
+    casenode.add(ofbranch)
+
+  result.add(casenode)
+
+  # debug
+  echo toStrLit(result)
+
 macro `&`[T; A, B: static int](a: array[A, T], b: array[B, T]): untyped =
   result = nnkBracket.newTree()
 

@@ -19,57 +19,41 @@ const
 # Command types are defined in ./common to avoid a circular dependency because
 # multiple modules in this directory make use of them
 
-# `parse` procs for command args should only be concerned about splitting the
-# string appropriately and avoid validation logic beyond bare minimum to
+# `split` procs for command args should only be concerned about splitting the
+# raw string appropriately and avoid validation logic beyond bare minimum to
 # generate the correct number of members in the returned `seq[string]`
 
-# `command` procs should be reponsible for final validation and execution with
+# `command` procs should be reponsible for validation and execution with
 # respect to fields on the instantiated types derived from Command; authoring
-# `parse` and `command` and type definitions that derive from Command (as well
+# `split` and `command` and type definitions that derive from Command (as well
 # their respective `new` procs) will involve consideration of special strings
-# that a `parse` proc populates into its returned `seq[string]` indicating
-# e.g. a special value or missing arg or some other problem or special case
-# that `parse` ran into, and the correpsonding `command` proc should implement
-# the appropriate logic to deal with those values e.g. printing an
-# error/explanation to the output window
+# (e.g. empty string) that a `split` proc populates into its returned
+# `seq[string]` indicating e.g. a special value or missing arg or some other
+# problem or special case that `split` ran into, and the correpsonding
+# `command` proc should implement the appropriate logic to deal with those
+# values
 
 # Help -------------------------------------------------------------------------
 
 proc new*(T: type Help, args: varargs[string]): T =
   T(command: args[0])
 
-proc parse*(T: type Help, args: string): seq[string] =
-  @[args.split(" ")[0]]
+proc split*(T: type Help, argsRaw: string): seq[string] =
+  @[argsRaw.split(" ")[0]]
 
 proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let command = command.command
-
   trace "TUI requested help", command
-
-# SendMessage ------------------------------------------------------------------
-
-# should probably use tuples with named members instead o varargs and in the `case..of` in actions dispatch for commands shoul generate code for not only the new call but also the parse call
-proc new*(T: type SendMessage, args: varargs[string]): T =
-  T(message: args[0])
-
-proc parse*(T: type SendMessage, args: string): seq[string] =
-  @[args]
-
-proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
-  let message = command.message
-
-  trace "TUI requested client send message", message
-  # ... self.client.send(message) ...
 
 # Login ------------------------------------------------------------------------
 
 proc new*(T: type Login, args: varargs[string]): T {.raises: [].} =
   T(username: args[0], password: args[1])
 
-proc parse*(T: type Login, args: string): seq[string] =
+proc split*(T: type Login, argsRaw: string): seq[string] =
   # don't really want to split on space because password could contain spaces
   # though username would not; also need to consider missing 1 or 2 args
-  args.split(" ")
+  argsRaw.split(" ")
 
 proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
   let
@@ -83,11 +67,24 @@ proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
 proc new*(T: type Logout, args: varargs[string]): T =
   T()
 
-proc parse*(T: type Logout, args: string): seq[string] =
+proc split*(T: type Logout, argsRaw: string): seq[string] =
   return @[]
 
 proc command*(self: ChatTUI, command: Logout) {.async, gcsafe, nimcall.} =
   trace "TUI requested client logout"
+
+# SendMessage ------------------------------------------------------------------
+
+proc new*(T: type SendMessage, args: varargs[string]): T =
+  T(message: args[0])
+
+proc split*(T: type SendMessage, argsRaw: string): seq[string] =
+  @[argsRaw]
+
+proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
+  let message = command.message
+  trace "TUI requested client send message", message
+  # ... self.client.send(message) ...
 
 # ------------------------------------------------------------------------------
 
@@ -102,13 +99,12 @@ proc parse*(commandRaw: string): (string, seq[string], bool) =
   if stripped != "" :
     if stripped[0] != '/':
       command = commands[DEFAULT_COMMAND]
-      argsRaw = command
+      argsRaw = commandRaw
       isCommand = true
 
     elif stripped.strip() != "/" and
          stripped.len >= 2 and
-         stripped[1..^1].strip(trailing = false) ==
-           stripped[1..^1]:
+         stripped[1..^1].strip(trailing = false) == stripped[1..^1]:
       let firstSpace = stripped.find(" ")
       var maybeCommand: string
 
@@ -131,23 +127,7 @@ proc parse*(commandRaw: string): (string, seq[string], bool) =
         isCommand = true
 
   if isCommand:
-    # should be able to gen the following code with a macro
-    case command:
-      # of ...:
-
-      of "Help":
-        args = Help.parse(argsRaw)
-
-      of "Login":
-        args = Login.parse(argsRaw)
-
-      of "Logout":
-        args = Login.parse(argsRaw)
-
-      of "SendMessage":
-        args = SendMessage.parse(argsRaw)
-
+    commandSplitCases()
     (command, args, true)
-
   else:
     ("", @[], false)

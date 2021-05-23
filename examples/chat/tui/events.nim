@@ -9,7 +9,14 @@ logScope:
 # TUIEvent types are defined in ./common to avoid a circular dependency because
 # multiple modules in this directory make use of them
 
-proc dispatch(self: ChatTUI, event: string) {.gcsafe, nimcall.}
+proc dispatch(self: ChatTUI, event: string) {.gcsafe, nimcall.} =
+  var eventType: string
+  try:
+    eventType = parseJson(event){"$type"}.getStr().split(':')[0]
+  except:
+    eventType = ""
+
+  eventCases()
 
 proc listenToClient(self: ChatTUI) {.async, gcsafe, nimcall.} =
   while self.client.running and self.running:
@@ -29,12 +36,3 @@ proc listen*(self: ChatTUI) {.async, gcsafe, nimcall.} =
     let event = $(await self.events.recv())
     debug "TUI received event", event
     self.dispatch(event)
-
-proc dispatch(self: ChatTUI, event: string) {.gcsafe, nimcall.} =
-  var eventType: string
-  try:
-    eventType = parseJson(event){"$type"}.getStr().split(':')[0]
-  except:
-    eventType = ""
-
-  eventCases()
