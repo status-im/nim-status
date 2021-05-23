@@ -1,7 +1,7 @@
 import # chat libs
-  ./commands, ./macros
+  ./parser
 
-export commands, macros
+export parser
 
 logScope:
   topics = "chat"

@@ -31,13 +31,14 @@ type ChatConfig* = object
   .}: string
 
 proc handleConfig*(config: ChatConfig): string =
-  let dataDir = absolutePath(expandTilde(config.dataDir))
-  let logFile =
-    if config.dataDir != defaultDataDir() and
-       config.logFile == defaultLogFile():
-      joinPath(dataDir, extractFilename(defaultLogFile()))
-    else:
-      absolutePath(expandTilde(config.logFile))
+  let
+    dataDir = absolutePath(expandTilde(config.dataDir))
+    logFile =
+      if config.dataDir != defaultDataDir() and
+         config.logFile == defaultLogFile():
+        joinPath(dataDir, extractFilename(defaultLogFile()))
+      else:
+        absolutePath(expandTilde(config.logFile))
 
   createDir(dataDir)
   discard defaultChroniclesStream.output.open(logFile, fmAppend)

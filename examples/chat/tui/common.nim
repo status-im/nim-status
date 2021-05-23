@@ -32,6 +32,7 @@ type
     username*: string
     password*: string
   Logout* = ref object of Command
+  Quit* = ref object of Command
   SendMessage* = ref object of Command
     message*: string
 
@@ -48,13 +49,33 @@ const
     DEFAULT_COMMAND: "SendMessage",
     "help": "Help",
     "login": "Login",
-    "logout": "Logout"
+    "logout": "Logout",
+    "quit": "Quit"
   }.toTable
 
   aliases* = {
-    "?": "help"
+    "?": "help",
+    "send": DEFAULT_COMMAND
   }.toTable
 
   aliased* = {
+    DEFAULT_COMMAND: @["send"],
     "help": @["?"]
   }.toTable
+
+proc stop*(self: ChatTUI) {.async.} =
+  debug "TUI stopping"
+
+  var stopping: seq[Future[void]] = @[]
+  stopping.add self.client.stop()
+  stopping.add self.taskRunner.stop()
+  await allFutures(stopping)
+  self.events.close()
+
+  discard endwin()
+  trace "TUI restored the terminal"
+
+  debug "TUI stopped"
+  # set `self.running = true` as the the last step to facilitate clean program
+  # exit (see ../chat)
+  self.running = false

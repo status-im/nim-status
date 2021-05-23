@@ -25,11 +25,11 @@ proc start*(self: ChatClient) {.async.} =
   self.events.open()
   await self.taskRunner.start()
 
-  debug "client started"
-
   # set `self.running = true` before any `asyncSpawn` so client logic can check
   # `self.running` to know whether to run / continue running / stop running
   self.running = true
+  debug "client started"
+
   asyncSpawn self.listen()
 
 proc stop*(self: ChatClient) {.async.} =

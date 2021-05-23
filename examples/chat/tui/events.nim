@@ -6,8 +6,7 @@ export actions
 logScope:
   topics = "chat"
 
-# TUIEvent types are defined in ./common to avoid a circular dependency because
-# multiple modules in this directory make use of them
+# TUIEvent types are defined in ./common to avoid circular dependency
 
 proc dispatch(self: ChatTUI, event: string) {.gcsafe, nimcall.} =
   var eventType: string
@@ -34,5 +33,5 @@ proc listen*(self: ChatTUI) {.async, gcsafe, nimcall.} =
   asyncSpawn self.listenToInput()
   while self.running:
     let event = $(await self.events.recv())
-    debug "TUI received event", event
+    trace "TUI received event", event
     self.dispatch(event)

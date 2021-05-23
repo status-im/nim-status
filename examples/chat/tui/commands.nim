@@ -2,22 +2,14 @@ import # std libs
   strutils
 
 import # chat libs
-  ./macros, ./screen, ./tasks
+  ./screen, ./tasks
 
-export macros, screen, strutils, tasks
+export screen, strutils, tasks
 
 logScope:
   topics = "chat"
 
-# workaround for a problem (compiler bug?) affecting exported tables; if this is
-# not done the compiler will fail with error `undeclared identifier: 'hasKey'`
-const
-  aliased = macros.common.aliased
-  aliases = macros.common.aliases
-  commands = macros.common.commands
-
-# Command types are defined in ./common to avoid a circular dependency because
-# multiple modules in this directory make use of them
+# Command types are defined in ./common to avoid circular dependency
 
 # `split` procs for command args should only be concerned about splitting the
 # raw string appropriately and avoid validation logic beyond bare minimum to
@@ -43,7 +35,8 @@ proc split*(T: type Help, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let command = command.command
-  trace "TUI requested help", command
+  # trace "TUI received help command", command
+  discard
 
 # Login ------------------------------------------------------------------------
 
@@ -60,7 +53,8 @@ proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
     username = command.username
     password = command.password
 
-  trace "TUI requested client login", username, password="***"
+  # trace "TUI received login command", username, password="***"
+  discard
 
 # Logout -----------------------------------------------------------------------
 
@@ -71,7 +65,20 @@ proc split*(T: type Logout, argsRaw: string): seq[string] =
   return @[]
 
 proc command*(self: ChatTUI, command: Logout) {.async, gcsafe, nimcall.} =
-  trace "TUI requested client logout"
+  # trace "TUI received logout command"
+  discard
+
+# Quit -------------------------------------------------------------------------
+
+proc new*(T: type Quit, args: varargs[string]): T =
+  T()
+
+proc split*(T: type Quit, argsRaw: string): seq[string] =
+  return @[]
+
+proc command*(self: ChatTUI, command: Quit) {.async, gcsafe, nimcall.} =
+  # trace "TUI received quit command"
+  await self.stop()
 
 # SendMessage ------------------------------------------------------------------
 
@@ -83,51 +90,6 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
   let message = command.message
-  trace "TUI requested client send message", message
+  trace "TUI sending message", message
+  discard
   # ... self.client.send(message) ...
-
-# ------------------------------------------------------------------------------
-
-proc parse*(commandRaw: string): (string, seq[string], bool) =
-  var
-    args: seq[string]
-    argsRaw: string
-    command: string
-    isCommand = false
-    stripped = commandRaw.strip(trailing = false)
-
-  if stripped != "" :
-    if stripped[0] != '/':
-      command = commands[DEFAULT_COMMAND]
-      argsRaw = commandRaw
-      isCommand = true
-
-    elif stripped.strip() != "/" and
-         stripped.len >= 2 and
-         stripped[1..^1].strip(trailing = false) == stripped[1..^1]:
-      let firstSpace = stripped.find(" ")
-      var maybeCommand: string
-
-      if firstSpace == -1:
-        maybeCommand = stripped[1..^1]
-      else:
-        maybeCommand = stripped[1..<firstSpace]
-        let argsStart = firstSpace + 1
-
-        if stripped.len == argsStart:
-          argsRaw = ""
-        else:
-          argsRaw = stripped[argsStart..^1]
-
-      if aliases.hasKey(maybeCommand):
-        maybeCommand = aliases[maybeCommand]
-
-      if commands.hasKey(maybeCommand):
-        command = commands[maybeCommand]
-        isCommand = true
-
-  if isCommand:
-    commandSplitCases()
-    (command, args, true)
-  else:
-    ("", @[], false)

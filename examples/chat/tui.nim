@@ -13,6 +13,8 @@ logScope:
 
 const input = "input"
 
+# `proc stop(self: ChatTUI)` is defined in ./common to avoid circular dependency
+
 proc new*(T: type ChatTUI, dataDir: string): T =
   let
     (locale, mainWindow) = initScreen()
@@ -34,28 +36,10 @@ proc start*(self: ChatTUI) {.async.} =
   starting.add self.client.start()
   await allFutures(starting)
 
-  debug "TUI started"
-
   # set `self.running = true` before any `asyncSpawn` so TUI logic can check
   # `self.running` to know whether to run / continue running / stop running
   self.running = true
+  debug "TUI started"
+
   asyncSpawn self.listen()
   asyncSpawn readInput(self.taskRunner, input)
-
-proc stop*(self: ChatTUI) {.async.} =
-  debug "TUI stopping"
-
-  var stopping: seq[Future[void]] = @[]
-  stopping.add self.client.stop()
-  stopping.add self.taskRunner.stop()
-  await allFutures(stopping)
-  self.events.close()
-
-  discard endwin()
-  trace "TUI restored the terminal"
-
-  debug "TUI stopped"
-
-  # set `self.running = true` as the the last step to facilitate clean program
-  # exit (see ../chat)
-  self.running = false
