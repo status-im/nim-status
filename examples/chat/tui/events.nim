@@ -1,5 +1,5 @@
 import # chat libs
-  ./actions, ./macros
+  ./actions
 
 export actions
 
