@@ -43,7 +43,8 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
     of RETURN:
       let command = self.currentInput
 
-      if command.strip(trailing = false) != "":
+      if command.strip(trailing = false) != "" and
+         not aliased[DEFAULT_COMMAND].contains(command.strip()[1..^1]):
         self.currentInput = ""
         trace "TUI reset current input", currentInput=self.currentInput
 
