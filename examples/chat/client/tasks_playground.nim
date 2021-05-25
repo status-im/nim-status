@@ -9,10 +9,9 @@ logScope:
 # This module was used to experiment with patterns for no_rts and rts tasks. At
 # present it's kept around for easy reference but will eventually be removed.
 
-# When `createTask` template/macro is implemented, would prefer to write
-# something like...
+# When the `createTask` macro is implemented, would prefer to write...
 
-# createTask "helloTask", no_rts, (to: string):
+# proc hello(to: string) {.task(no_rts).} =
 #   let
 #     taskName = arg.name
 #     to = arg.to
