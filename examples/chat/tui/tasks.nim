@@ -6,29 +6,29 @@ export common
 logScope:
   topics = "chat"
 
-type
-  ReadInputTaskArg = ref object of TaskArg
-
 const
   ESCAPE* = "ESCAPE"
   RETURN* = "RETURN"
 
-const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
+proc readInput*() {.task(kind=no_rts, stoppable=true).} =
   let
-    arg = decode[ReadInputTaskArg](argEnc)
-    chanSendToHost = cast[WorkerChannel](arg.chanSendToHost)
-    task = arg.name
+    task = taskArg.taskName
 
   var
     bytes: seq[byte] = @[]
     discarded = false
     expected = 1
     input = 0
-    running = cast[ptr Atomic[bool]](arg.running)
 
   let
     event = InputReady(ready: true)
     eventEnc = event.encode
+
+  let boo = taskStopped.load()
+  trace "HEY HEY HEY I READ FROM ATOMIC BOOL", boo
+
+  let boo2 = workerRunning[].load()
+  trace "HEY HEY HEY I READ FROM WORKER RUNNING", boo2
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
@@ -40,10 +40,10 @@ const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
   # support other terminal/environment/OS encodings, but for now this is a
   # simplifying assumption for the sake of implementing `readInputTask`
 
-  while running[].load():
+  while workerRunning[].load():
     if input != -1: trace "task waiting for input", task
     input = getch().int
-    if not running[].load():
+    if not workerRunning[].load():
       trace "task stopped", task
       break
     if input != -1:
@@ -83,17 +83,3 @@ const readInputTask: Task = proc(argEnc: string) {.async, gcsafe, nimcall.} =
       if shouldSend:
         trace "task sent event to host", event=eventEnc, task
         asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-proc readInput*(taskRunner: TaskRunner, workerName: string) {.async.} =
-  let
-    worker = taskRunner.workers[workerName].worker
-    chanSendToHost = worker.chanRecvFromWorker
-    chanSendToWorker = worker.chanSendToWorker
-    arg = ReadInputTaskArg(
-      chanSendToHost: cast[ByteAddress](chanSendToHost),
-      name: "readInput",
-      running: cast[ByteAddress](addr taskRunner.running),
-      task: cast[ByteAddress](readInputTask)
-    )
-
-  asyncSpawn chanSendToWorker.send(arg.encode.safe)

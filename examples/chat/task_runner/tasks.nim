@@ -6,15 +6,21 @@ export json_serialization
 type
   ContextArg* = ref object of RootObj
   Context* = proc(arg: ContextArg): Future[void] {.gcsafe, nimcall.}
-  Task* = proc(arg: string): Future[void] {.gcsafe, nimcall.}
+  Task* = proc(taskArgEncoded: string): Future[void] {.gcsafe, nimcall.}
   TaskKind* = enum no_rts, rts # rts := "return to sender"
   TaskArg* = ref object of RootObj
     chanSendToHost*: ByteAddress # pointer to channel for sending to host
-    name*: string # name of task
-    running*: ByteAddress # pointer to task runner's `.running` Atomic[bool]
     task*: ByteAddress # pointer to task proc
-  TaskArgRts* = ref object of TaskArg
-    chanReturnToSender*: ByteAddress # pointer to return-channel for sender
+    taskName*: string
+    workerRunning*: ByteAddress # pointer to task runner's `.running` Atomic[bool]
+
+# there should eventually be the ability to reliably stop individual workers,
+# i.e. each worker would have it's own `.running` Atomic[bool] (maybe
+# reconsider the naming, e.g. "workerStopped" vs. "workerRunning" to be
+# consistent with "taskStopped", or switch the latter to
+# "taskRunning"). Currently, a TaskRunner instance's `.running` Atomic[bool]
+# serves as a "master switch" for all the workers, so it's not completely
+# inaccurate for the field on TaskArg to be named `workerRunning`
 
 const emptyContext*: Context =
   proc(arg: ContextArg) {.async, gcsafe, nimcall.} = discard

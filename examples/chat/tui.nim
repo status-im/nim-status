@@ -42,4 +42,6 @@ proc start*(self: ChatTUI) {.async.} =
   debug "TUI started"
 
   asyncSpawn self.listen()
-  asyncSpawn readInput(self.taskRunner, input)
+  var tester: Atomic[bool]
+  tester.store(true)
+  asyncSpawn readInput(self.taskRunner, input, tester)
