@@ -10,7 +10,7 @@ const
   ESCAPE* = "ESCAPE"
   RETURN* = "RETURN"
 
-proc readInput*() {.task(kind=no_rts, stoppable=true).} =
+proc readInput*() {.task(kind=no_rts, stoppable=false).} =
   let
     task = taskArg.taskName
 
@@ -23,12 +23,6 @@ proc readInput*() {.task(kind=no_rts, stoppable=true).} =
   let
     event = InputReady(ready: true)
     eventEnc = event.encode
-
-  let boo = taskStopped.load()
-  trace "HEY HEY HEY I READ FROM ATOMIC BOOL", boo
-
-  let boo2 = workerRunning[].load()
-  trace "HEY HEY HEY I READ FROM WORKER RUNNING", boo2
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)

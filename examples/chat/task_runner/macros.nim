@@ -4,8 +4,6 @@ import # std libs
 import # chat libs
   ./impl
 
-# experimental -----------------------------------------------------------------
-
 macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyped =
   result = newStmtList()
 
@@ -51,15 +49,15 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
   # the repition below could/should be cleaned up with additional
   # metaprogramming; there can be a task options object for which e.g. the
   # `stoppable` field is a boolean flag, but then also a helper object/table
-  # with the same fields/keys but the value are tuples of the type names and
+  # with the same fields/keys but the values are tuples of the type names and
   # field names to be added to the type derived from TaskArg; the fields of the
   # supplied/default options object can be iterated over and the proper
   # nnkIdentDefs can be built according to the options values and info in the
   # helper object/table; the same (or very similar) technique could be used to
   # allow e.g. specification of a TaskRunner instance and/or worker name and/or
   # `var Atomic[bool]` (for stopping the task) in the options object, which
-  # would then affect whether or not those are included in the parameters of
-  # the constructed procs or baked into their bodies
+  # would then affect whether parameters for those things are included in the
+  # type signatures of the constructed procs or instead baked into their bodies
 
   var
     taskArgTypeDef = newNimNode(nnkTypeDef)
@@ -131,19 +129,15 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
 
   var
     atomPtr = newNimNode(nnkPtrTy)
-    # atomVar = newNimNode(nnkVarTy)
     atomBracket = newNimNode(nnkBracketExpr)
 
   atomBracket.add(atomicTypeId)
   atomBracket.add(boolTypeId)
   atomPtr.add(atomBracket)
-  # atomVar.add(atomBracket)
 
   let
-    # taskStoppedTypeId = atomVar
-    taskStoppedTypeId = atomBracket
+    taskStoppedTypeId = atomPtr
     workerRunningTypeId = atomPtr
-    # workerRunningTypeId = atomBracket
 
   var impl = newStmtList()
 
@@ -225,7 +219,6 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
         task: cast[`serializedPointerTypeId`](`taskNameImplId`),
         taskName: `taskName`,
         `workerRunningId`: cast[`serializedPointerTypeId`](addr taskRunner.running)
-        # `workerRunningId`: cast[`serializedPointerTypeId`](taskRunner.running)
       )
 
   if stoppable == true:
@@ -234,7 +227,6 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
       objConstructor = taskBody[0][3][2]
 
     objField.add(taskStoppedId)
-    # objField.add quote do: cast[`serializedPointerTypeId`](addr `stoppedId`)
     objField.add quote do: cast[`serializedPointerTypeId`](`stoppedId`)
     objConstructor.add(objField)
 
