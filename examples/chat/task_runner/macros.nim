@@ -7,11 +7,6 @@ import # chat libs
 macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyped =
   result = newStmtList()
 
-  # debug ----------------------------------------------------------------------
-  # echo()
-  # echo(treeRepr body)
-  # echo()
-
   const
     star = "*"
     syncPost = "Sync"
@@ -27,6 +22,7 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
     taskNameId: NimNode
     taskNameImplId: NimNode
     taskNameSyncId: NimNode
+    taskReturnTypeId: NimNode
 
   if kind(body[0]) == nnkPostfix and body[0][0] == ident(star):
     exported = true
@@ -40,24 +36,27 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
   taskArgTypeDerivedId = ident(taskName.capitalize & taskArgPost)
   taskNameImplId = ident(taskName & taskPost)
   taskNameSyncId = ident(taskName & syncPost)
+  taskReturnTypeId = body[3][0]
 
   let
     chanReturnToSenderId = ident("chanReturnToSender")
     serializedPointerTypeId = ident("ByteAddress")
     taskStoppedId = ident("taskStopped")
 
-  # the repition below could/should be cleaned up with additional
-  # metaprogramming; there can be a task options object for which e.g. the
-  # `stoppable` field is a boolean flag, but then also a helper object/table
-  # with the same fields/keys but the values are tuples of the type names and
-  # field names to be added to the type derived from TaskArg; the fields of the
-  # supplied/default options object can be iterated over and the proper
-  # nnkIdentDefs can be built according to the options values and info in the
-  # helper object/table; the same (or very similar) technique could be used to
-  # allow e.g. specification of a TaskRunner instance and/or worker name and/or
-  # `var Atomic[bool]` (for stopping the task) in the options object, which
-  # would then affect whether parameters for those things are included in the
-  # type signatures of the constructed procs or instead baked into their bodies
+  # The repetitiveness of some code below could/should be cleaned up with
+  # additional metaprogramming (and probably more informed use of shortcuts and
+  # helpers provided by Nim's macros module); there can be a task options
+  # object for which e.g. the `stoppable` field is a boolean flag, but then
+  # also a helper object/table with the same fields/keys but the values are
+  # tuples of the type names and field names to be added to the type derived
+  # from TaskArg; the fields of the supplied/default options object can be
+  # iterated over and the proper nnkIdentDefs, etc. can be built according to
+  # the options values and info in the helper object/table; the same (or very
+  # similar) technique could be used to allow e.g. specification of a
+  # TaskRunner instance and/or worker name and/or `ptr Atomic[bool]` (for
+  # stopping the task) in the options object, which would then affect whether
+  # parameters for those things are included in the type signatures of the
+  # constructed procs or instead baked into their bodies.
 
   var
     taskArgTypeDef = newNimNode(nnkTypeDef)
@@ -114,6 +113,7 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
     asyncPragmaId = ident("async")
     atomicTypeId = ident("Atomic")
     boolTypeId = ident("bool")
+    futureTypeId = ident("Future")
     taskArgId = ident("taskArg")
     taskArgEncId = ident("taskArgEncoded")
     chanSendToHostId = ident("chanSendToHost")
@@ -209,37 +209,64 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
   taskProcSyncDef[0] = taskNameSyncId
   taskProcSyncDef[4] = newEmptyNode()
 
+  if kind == rts:
+    if kind(taskReturnTypeId) != nnkEmpty:
+      var futureBracket = newNimNode(nnkBracketExpr)
+      futureBracket.add(futureTypeId)
+      futureBracket.add(taskReturnTypeId)
+      taskProcDef[3][0] = futureBracket
+
+    taskProcSyncDef[3][0] = taskReturnTypeId
+
   taskBody.add quote do:
     let
       `workerId` = taskRunner.workers[workerName].worker
       `chanSendToHostId` = `workerId`.chanRecvFromWorker
       `chanSendToWorkerId` = `workerId`.chanSendToWorker
-      `taskArgId` = `taskArgTypeDerivedId`(
-        `chanSendToHostId`: cast[`serializedPointerTypeId`](`chanSendToHostId`),
-        task: cast[`serializedPointerTypeId`](`taskNameImplId`),
-        taskName: `taskName`,
-        `workerRunningId`: cast[`serializedPointerTypeId`](addr taskRunner.running)
-      )
+
+  if kind == rts:
+    taskBody.add quote do:
+      let `chanReturnToSenderId` = newWorkerChannel()
+
+  taskBody.add quote do:
+    let `taskArgId` = `taskArgTypeDerivedId`(
+      `chanSendToHostId`: cast[`serializedPointerTypeId`](`chanSendToHostId`),
+      task: cast[`serializedPointerTypeId`](`taskNameImplId`),
+      taskName: `taskName`,
+      `workerRunningId`: cast[`serializedPointerTypeId`](addr taskRunner.running)
+    )
+
+  if kind == rts:
+    var
+      objField = newNimNode(nnkExprColonExpr)
+      objConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
+
+    objField.add(chanReturnToSenderId)
+    objField.add quote do: cast[`serializedPointerTypeId`](`chanReturnToSenderId`)
+    objConstructor.add(objField)
 
   if stoppable == true:
     var
       objField = newNimNode(nnkExprColonExpr)
-      objConstructor = taskBody[0][3][2]
+      objConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
 
     objField.add(taskStoppedId)
     objField.add quote do: cast[`serializedPointerTypeId`](`stoppedId`)
     objConstructor.add(objField)
 
-
   for nn in body[3]:
     var
       objField = newNimNode(nnkExprColonExpr)
-      objConstructor = taskBody[0][3][2]
+      objConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
 
     if kind(nn) == nnkIdentDefs:
       objField.add(nn[0])
       objField.add(nn[0])
       objConstructor.add(objField)
+
+  if kind == rts:
+    taskBody.add quote do:
+      `chanReturnToSenderId`.open()
 
   copyChildrenTo(taskBody, taskSyncBody)
 
@@ -248,6 +275,27 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
 
   taskSyncBody.add quote do:
     `chanSendToWorkerId`.sendSync(`taskArgId`.encode.safe)
+
+  if kind == rts:
+    if kind(taskReturnTypeId) != nnkEmpty:
+      taskBody.add quote do:
+        let res = decode[`taskReturnTypeId`]($(await `chanReturnToSenderId`.recv()))
+        `chanReturnToSenderId`.close()
+        return res
+
+      taskSyncBody.add quote do:
+        let res = decode[`taskReturnTypeId`]($`chanReturnToSenderId`.recvSync())
+        `chanReturnToSenderId`.close()
+        return res
+
+    else:
+      taskBody.add quote do:
+        discard $(await `chanReturnToSenderId`.recv())
+        `chanReturnToSenderId`.close()
+
+      taskSyncBody.add quote do:
+        discard $`chanReturnToSenderId`.recvSync()
+        `chanReturnToSenderId`.close()
 
   taskProcDef.add(taskBody)
   taskProcSyncDef.add(taskSyncBody)
@@ -260,7 +308,7 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
       export `taskArgTypeDerivedId`, `taskNameId`, `taskNameSyncId`, `taskNameImplId`
 
   # debug ----------------------------------------------------------------------
-  echo toStrLit(result)
+  # echo toStrLit(result)
 
 # The approach below doesn't work because unexpected things can happen with the
 # AST of `body`, at least that's that what I observed; can look into a
