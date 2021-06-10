@@ -236,33 +236,26 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
       `workerRunningId`: cast[`serializedPointerTypeId`](addr taskRunner.running)
     )
 
-  if kind == rts:
-    var
-      objField = newNimNode(nnkExprColonExpr)
-      objConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
+  var taskArgConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
 
+  if kind == rts:
+    var objField = newNimNode(nnkExprColonExpr)
     objField.add(chanReturnToSenderId)
     objField.add quote do: cast[`serializedPointerTypeId`](`chanReturnToSenderId`)
-    objConstructor.add(objField)
+    taskArgConstructor.add(objField)
 
   if stoppable == true:
-    var
-      objField = newNimNode(nnkExprColonExpr)
-      objConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
-
+    var objField = newNimNode(nnkExprColonExpr)
     objField.add(taskStoppedId)
     objField.add quote do: cast[`serializedPointerTypeId`](`stoppedId`)
-    objConstructor.add(objField)
+    taskArgConstructor.add(objField)
 
   for nn in body[3]:
-    var
-      objField = newNimNode(nnkExprColonExpr)
-      objConstructor = taskBody[if kind == rts: 2 else: 1][0][2]
-
+    var objField = newNimNode(nnkExprColonExpr)
     if kind(nn) == nnkIdentDefs:
       objField.add(nn[0])
       objField.add(nn[0])
-      objConstructor.add(objField)
+      taskArgConstructor.add(objField)
 
   if kind == rts:
     taskBody.add quote do:
