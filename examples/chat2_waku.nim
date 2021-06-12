@@ -1,9 +1,11 @@
-## chat is an example demonstrating usage of nim-status.
+## chat2_waku is an example of usage of Waku v2.
+## For suggested usage options, please see the dingpu tutorial in:
+## https://github.com/status-im/nim-waku/blob/master/docs/tutorial/dingpu.md
 
 when not(compileOption("threads")):
   {.fatal: "Please, compile this program with the --threads:on option!".}
 
-import std/[tables, strformat, strutils, times, httpclient, json, sequtils, random]
+import std/[tables, strformat, strutils, times, httpclient, json, sequtils, random, options]
 import confutils, chronicles, chronos, stew/shims/net as stewNet,
        eth/keys, bearssl, stew/[byteutils, endians2],
        nimcrypto/pbkdf2
@@ -17,15 +19,17 @@ import libp2p/[switch,                   # manage transports, a single entry poi
                protocols/protocol,       # define the protocol base type
                protocols/secure/secio,   # define the protocol of secure input / output, allows encrypted communication that uses public keys to validate signed messages instead of a certificate authority like in TLS
                muxers/muxer]             # define an interface for stream multiplexing, allowing peers to offer many protocols over a single connection
-import   waku/v2/node/[config, wakunode2, waku_payload],
+import   waku/v2/node/[wakunode2, waku_payload],
          waku/v2/protocol/waku_message,
          waku/v2/protocol/waku_store/waku_store,
          waku/v2/protocol/waku_filter/waku_filter,
+         waku/v2/protocol/waku_lightpush/waku_lightpush,
          waku/v2/utils/peers,
-         waku/common/utils/nat
+         waku/common/utils/nat,
+         ./chat2_waku_config
 
 const Help = """
-  Commands: /[?|help|connect|nick]
+  Commands: /[?|help|connect|nick|exit]
   help: Prints this help
   connect: dials a remote peer
   nick: change nickname for current chat session
@@ -35,7 +39,6 @@ const Help = """
 const
   PayloadV1* {.booldefine.} = false
   DefaultTopic* = "/waku/2/default-waku/proto"
-  DefaultContentTopic* = ContentTopic("dingpu")
 
 # XXX Connected is a bit annoying, because incoming connections don't trigger state change
 # Could poll connection pool or something here, I suppose
@@ -48,6 +51,8 @@ type Chat = ref object
     started: bool           # if the node has started
     nick: string            # nickname for this chat session
     prompt: bool            # chat prompt is showing
+    contentTopic: string    # default content topic for chat messages
+    symkey: SymKey          # SymKey used for v1 payload encryption (if enabled)
 
 type
   PrivateKey* = crypto.PrivateKey
@@ -101,8 +106,6 @@ proc generateSymKey(contentTopic: ContentTopic): SymKey =
 
   symKey
 
-let DefaultSymKey = generateSymKey(DefaultContentTopic)
-
 proc connectToNodes(c: Chat, nodes: seq[string]) {.async.} =
   echo "Connecting to nodes"
   await c.node.connectToNodes(nodes)
@@ -114,15 +117,47 @@ proc showChatPrompt(c: Chat) =
     stdout.flushFile()
     c.prompt = true
 
-proc selectRandomNode(): string =
+proc printReceivedMessage(c: Chat, msg: WakuMessage) =
+  when PayloadV1:
+      # Use Waku v1 payload encoding/encryption
+      let
+        keyInfo = KeyInfo(kind: Symmetric, symKey: c.symKey)
+        decodedPayload = decodePayload(decoded.get(), keyInfo)
+
+      if decodedPayload.isOK():
+        let
+          pb = Chat2Message.init(decodedPayload.get().payload)
+          chatLine = if pb.isOk: pb[].toString()
+                    else: string.fromBytes(decodedPayload.get().payload)
+        echo &"{chatLine}"
+        c.prompt = false
+        showChatPrompt(c)
+        trace "Printing message", topic=DefaultTopic, chatLine,
+          contentTopic = msg.contentTopic
+      else:
+        debug "Invalid encoded WakuMessage payload",
+          error = decodedPayload.error
+  else:
+    # No payload encoding/encryption from Waku
+    let
+      pb = Chat2Message.init(msg.payload)
+      chatLine = if pb.isOk: pb[].toString()
+                else: string.fromBytes(msg.payload)
+    echo &"{chatLine}"
+    c.prompt = false
+    showChatPrompt(c)
+    trace "Printing message", topic=DefaultTopic, chatLine,
+      contentTopic = msg.contentTopic
+
+proc selectRandomNode(fleetStr: string): string =
   randomize()
   let
-    # Get latest fleet
+    # Get latest fleet addresses
     fleet = newHttpClient().getContent("https://fleets.status.im")
-    # Select the JSONObject corresponding to the wakuv2 test fleet and convert to seq of key-val pairs
-    nodes = toSeq(fleet.parseJson(){"fleets", "wakuv2.test", "waku"}.pairs())
+    # Select the JSONObject corresponding to the selected wakuv2 fleet and convert to seq of key-val pairs
+    nodes = toSeq(fleet.parseJson(){"fleets", "wakuv2." & fleetStr, "waku"}.pairs())
 
-  # Select a random node from the test fleet, convert to string and return
+  # Select a random node from the selected fleet, convert to string and return
   return nodes[rand(nodes.len - 1)].val.getStr()
 
 proc readNick(transp: StreamTransport): Future[string] {.async.} =
@@ -137,23 +172,35 @@ proc publish(c: Chat, line: string) =
                              nick: c.nick,
                              payload: line.toBytes()).encode()
 
+  ## @TODO: error handling on failure
+  proc handler(response: PushResponse) {.gcsafe, closure.} =
+    trace "lightpush response received", response=response
+
   when PayloadV1:
     # Use Waku v1 payload encoding/encryption
     let
-      payload = Payload(payload: chat2pb.buffer, symKey: some(DefaultSymKey))
+      payload = Payload(payload: chat2pb.buffer, symKey: some(c.symKey))
       version = 1'u32
       encodedPayload = payload.encode(version, c.node.rng[])
     if encodedPayload.isOk():
       let message = WakuMessage(payload: encodedPayload.get(),
-        contentTopic: DefaultContentTopic, version: version)
-      asyncSpawn c.node.publish(DefaultTopic, message)
+        contentTopic: c.contentTopic, version: version)
+      if not c.node.wakuLightPush.isNil():
+        # Attempt lightpush
+        asyncSpawn c.node.lightpush(DefaultTopic, message, handler)
+      else:
+        asyncSpawn c.node.publish(DefaultTopic, message, handler)
     else:
       warn "Payload encoding failed", error = encodedPayload.error
   else:
     # No payload encoding/encryption from Waku
     let message = WakuMessage(payload: chat2pb.buffer,
-      contentTopic: DefaultContentTopic, version: 0)
-    asyncSpawn c.node.publish(DefaultTopic, message)
+      contentTopic: c.contentTopic, version: 0)
+    if not c.node.wakuLightPush.isNil():
+      # Attempt lightpush
+      asyncSpawn c.node.lightpush(DefaultTopic, message, handler)
+    else:
+      asyncSpawn c.node.publish(DefaultTopic, message)
 
 # TODO This should read or be subscribe handler subscribe
 proc readAndPrint(c: Chat) {.async.} =
@@ -203,10 +250,18 @@ proc writeAndPrint(c: Chat) {.async.} =
       echo "You are now known as " & c.nick
 
     elif line.startsWith("/exit"):
-     await c.node.stop()
+      if not c.node.wakuFilter.isNil():
+        echo "unsubscribing from content filters..."
 
-     echo "quitting..."
-     quit(QuitSuccess)
+        await c.node.unsubscribe(
+          FilterRequest(contentFilters: @[ContentFilter(contentTopic: c.contentTopic)], pubSubTopic: DefaultTopic, subscribe: false)
+        )
+
+      echo "quitting..."
+
+      await c.node.stop()
+
+      quit(QuitSuccess)
     else:
       # XXX connected state problematic
       if c.started:
@@ -221,8 +276,8 @@ proc writeAndPrint(c: Chat) {.async.} =
           echo getCurrentExceptionMsg()
 
 proc readWriteLoop(c: Chat) {.async.} =
-  asyncCheck c.writeAndPrint() # execute the async function but does not block
-  asyncCheck c.readAndPrint()
+  asyncSpawn c.writeAndPrint() # execute the async function but does not block
+  asyncSpawn c.readAndPrint()
 
 proc readInput(wfd: AsyncFD) {.thread.} =
   ## This procedure performs reading from `stdin` and sends data over
@@ -237,7 +292,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
   let transp = fromPipe(rfd)
 
   let
-    conf = WakuNodeConf.load()
+    conf = Chat2Conf.load()
     (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
       Port(uint16(conf.tcpPort) + conf.portsShift),
       Port(uint16(conf.udpPort) + conf.portsShift))
@@ -246,23 +301,32 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
 
   await node.start()
 
-  if conf.filternode != "":
-    node.mountRelay(conf.topics.split(" "), rlnRelayEnabled = conf.rlnRelay, keepAlive = conf.keepAlive)
-  else:
-    node.mountRelay(@[], rlnRelayEnabled = conf.rlnRelay, keepAlive = conf.keepAlive)
+  node.mountRelay(conf.topics.split(" "),
+                  rlnRelayEnabled = conf.rlnRelay,
+                  relayMessages = conf.relay) # Indicates if node is capable to relay messages
+
+  node.mountKeepalive()
 
   let nick = await readNick(transp)
   echo "Welcome, " & nick & "!"
 
-  var chat = Chat(node: node, transp: transp, subscribed: true, connected: false, started: true, nick: nick, prompt: false)
+  var chat = Chat(node: node,
+                  transp: transp,
+                  subscribed: true,
+                  connected: false,
+                  started: true,
+                  nick: nick,
+                  prompt: false,
+                  contentTopic: conf.contentTopic,
+                  symKey: generateSymKey(conf.contentTopic))
 
   if conf.staticnodes.len > 0:
     await connectToNodes(chat, conf.staticnodes)
-  else:
+  elif conf.fleet != Fleet.none:
     # Connect to at least one random fleet node
-    echo "No static peers configured. Choosing one at random from test fleet..."
+    echo "No static peers configured. Choosing one at random from " & $conf.fleet & " fleet..."
 
-    let randNode = selectRandomNode()
+    let randNode = selectRandomNode($conf.fleet)
 
     echo "Connecting to " & randNode
 
@@ -278,29 +342,38 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
   if (conf.storenode != "") or (conf.store == true):
     node.mountStore(persistMessages = conf.persistMessages)
 
-    var storenode: string
+    var storenode: Option[string]
 
     if conf.storenode != "":
-      storenode = conf.storenode
-    else:
-      echo "Store enabled, but no store nodes configured. Choosing one at random from test fleet..."
+      storenode = some(conf.storenode)
+    elif conf.fleet != Fleet.none:
+      echo "Store enabled, but no store nodes configured. Choosing one at random from " & $conf.fleet & " fleet..."
 
-      storenode = selectRandomNode()
+      storenode = some(selectRandomNode($conf.fleet))
 
-      echo "Connecting to storenode: " & storenode
+      echo "Connecting to storenode: " & storenode.get()
 
-    node.wakuStore.setPeer(parsePeerInfo(storenode))
+    if storenode.isSome():
+      # We have a viable storenode. Let's query it for historical messages.
 
-    proc storeHandler(response: HistoryResponse) {.gcsafe.} =
-      for msg in response.messages:
-        let
-          pb = Chat2Message.init(msg.payload)
-          chatLine = if pb.isOk: pb[].toString()
-                     else: string.fromBytes(msg.payload)
-        echo &"{chatLine}"
-      info "Hit store handler"
+      node.wakuStore.setPeer(parsePeerInfo(storenode.get()))
 
-    await node.query(HistoryQuery(contentFilters: @[HistoryContentFilter(contentTopic: DefaultContentTopic)]), storeHandler)
+      proc storeHandler(response: HistoryResponse) {.gcsafe.} =
+        for msg in response.messages:
+          let
+            pb = Chat2Message.init(msg.payload)
+            chatLine = if pb.isOk: pb[].toString()
+                      else: string.fromBytes(msg.payload)
+          echo &"{chatLine}"
+        info "Hit store handler"
+
+      await node.query(HistoryQuery(contentFilters: @[HistoryContentFilter(contentTopic: chat.contentTopic)]), storeHandler)
+
+  # NOTE Must be mounted after relay
+  if conf.lightpushnode != "":
+    mountLightPush(node)
+
+    node.wakuLightPush.setPeer(parsePeerInfo(conf.lightpushnode))
 
   if conf.filternode != "":
     node.mountFilter()
@@ -308,65 +381,36 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
     node.wakuFilter.setPeer(parsePeerInfo(conf.filternode))
 
     proc filterHandler(msg: WakuMessage) {.gcsafe.} =
-      let
-        pb = Chat2Message.init(msg.payload)
-        chatLine = if pb.isOk: pb[].toString()
-                   else: string.fromBytes(msg.payload)
-      echo &"{chatLine}"
-      info "Hit filter handler"
+      trace "Hit filter handler", contentTopic=msg.contentTopic
+
+      chat.printReceivedMessage(msg)
 
     await node.subscribe(
-      FilterRequest(contentFilters: @[ContentFilter(contentTopic: DefaultContentTopic)], pubSubTopic: DefaultTopic, subscribe: true),
+      FilterRequest(contentFilters: @[ContentFilter(contentTopic: chat.contentTopic)], pubSubTopic: DefaultTopic, subscribe: true),
       filterHandler
     )
 
-  # Subscribe to a topic
-  # TODO To get end to end sender would require more information in payload
-  # We could possibly indicate the relayer point with connection somehow probably (?)
-  proc handler(topic: Topic, data: seq[byte]) {.async, gcsafe.} =
-    let decoded = WakuMessage.init(data)
-    if decoded.isOk():
-      let msg = decoded.get()
-      when PayloadV1:
-        # Use Waku v1 payload encoding/encryption
-        let
-          keyInfo = KeyInfo(kind: Symmetric, symKey: DefaultSymKey)
-          decodedPayload = decodePayload(decoded.get(), keyInfo)
+  # Subscribe to a topic, if relay is mounted
+  if conf.relay:
+    proc handler(topic: Topic, data: seq[byte]) {.async, gcsafe.} =
+      trace "Hit subscribe handler", topic
 
-        if decodedPayload.isOK():
-          let
-            pb = Chat2Message.init(decodedPayload.get().payload)
-            chatLine = if pb.isOk: pb[].toString()
-                       else: string.fromBytes(decodedPayload.get().payload)
-          echo &"{chatLine}"
-          chat.prompt = false
-          showChatPrompt(chat)
-          info "Hit subscribe handler", topic, chatLine,
-            contentTopic = msg.contentTopic
-        else:
-          debug "Invalid encoded WakuMessage payload",
-            error = decodedPayload.error
+      let decoded = WakuMessage.init(data)
+
+      if decoded.isOk():
+        chat.printReceivedMessage(decoded.get())
       else:
-        # No payload encoding/encryption from Waku
-        let
-          pb = Chat2Message.init(msg.payload)
-          chatLine = if pb.isOk: pb[].toString()
-                     else: string.fromBytes(msg.payload)
-        echo &"{chatLine}"
-        chat.prompt = false
-        showChatPrompt(chat)
-        info "Hit subscribe handler", topic, chatLine,
-          contentTopic = msg.contentTopic
-    else:
-      trace "Invalid encoded WakuMessage", error = decoded.error
+        trace "Invalid encoded WakuMessage", error = decoded.error
 
-  let topic = cast[Topic](DefaultTopic)
-  node.subscribe(topic, handler)
+    let topic = cast[Topic](DefaultTopic)
+    node.subscribe(topic, handler)
 
   await chat.readWriteLoop()
 
+  if conf.keepAlive:
+    node.startKeepalive()
+
   runForever()
-  #await allFuturesThrowing(libp2pFuts)
 
 proc main() {.async.} =
   let rng = crypto.newRng() # Single random number source for the whole application
