@@ -1,21 +1,6 @@
-import # chat libs
-  ./events
-
-export events
-
-logScope:
-  topics = "chat"
-
-# This module was used to experiment with patterns for no_rts and rts tasks. At
-# present it's kept around for easy reference but will eventually be removed.
-
-# When the `createTask` macro is implemented, would prefer to write...
-
-# proc hello(to: string) {.task(no_rts).} =
-#   let
-#     taskName = arg.name
-#     to = arg.to
-#   echo "!!! this is " & name  & " saying 'hello' to " & arg.to & " !!!"
+# This module was used to experiment with patterns for no_rts and rts tasks and
+# task contexts. At present it's kept around for reference but will eventually
+# be removed.
 
 # no_rts -----------------------------------------------------------------------
 
