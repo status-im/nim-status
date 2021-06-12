@@ -381,6 +381,7 @@ else
  NIM_PARAMS += --dynlibOverride:vendor/rln/target/debug/librln
 endif
 # endif
+NIM_PARAMS += --define:rln
 
 ifeq ($(SQLCIPHER_STATIC),false)
  ifeq ($(detected_OS),Windows)

@@ -53,13 +53,13 @@ proc buildAndRun(name: string,
     " --define:chronicles_log_level=" & getEnv("LOG_LEVEL") &
     (if getEnv("WIN_STATIC").strip != "false": " --passC:\"-static\" --passL:\"-static\"" else: "") &
     (if getEnv("PCRE_STATIC").strip != "false": " --define:usePcreHeader --dynlibOverride:pcre" elif defined(windows): " --define:usePcreHeader" else: "") &
-    # (if getEnv("RLN_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") else: "") &
+    # " --define:rln" & (if getEnv("RLN_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") else: "") &
     # usually `--dynlibOverride` is used in case of static linking and so would
     # be used conditionally (see commented code above), but because
     # `vendor/nim-waku/waku/v2/protocol/waku_rln_relay/rln.nim` specifies the
     # library with a relative path prefix (which isn't valid relative to root
     # of this repo) it needs to be used in the case of shared or static linking
-    (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") &
+    " --define:rln" & (if defined(windows): " --dynlibOverride:vendor\\rln\\target\\debug\\rln" else: " --dynlibOverride:vendor/rln/target/debug/librln") &
     " --define:ssl" &
     (if getEnv("SSL_STATIC").strip != "false": (if defined(windows): " --dynlibOverride:ssl- --dynlibOverride:crypto- --define:noOpenSSLHacks --define:sslVersion:\"(\"" else: " --dynlibOverride:ssl --dynlibOverride:crypto") else: "") &
     " --nimcache:nimcache/" & (if getEnv("RELEASE").strip != "false": "release/" else: "debug/") & name &
