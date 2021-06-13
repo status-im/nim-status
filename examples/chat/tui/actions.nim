@@ -79,4 +79,9 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 # UserMessage ------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
-  discard
+  let
+    username = event.username
+    message = event.message
+
+  trace "TUI received user message", username, message
+  self.printMessage(username, message)

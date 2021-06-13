@@ -12,5 +12,7 @@ type
     running*: bool
     taskRunner*: TaskRunner
 
+const status* = "status"
+
 proc newEventChannel*(): EventChannel =
   newAsyncChannel[ThreadSafeString](-1)

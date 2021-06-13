@@ -56,3 +56,9 @@ proc printInput*(self: ChatTUI, input: string) =
   discard refresh()
 
   trace "TUI printed in input window"
+
+proc printMessage*(self: ChatTUI, username: string, message: string) =
+  discard printw("\n" & username & ": " & message)
+  discard refresh()
+
+  trace "TUI printed in message window"

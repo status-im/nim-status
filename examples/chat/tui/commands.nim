@@ -35,26 +35,28 @@ proc split*(T: type Help, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let command = command.command
-  # trace "TUI received help command", command
   discard
 
 # Login ------------------------------------------------------------------------
 
 proc new*(T: type Login, args: varargs[string]): T {.raises: [].} =
-  T(username: args[0], password: args[1])
+  # T(username: args[0], password: args[1])
+  T(username: args[0])
 
 proc split*(T: type Login, argsRaw: string): seq[string] =
   # don't really want to split on space because password could contain spaces
   # though username would not; also need to consider missing 1 or 2 args
-  argsRaw.split(" ")
+  # argsRaw.split(" ")
+
+  # simple "name chooser" for now
+  @[argsRaw]
 
 proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
   let
     username = command.username
-    password = command.password
+    # password = command.password
 
-  # trace "TUI received login command", username, password="***"
-  discard
+  asyncSpawn self.client.login(username)
 
 # Logout -----------------------------------------------------------------------
 
@@ -65,8 +67,7 @@ proc split*(T: type Logout, argsRaw: string): seq[string] =
   return @[]
 
 proc command*(self: ChatTUI, command: Logout) {.async, gcsafe, nimcall.} =
-  # trace "TUI received logout command"
-  discard
+  asyncSpawn self.client.logout()
 
 # Quit -------------------------------------------------------------------------
 
@@ -77,7 +78,6 @@ proc split*(T: type Quit, argsRaw: string): seq[string] =
   return @[]
 
 proc command*(self: ChatTUI, command: Quit) {.async, gcsafe, nimcall.} =
-  # trace "TUI received quit command"
   await self.stop()
 
 # SendMessage ------------------------------------------------------------------
@@ -90,6 +90,5 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
   let message = command.message
-  trace "TUI sending message", message
   discard
   # ... self.client.send(message) ...

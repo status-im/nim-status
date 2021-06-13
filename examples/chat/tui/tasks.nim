@@ -11,8 +11,7 @@ const
   RETURN* = "RETURN"
 
 proc readInput*() {.task(kind=no_rts, stoppable=false).} =
-  let
-    task = taskArg.taskName
+  let task = taskArg.taskName
 
   var
     bytes: seq[byte] = @[]

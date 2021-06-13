@@ -10,11 +10,9 @@ logScope:
 # a message via nim-status/waku running in a separate thread; starting the
 # client also initiates listening for events coming from nim-status/waku.
 
-const status = "status"
-
 proc new*(T: type ChatClient, dataDir: string): T =
   var taskRunner = TaskRunner.new()
-  taskRunner.createWorker(thread, status)
+  taskRunner.createWorker(thread, status, statusContext)
 
   T(dataDir: dataDir, events: newEventChannel(), running: false,
     taskRunner: taskRunner)
@@ -40,3 +38,9 @@ proc stop*(self: ChatClient) {.async.} =
   self.events.close()
 
   debug "client stopped"
+
+proc login*(self: ChatClient, username: string) {.async.} =
+  asyncSpawn startChat2Waku(self.taskRunner, status, username)
+
+proc logout*(self: ChatClient) {.async.} =
+  asyncSpawn stopChat2Waku(self.taskRunner, status)

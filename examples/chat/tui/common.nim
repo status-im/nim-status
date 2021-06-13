@@ -30,7 +30,7 @@ type
     command*: string
   Login* = ref object of Command
     username*: string
-    password*: string
+    # password*: string
   Logout* = ref object of Command
   Quit* = ref object of Command
   SendMessage* = ref object of Command
