@@ -5,9 +5,9 @@ export client, ncurses_helpers
 
 type
   ChatTUI* = ref object
+    chatConfig*: ChatConfig
     client*: ChatClient
     currentInput*: string
-    dataDir*: string
     events*: EventChannel
     inputReady*: bool
     locale*: string

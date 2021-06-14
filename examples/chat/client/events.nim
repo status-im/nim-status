@@ -9,8 +9,9 @@ logScope:
 type
   ClientEvent* = ref object of Event
   UserMessage* = ref object of ClientEvent
-    username*: string
     message*: string
+    timestamp*: int64
+    username*: string
 
 const clientEvents* = [
   "UserMessage"

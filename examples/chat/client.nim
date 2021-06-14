@@ -10,11 +10,12 @@ logScope:
 # a message via nim-status/waku running in a separate thread; starting the
 # client also initiates listening for events coming from nim-status/waku.
 
-proc new*(T: type ChatClient, dataDir: string): T =
+proc new*(T: type ChatClient, chatConfig: ChatConfig): T =
+  let statusArg = StatusArg(chatConfig: chatConfig)
   var taskRunner = TaskRunner.new()
-  taskRunner.createWorker(thread, status, statusContext)
+  taskRunner.createWorker(thread, status, statusContext, statusArg)
 
-  T(dataDir: dataDir, events: newEventChannel(), running: false,
+  T(chatConfig: chatConfig, events: newEventChannel(), running: false,
     taskRunner: taskRunner)
 
 proc start*(self: ChatClient) {.async.} =

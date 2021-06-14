@@ -1,39 +1,76 @@
 import # chat libs
-  ./events
+  ./events, ./waku
 
-export events
+export events, waku
 
 logScope:
   topics = "chat"
 
-var
-  chat2WakuRunning {.threadvar.}: bool
-  counter {.threadvar.}: int
-  nick {.threadvar.}: string
+type
+  StatusArg* = ref object of ContextArg
+    chatConfig*: ChatConfig
 
-# could eventually have a custom ContextArg for specifying e.g. port number to
-# listen on, as well other status/waku settings that were supplied on the
-# command-line
+var
+  # using `ptr ChatConfig` is a workaround because some fields of `ChatConfig`
+  # are type `ValidIpAddress` which has `{.requiresInit.}` pragma
+  chatConfig {.threadvar.}: ptr ChatConfig
+  nick {.threadvar.}: string
+  wakuNode {.threadvar.}: WakuNode
+  wakuState {.threadvar.}: WakuState
+
 proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
-  chat2WakuRunning = false
-  counter = 1
+  let arg = cast[StatusArg](arg)
+  chatConfig = addr arg.chatConfig
+  wakuState = WakuState.stopped
 
 proc startChat2Waku*(username: string) {.task(kind=no_rts, stoppable=false).} =
-  let task = taskArg.taskName
+  if wakuState != WakuState.stopped: return
 
-  if not chat2WakuRunning:
-    chat2WakuRunning = true
-    nick = username
-    while workerRunning[].load() and chat2WakuRunning:
-      await sleepAsync 1.seconds
-      let message = UserMessage(
-        username: task,
-        message: "message " & $counter & " to " & nick
-      )
-      asyncSpawn chanSendToHost.send(message.encode.safe)
-      counter = counter + 1
+  wakuState = WakuState.starting
+  nick = username
+
+  let
+    (extIp, extTcpPort, extUdpPort) = setupNat(chatConfig[].nat, clientId,
+     Port(uint16(chatConfig[].tcpPort) + chatConfig[].portsShift),
+     Port(uint16(chatConfig[].udpPort) + chatConfig[].portsShift))
+
+    wakuNode = WakuNode.init(
+      chatConfig[].nodekey,
+      chatConfig[].listenAddress,
+      Port(uint16(chatConfig[].tcpPort) + chatConfig[].portsShift),
+      extIp,
+      extTcpPort
+    )
+
+  await wakuNode.start()
+
+  wakuNode.mountRelay(chatConfig[].topics.split(" "),
+    rlnRelayEnabled = chatConfig[].rlnRelay,
+    relayMessages = chatConfig[].relay) # Indicates if node is capable to relay messages
+
+  wakuNode.mountKeepalive()
+
+  wakuState = WakuState.started
 
 proc stopChat2Waku*() {.task(kind=no_rts, stoppable=false).} =
-  let task = taskArg.taskName
+  if wakuState != WakuState.started: return
 
-  if chat2WakuRunning: chat2WakuRunning = false
+  wakuState = WakuState.stopping
+  try:
+    # this line is failing with an un-catchable error; node instance is
+    # probably not fully setup/torn-down and/or there are some missing imports
+    # as of now
+    await wakuNode.stop()
+  except Exception as e:
+    trace "WHAT HAPPENED???", error=e.msg
+  wakuState = WakuState.stopped
+
+
+# ------------------------------------------------------------------------------
+
+# let message = UserMessage(
+#   message: "message " & $counter & " to " & nick,
+#   timestamp: ...,
+#   username: ...
+# )
+# asyncSpawn chanSendToHost.send(message.encode.safe)

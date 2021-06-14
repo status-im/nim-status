@@ -15,15 +15,15 @@ const input = "input"
 
 # `proc stop(self: ChatTUI)` is defined in ./common to avoid circular dependency
 
-proc new*(T: type ChatTUI, dataDir: string): T =
+proc new*(T: type ChatTUI, chatConfig: ChatConfig): T =
   let
     (locale, mainWindow) = initScreen()
-    client = ChatClient.new(dataDir)
+    client = ChatClient.new(chatConfig)
 
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, input)
 
-  T(client: client, currentInput: "", dataDir: dataDir,
+  T(chatConfig: chatConfig, client: client, currentInput: "",
     events: newEventChannel(), inputReady: false, locale: locale,
     mainWindow: mainWindow, running: false, taskRunner: taskRunner)
 
