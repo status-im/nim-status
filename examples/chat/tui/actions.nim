@@ -80,8 +80,9 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
 proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
   let
-    username = event.username
     message = event.message
+    timestamp = event.timestamp
+    username = event.username
 
-  trace "TUI received user message", username, message
-  self.printMessage(username, message)
+  trace "TUI received user message", message, timestamp, username
+  self.printMessage(message, timestamp, username)

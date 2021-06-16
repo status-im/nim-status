@@ -281,7 +281,7 @@ proc worker(arg: WorkerThreadArg) {.async.} =
         let
           parsed = parseJson(message)
           task = cast[Task](parsed{"task"}.getInt)
-          taskName = parsed{"name"}.getStr
+          taskName = parsed{"taskName"}.getStr
 
         trace "pool worker received message", message, pool, workerId
         trace "pool worker running task", pool, task=taskName, workerId

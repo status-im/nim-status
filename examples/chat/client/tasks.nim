@@ -1,7 +1,33 @@
 import # chat libs
-  ./events, ./waku
+  ./events, ./waku_chat2
 
-export events, waku
+# ------------------------------------------------------------------------------
+
+import std/[tables, strformat, strutils, times, httpclient, json, sequtils, random, options]
+import confutils, chronicles, chronos, stew/shims/net as stewNet,
+       eth/keys, bearssl, stew/[byteutils, endians2],
+       nimcrypto/pbkdf2
+import libp2p/[switch,                   # manage transports, a single entry point for dialing and listening
+               crypto/crypto,            # cryptographic functions
+               stream/connection,        # create and close stream read / write connections
+               multiaddress,             # encode different addressing schemes. For example, /ip4/7.7.7.7/tcp/6543 means it is using IPv4 protocol and TCP
+               peerinfo,                 # manage the information of a peer, such as peer ID and public / private key
+               peerid,                   # Implement how peers interact
+               protobuf/minprotobuf,     # message serialisation/deserialisation from and to protobufs
+               protocols/protocol,       # define the protocol base type
+               protocols/secure/secio,   # define the protocol of secure input / output, allows encrypted communication that uses public keys to validate signed messages instead of a certificate authority like in TLS
+               muxers/muxer]             # define an interface for stream multiplexing, allowing peers to offer many protocols over a single connection
+import   waku/v2/node/[wakunode2, waku_payload],
+         waku/v2/protocol/waku_message,
+         waku/v2/protocol/waku_store/waku_store,
+         waku/v2/protocol/waku_filter/waku_filter,
+         waku/v2/protocol/waku_lightpush/waku_lightpush,
+         waku/v2/utils/peers,
+         waku/common/utils/nat
+
+# ------------------------------------------------------------------------------
+
+export events, waku_chat2
 
 logScope:
   topics = "chat"
@@ -13,64 +39,158 @@ type
 var
   # using `ptr ChatConfig` is a workaround because some fields of `ChatConfig`
   # are type `ValidIpAddress` which has `{.requiresInit.}` pragma
-  chatConfig {.threadvar.}: ptr ChatConfig
+  confPtr {.threadvar.}: ptr ChatConfig
+  connected {.threadvar.}: bool
+  contentTopic {.threadvar.}: ContentTopic
+  contextArg {.threadvar.}: StatusArg
   nick {.threadvar.}: string
+  subscribed {.threadvar.}: bool
   wakuNode {.threadvar.}: WakuNode
   wakuState {.threadvar.}: WakuState
 
-proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
-  let arg = cast[StatusArg](arg)
-  chatConfig = addr arg.chatConfig
+when PayloadV1:
+  var
+    symKey {.threadvar.}: SymKey
+    symKeyGenerated {.threadvar.}: bool
+
+proc resetContext() {.gcsafe, nimcall.} =
+  connected = false
+  nick = ""
+  subscribed = false
+  wakuNode = nil
   wakuState = WakuState.stopped
 
-proc startChat2Waku*(username: string) {.task(kind=no_rts, stoppable=false).} =
-  if wakuState != WakuState.stopped: return
+proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
+  # set threadvar values that are never reset, i.e. persist across login/logout
+  contextArg = cast[StatusArg](arg)
+  confPtr = addr contextArg.chatConfig
+  contentTopic = confPtr[].contentTopic
 
+  # threadvar `symKeyGenerated` is a special case because it depends on
+  # compile-time `PayloadV1` value and because the value of its counterpart
+  # `symKey` only needs to be set once, i.e. it also persists across
+  # login/logout; but note that `symKey` itself is set for the first time in
+  # task `startWakuChat2` as an optimization for TUI startup time
+  when PayloadV1: symKeyGenerated = false
+
+  # re/set threadvars that don't persist across login/logout
+  resetContext()
+
+proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
+  var
+    message: string
+    timestamp: int64
+    username: string
+
+  let protoResult = Chat2Message.init(wakuMessage.payload)
+
+  if protoResult.isOk:
+    let chat2Message = protoResult[]
+    message = string.fromBytes(chat2Message.payload)
+    timestamp = chat2Message.timestamp
+    username = chat2Message.nick
+  else:
+     # could happen if one/more clients on the same network/topic are able to
+     # communicate but are using incompatible encodings for some reason
+     message = string.fromBytes(wakuMessage.payload)
+     timestamp = epochTime().int64
+     username = "[unknown]"
+
+  T(message: message, timestamp: timestamp, username: username)
+
+proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
+  if wakuState != WakuState.stopped: return
   wakuState = WakuState.starting
-  nick = username
 
   let
-    (extIp, extTcpPort, extUdpPort) = setupNat(chatConfig[].nat, clientId,
-     Port(uint16(chatConfig[].tcpPort) + chatConfig[].portsShift),
-     Port(uint16(chatConfig[].udpPort) + chatConfig[].portsShift))
+    conf = confPtr[]
+    task = taskArg.taskName
 
-    wakuNode = WakuNode.init(
-      chatConfig[].nodekey,
-      chatConfig[].listenAddress,
-      Port(uint16(chatConfig[].tcpPort) + chatConfig[].portsShift),
-      extIp,
-      extTcpPort
-    )
+  nick = username
+
+  when PayloadV1:
+    # generate `symKey` here instead of `statusContext` to decrease startup
+    # time of `TaskRunner` instance and therefore time to first paint of TUI
+    if not symKeyGenerated:
+      symKey = generateSymKey(contentTopic)
+      symKeyGenerated = true
+
+  let (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
+    Port(uint16(conf.tcpPort) + conf.portsShift),
+    Port(uint16(conf.udpPort) + conf.portsShift))
+
+  wakuNode = WakuNode.init(conf.nodekey, conf.listenAddress,
+    Port(uint16(conf.tcpPort) + conf.portsShift), extIp,
+    extTcpPort)
 
   await wakuNode.start()
 
-  wakuNode.mountRelay(chatConfig[].topics.split(" "),
-    rlnRelayEnabled = chatConfig[].rlnRelay,
-    relayMessages = chatConfig[].relay) # Indicates if node is capable to relay messages
+  wakuNode.mountRelay(conf.topics.split(" "),
+    rlnRelayEnabled = conf.rlnRelay,
+    relayMessages = conf.relay)
 
   wakuNode.mountKeepalive()
 
+  let
+    fleet = conf.fleet
+    staticnodes = conf.staticnodes
+
+  if staticnodes.len > 0:
+    info "Connecting to static peers", nodes=staticnodes
+    await wakuNode.connectToNodes(staticnodes)
+
+  elif fleet != WakuFleet.none:
+    info "Static peers not configured, choosing one at random", fleet
+    let node = selectRandomNode($fleet)
+
+    info "Connecting to peer", node
+    await wakuNode.connectToNodes(@[node])
+
+  connected = true
+
+  if conf.swap: wakuNode.mountSwap()
+
+  if conf.relay:
+    proc handler(topic: waku_chat2.Topic, data: seq[byte]) {.async, gcsafe.} =
+      let decoded = WakuMessage.init(data)
+
+      if decoded.isOk():
+        let message = decoded.get()
+        trace "decoded WakuMessage", message
+
+        let
+          event = UserMessage.new(message)
+          eventEnc = event.encode
+
+        trace "task sent event to host", event=eventEnc, task
+        asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+      else:
+        let error = decoded.error
+        error "received invalid WakuMessage", error
+
+    let topic = cast[waku_chat2.Topic](waku_chat2.DefaultTopic)
+    wakuNode.subscribe(topic, handler)
+
+    subscribed = true
+
+  if conf.keepAlive: wakuNode.startKeepalive()
+
   wakuState = WakuState.started
 
-proc stopChat2Waku*() {.task(kind=no_rts, stoppable=false).} =
+proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.started: return
-
   wakuState = WakuState.stopping
-  try:
-    # this line is failing with an un-catchable error; node instance is
-    # probably not fully setup/torn-down and/or there are some missing imports
-    # as of now
-    await wakuNode.stop()
-  except Exception as e:
-    trace "WHAT HAPPENED???", error=e.msg
-  wakuState = WakuState.stopped
 
+  await wakuNode.stop()
+  resetContext()
 
-# ------------------------------------------------------------------------------
+proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
+  if wakuState != WakuState.started or not connected: return
 
-# let message = UserMessage(
-#   message: "message " & $counter & " to " & nick,
-#   timestamp: ...,
-#   username: ...
-# )
-# asyncSpawn chanSendToHost.send(message.encode.safe)
+  let
+    chat2pb = Chat2Message.init(nick, message).encode()
+    wakuMessage = WakuMessage(payload: chat2pb.buffer,
+      contentTopic: contentTopic, version: 0)
+
+  asyncSpawn wakuNode.publish(waku_chat2.DefaultTopic, wakuMessage)

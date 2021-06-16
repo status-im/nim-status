@@ -89,6 +89,4 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
   @[argsRaw]
 
 proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
-  let message = command.message
-  discard
-  # ... self.client.send(message) ...
+  asyncSpawn self.client.sendMessage(command.message)

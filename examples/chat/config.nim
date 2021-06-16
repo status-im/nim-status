@@ -53,7 +53,7 @@ type
     .}: string
 
     logLevel* {.
-      desc: "Select the log level."
+      desc: "Select the log level"
       defaultValue: LogLevel.INFO
       name: "log-level"
     .}: LogLevel
@@ -64,172 +64,173 @@ type
     # General node config
 
     nodekey* {.
-      desc: "P2P node private key as 64 char hex string.",
+      desc: "P2P node private key as 64 char hex string"
       defaultValue: crypto.PrivateKey.random(Secp256k1, keys.newRng()[]).tryGet()
-      name: "nodekey"
+      name: "waku-nodekey"
     .}: crypto.PrivateKey
 
     listenAddress* {.
       defaultValue: defaultListenAddress(config)
-      desc: "Listening address for the LibP2P traffic."
-      name: "listen-address"
+      desc: "Listening address for the LibP2P traffic"
+      name: "waku-listen-address"
     .}: ValidIpAddress
 
     tcpPort* {.
-      desc: "TCP listening port."
+      desc: "TCP listening port"
       defaultValue: 60000
-      name: "tcp-port"
+      name: "waku-tcp-port"
     .}: Port
 
     udpPort* {.
-      desc: "UDP listening port."
+      desc: "UDP listening port"
       defaultValue: 60000
-      name: "udp-port"
+      name: "waku-udp-port"
     .}: Port
 
     portsShift* {.
-      desc: "Add a shift to all port numbers."
+      desc: "Add a shift to all port numbers"
       defaultValue: 0
-      name: "ports-shift"
+      name: "waku-ports-shift"
     .}: uint16
 
     nat* {.
       desc: "Specify method to use for determining public address. " &
-            "Must be one of: any, none, upnp, pmp, extip:<IP>."
+            "Must be one of: any, none, upnp, pmp, extip:<IP>"
       defaultValue: "any"
+      name: "waku-nat"
     .}: string
 
     # Persistence config
 
     dbPath* {.
-      desc: "The database path for peristent storage",
+      desc: "The database path for peristent storage"
       defaultValue: ""
-      name: "db-path"
+      name: "waku-db-path"
     .}: string
 
     persistPeers* {.
-      desc: "Enable peer persistence: true|false",
+      desc: "Enable peer persistence: true|false"
       defaultValue: false
-      name: "persist-peers"
+      name: "waku-persist-peers"
     .}: bool
 
     persistMessages* {.
-      desc: "Enable message persistence: true|false",
+      desc: "Enable message persistence: true|false"
       defaultValue: false
-      name: "persist-messages"
+      name: "waku-persist-messages"
     .}: bool
 
     # Relay config
 
     relay* {.
-      desc: "Enable relay protocol: true|false",
+      desc: "Enable relay protocol: true|false"
       defaultValue: true
-      name: "relay"
+      name: "waku-relay"
     .}: bool
 
     rlnRelay* {.
-      desc: "Enable spam protection through rln-relay: true|false",
+      desc: "Enable spam protection through rln-relay: true|false"
       defaultValue: false
-      name: "rln-relay"
+      name: "waku-rln-relay"
     .}: bool
 
     staticnodes* {.
-      desc: "Peer multiaddr to directly connect with. Argument may be repeated."
-      name: "staticnode"
+      desc: "Peer multiaddr to directly connect with. Argument may be repeated"
+      name: "waku-staticnode"
     .}: seq[string]
 
     keepAlive* {.
-      desc: "Enable keep-alive for idle connections: true|false",
+      desc: "Enable keep-alive for idle connections: true|false"
       defaultValue: false
-      name: "keep-alive"
+      name: "waku-keep-alive"
     .}: bool
 
     topics* {.
-      desc: "Default topics to subscribe to (space separated list)."
+      desc: "Default topics to subscribe to (space separated list)"
       defaultValue: "/waku/2/default-waku/proto"
-      name: "topics"
+      name: "waku-topics"
     .}: string
 
     # Store config
 
     store* {.
-      desc: "Enable store protocol: true|false",
+      desc: "Enable store protocol: true|false"
       defaultValue: true
-      name: "store"
+      name: "waku-store"
     .}: bool
 
     storenode* {.
-      desc: "Peer multiaddr to query for storage.",
+      desc: "Peer multiaddr to query for storage"
       defaultValue: ""
-      name: "storenode"
+      name: "waku-storenode"
     .}: string
 
     # Filter config
 
     filter* {.
-      desc: "Enable filter protocol: true|false",
+      desc: "Enable filter protocol: true|false"
       defaultValue: false
-      name: "filter"
+      name: "waku-filter"
     .}: bool
 
     filternode* {.
-      desc: "Peer multiaddr to request content filtering of messages.",
+      desc: "Peer multiaddr to request content filtering of messages"
       defaultValue: ""
-      name: "filternode"
+      name: "waku-filternode"
     .}: string
 
     # Swap config
 
     swap* {.
-      desc: "Enable swap protocol: true|false",
+      desc: "Enable swap protocol: true|false"
       defaultValue: true
-      name: "swap"
+      name: "waku-swap"
     .}: bool
 
     # Lightpush config
 
     lightpush* {.
-      desc: "Enable lightpush protocol: true|false",
+      desc: "Enable lightpush protocol: true|false"
       defaultValue: false
-      name: "lightpush"
+      name: "waku-lightpush"
     .}: bool
 
     lightpushnode* {.
-      desc: "Peer multiaddr to request lightpush of published messages.",
+      desc: "Peer multiaddr to request lightpush of published messages"
       defaultValue: ""
-      name: "lightpushnode"
+      name: "waku-lightpushnode"
     .}: string
 
     # JSON-RPC config
 
     rpc* {.
-      desc: "Enable Waku JSON-RPC server: true|false",
+      desc: "Enable Waku JSON-RPC server: true|false"
       defaultValue: true
-      name: "rpc"
+      name: "waku-rpc"
     .}: bool
 
     rpcAddress* {.
-      desc: "Listening address of the JSON-RPC server.",
+      desc: "Listening address of the JSON-RPC server"
       defaultValue: ValidIpAddress.init("127.0.0.1")
-      name: "rpc-address"
+      name: "waku-rpc-address"
     .}: ValidIpAddress
 
     rpcPort* {.
-      desc: "Listening port of the JSON-RPC server.",
+      desc: "Listening port of the JSON-RPC server"
       defaultValue: 8545
-      name: "rpc-port"
+      name: "waku-rpc-port"
     .}: uint16
 
     rpcAdmin* {.
-      desc: "Enable access to JSON-RPC Admin API: true|false",
+      desc: "Enable access to JSON-RPC Admin API: true|false"
       defaultValue: false
-      name: "rpc-admin"
+      name: "waku-rpc-admin"
     .}: bool
 
     rpcPrivate* {.
-      desc: "Enable access to JSON-RPC Private API: true|false",
+      desc: "Enable access to JSON-RPC Private API: true|false"
       defaultValue: false
-      name: "rpc-private"
+      name: "waku-rpc-private"
     .}: bool
 
     # Metrics config
@@ -237,39 +238,39 @@ type
     metricsServer* {.
       desc: "Enable the metrics server: true|false"
       defaultValue: false
-      name: "metrics-server"
+      name: "waku-metrics-server"
     .}: bool
 
     metricsServerAddress* {.
-      desc: "Listening address of the metrics server."
+      desc: "Listening address of the metrics server"
       defaultValue: ValidIpAddress.init("127.0.0.1")
-      name: "metrics-server-address"
+      name: "waku-metrics-server-address"
     .}: ValidIpAddress
 
     metricsServerPort* {.
-      desc: "Listening HTTP port of the metrics server."
+      desc: "Listening HTTP port of the metrics server"
       defaultValue: 8008
-      name: "metrics-server-port"
+      name: "waku-metrics-server-port"
     .}: uint16
 
     metricsLogging* {.
       desc: "Enable metrics logging: true|false"
       defaultValue: false
-      name: "metrics-logging"
+      name: "waku-metrics-logging"
     .}: bool
 
     # Chat2 configuration
 
     fleet* {.
-      desc: "Select the fleet to connect to."
+      desc: "Select the fleet to connect to"
       defaultValue: WakuFleet.prod
-      name: "fleet"
+      name: "waku-fleet"
     .}: WakuFleet
 
     contentTopic* {.
-      desc: "Content topic for chat messages."
+      desc: "Content topic for chat messages"
       defaultValue: "/toy-chat/2/huilong/proto"
-      name: "content-topic"
+      name: "waku-content-topic"
     .}: string
 
 # NOTE: Keys are different in nim-libp2p

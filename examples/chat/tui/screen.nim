@@ -1,3 +1,6 @@
+import # std libs
+  std/times
+
 import # chat libs
   ./common
 
@@ -57,8 +60,10 @@ proc printInput*(self: ChatTUI, input: string) =
 
   trace "TUI printed in input window"
 
-proc printMessage*(self: ChatTUI, username: string, message: string) =
-  discard printw("\n" & username & ": " & message)
+proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
+  username: string) =
+  let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
+  discard printw("\n" & tstamp & " " & username & ": " & message)
   discard refresh()
 
   trace "TUI printed in message window"

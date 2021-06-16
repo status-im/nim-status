@@ -41,7 +41,10 @@ proc stop*(self: ChatClient) {.async.} =
   debug "client stopped"
 
 proc login*(self: ChatClient, username: string) {.async.} =
-  asyncSpawn startChat2Waku(self.taskRunner, status, username)
+  asyncSpawn startWakuChat2(self.taskRunner, status, username)
 
 proc logout*(self: ChatClient) {.async.} =
-  asyncSpawn stopChat2Waku(self.taskRunner, status)
+  asyncSpawn stopWakuChat2(self.taskRunner, status)
+
+proc sendMessage*(self: ChatClient, message: string) {.async.} =
+  asyncSpawn publishWakuChat2(self.taskRunner, status, message)
