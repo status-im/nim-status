@@ -1,35 +1,23 @@
+import # std libs
+  std/[json, options, random, sequtils, strformat, strutils, tables, times, uri]
+
 import # vendor libs
-  libp2p/[crypto/crypto],
+  bearssl, chronicles, chronos, chronos/apps/http/httpclient, confutils,
+  eth/keys,
+  libp2p/[crypto/crypto, multiaddress, muxers/muxer, peerid, peerinfo,
+          protobuf/minprotobuf, protocols/protocol, protocols/secure/secio,
+          stream/connection, switch],
+  nimcrypto/pbkdf2,
+  stew/[byteutils, endians2, results],
   waku/common/utils/nat,
-  waku/v2/node/[wakunode2]
+  waku/v2/node/[waku_payload, wakunode2],
+  waku/v2/protocol/[waku_filter/waku_filter, waku_lightpush/waku_lightpush,
+                    waku_message, waku_store/waku_store],
+  waku/v2/utils/peers
 
-# ------------------------------------------------------------------------------
+# stew/shims/net as stewNet,
 
-import std/[tables, strformat, strutils, times, httpclient, json, sequtils, random, options]
-import confutils, chronicles, chronos, stew/shims/net as stewNet,
-       eth/keys, bearssl, stew/[byteutils, endians2],
-       nimcrypto/pbkdf2
-import libp2p/[switch,                   # manage transports, a single entry point for dialing and listening
-               crypto/crypto,            # cryptographic functions
-               stream/connection,        # create and close stream read / write connections
-               multiaddress,             # encode different addressing schemes. For example, /ip4/7.7.7.7/tcp/6543 means it is using IPv4 protocol and TCP
-               peerinfo,                 # manage the information of a peer, such as peer ID and public / private key
-               peerid,                   # Implement how peers interact
-               protobuf/minprotobuf,     # message serialisation/deserialisation from and to protobufs
-               protocols/protocol,       # define the protocol base type
-               protocols/secure/secio,   # define the protocol of secure input / output, allows encrypted communication that uses public keys to validate signed messages instead of a certificate authority like in TLS
-               muxers/muxer]             # define an interface for stream multiplexing, allowing peers to offer many protocols over a single connection
-import   waku/v2/node/[wakunode2, waku_payload],
-         waku/v2/protocol/waku_message,
-         waku/v2/protocol/waku_store/waku_store,
-         waku/v2/protocol/waku_filter/waku_filter,
-         waku/v2/protocol/waku_lightpush/waku_lightpush,
-         waku/v2/utils/peers,
-         waku/common/utils/nat
-
-# ------------------------------------------------------------------------------
-
-export crypto, nat, wakunode2
+export byteutils, minprotobuf, nat, results, waku_message, wakunode2
 
 type
   Chat2Message* = object
@@ -85,10 +73,12 @@ proc generateSymKey*(contentTopic: ContentTopic): SymKey =
 
   symKey
 
-proc selectRandomNode*(fleetStr: string): string =
+proc selectRandomNode*(fleetStr: string): Future[string] {.async.} =
   let
-    fleet = newHttpClient().getContent("https://fleets.status.im")
+    url = "https://fleets.status.im"
+    response = await fetch(HttpSessionRef.new(), parseUri(url))
+    fleet = string.fromBytes(response.data)
     nodes = toSeq(
       fleet.parseJson(){"fleets", "wakuv2." & fleetStr, "waku"}.pairs())
 
-  nodes[rand(nodes.len - 1)].val.getStr()
+  return nodes[rand(nodes.len - 1)].val.getStr()

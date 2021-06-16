@@ -1,26 +1,9 @@
 import # std libs
-  os, strutils
-
-# ----------------------------------------------------------------------------
-
-
-
-# ----------------------------------------------------------------------------
+  std/[os, strutils]
 
 import # vendor libs
-  chronicles,
-  chronos,
-  confutils,
-  confutils/defs,
-  confutils/std/net,
-  eth/keys,
-  libp2p/crypto/crypto,
-  libp2p/crypto/secp,
-  nimcrypto/utils
-
-export strutils
-
-# export chronicles, chronos, confutils, crypto, defs, keys, net, os, secp, strutils, utils
+  chronicles, confutils, confutils/std/net, eth/keys,
+  libp2p/[crypto/crypto, crypto/secp], nimcrypto/utils
 
 proc defaultDataDir*(): string =
   # logic here could evolve to something more complex (e.g. platform-specific)
@@ -65,7 +48,8 @@ type
 
     nodekey* {.
       desc: "P2P node private key as 64 char hex string"
-      defaultValue: crypto.PrivateKey.random(Secp256k1, keys.newRng()[]).tryGet()
+      defaultValue: crypto.PrivateKey.random(Secp256k1,
+        keys.newRng()[]).tryGet()
       name: "waku-nodekey"
     .}: crypto.PrivateKey
 
@@ -282,7 +266,9 @@ proc parseCmdArg*(T: type crypto.PrivateKey, p: TaintedString): T =
   except CatchableError as e:
     raise newException(ConfigurationError, "Invalid private key")
 
-proc completeCmdArg*(T: type crypto.PrivateKey, val: TaintedString): seq[string] =
+proc completeCmdArg*(T: type crypto.PrivateKey,
+  val: TaintedString): seq[string] =
+
   return @[]
 
 proc parseCmdArg*(T: type ValidIpAddress, p: TaintedString): T =
