@@ -107,7 +107,7 @@ proc drawTermTooSmall*(self: ChatTUI) =
   discard
 
 proc drawScreen*(self: ChatTUI) =
-  if LINES < 24 or COLS < 76:
+  if LINES < 23 or COLS < 76:
     self.drawTermTooSmall()
   else:
     self.drawChatWin()
@@ -150,3 +150,25 @@ proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
   refresh()
 
   trace "TUI printed in message window"
+
+proc resizeScreen*(self: ChatTUI) =
+  # end current windows
+  # endwin()
+  refresh()
+  clear()
+
+  if (LINES < 23 or COLS < 76):
+    self.drawTermTooSmall()
+  else:
+    # redraw windows
+    self.drawChatWin()
+    self.drawInputWin()
+    self.drawInfoLines()
+
+    # redraw ascii splash
+    # asciiSplash()
+
+    # refresh and move cursor to input window
+    wrefresh(self.chatWin)
+    wcursyncup(self.inputWin)
+    wrefresh(self.inputWin)
