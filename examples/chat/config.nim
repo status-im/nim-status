@@ -3,7 +3,10 @@ import # std libs
 
 import # vendor libs
   chronicles, confutils, confutils/std/net, eth/keys,
-  libp2p/[crypto/crypto, crypto/secp], nimcrypto/utils
+  libp2p/[crypto/crypto, crypto/secp],
+  nimcrypto/utils
+
+export confutils
 
 proc defaultDataDir*(): string =
   # logic here could evolve to something more complex (e.g. platform-specific)
