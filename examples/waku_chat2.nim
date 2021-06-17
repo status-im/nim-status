@@ -1,4 +1,4 @@
-## chat2_waku is an example of usage of Waku v2.
+## waku_chat2 is an example of usage of Waku v2.
 ## For suggested usage options, please see the dingpu tutorial in:
 ## https://github.com/status-im/nim-waku/blob/master/docs/tutorial/dingpu.md
 
@@ -26,7 +26,7 @@ import   waku/v2/node/[wakunode2, waku_payload],
          waku/v2/protocol/waku_lightpush/waku_lightpush,
          waku/v2/utils/peers,
          waku/common/utils/nat,
-         ./chat2_waku_config
+         ./waku_chat2_config
 
 const Help = """
   Commands: /[?|help|connect|nick|exit]

@@ -87,8 +87,8 @@ task chat, "Build and run the example chat client":
     (if getEnv("NCURSES_STATIC").strip != "false": " --dynlibOverride:ncursesw" else: "") &
     (if getEnv("NCURSES_LDFLAGS").strip != "": " --passL:\"" & getEnv("NCURSES_LDFLAGS") & "\"" else: ""))
 
-task chat2_waku, "Build and run the example chat2_waku client":
-  buildAndRun "chat2_waku", "examples/", "build/"
+task waku_chat2, "Build and run the example waku_chat2 client":
+  buildAndRun "waku_chat2", "examples/", "build/"
 
 task tests, "Build and run all tests":
   rmDir "test/build/"

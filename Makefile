@@ -20,7 +20,6 @@ export LINK_PCRE := 0
 .PHONY: \
 	all \
 	chat \
-        chat2_waku \
 	clean \
 	clean-build-dirs \
 	clean-migration-files \
@@ -31,7 +30,8 @@ export LINK_PCRE := 0
 	rlnlib-sub \
 	sqlcipher \
 	test \
-	update
+	update \
+	waku_chat2
 
 ifeq ($(NIM_PARAMS),)
 # "variables.mk" was not included, so we update the submodules.
@@ -456,8 +456,8 @@ endif
 chat: $(SQLCIPHER) $(MIGRATIONS)
 	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble chat
 
-chat2_waku: $(SQLCIPHER) $(MIGRATIONS)
-	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble chat2_waku
+waku_chat2: $(SQLCIPHER) $(MIGRATIONS)
+	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble waku_chat2
 
 test: $(SQLCIPHER) $(MIGRATIONS)
 	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble tests
