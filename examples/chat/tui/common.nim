@@ -6,12 +6,18 @@ export client, ncurses_helpers
 type
   ChatTUI* = ref object
     chatConfig*: ChatConfig
+    chatWin*: PWindow
+    chatWinBox*: PWindow
     client*: ChatClient
     currentInput*: string
     events*: EventChannel
+    infoLine*: PWindow
+    infoLineBottom*: PWindow
     inputReady*: bool
+    inputWin*: PWindow
+    inputWinBox*: PWindow
     locale*: string
-    mainWindow*: PWindow
+    mainWin*: PWindow
     running*: bool
     taskRunner*: TaskRunner
 
@@ -72,7 +78,7 @@ proc stop*(self: ChatTUI) {.async.} =
   await allFutures(stopping)
   self.events.close()
 
-  discard endwin()
+  endwin()
   trace "TUI restored the terminal"
 
   debug "TUI stopped"

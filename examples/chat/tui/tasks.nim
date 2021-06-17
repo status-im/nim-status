@@ -15,7 +15,6 @@ proc readInput*() {.task(kind=no_rts, stoppable=false).} =
 
   var
     bytes: seq[byte] = @[]
-    discarded = false
     expected = 1
     input = 0
 
