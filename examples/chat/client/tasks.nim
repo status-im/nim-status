@@ -106,7 +106,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
     rlnRelayEnabled = conf.rlnRelay,
     relayMessages = conf.relay)
 
-  wakuNode.mountKeepalive()
+  wakuNode.mountLibp2pPing()
 
   let
     fleet = conf.fleet
