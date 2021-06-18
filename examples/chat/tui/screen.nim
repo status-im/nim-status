@@ -77,16 +77,19 @@ proc drawChatWin*(self: ChatTUI) =
   # create sub subwindow to hold text
   self.chatWin = subwin(self.chatWinBox, ((LINES.float64 * 0.8).int - 2).cint,
     COLS - 2, 1, 1)
+
   # enable text scrolling
   scrollok(self.chatWin, true)
 
 proc drawInfoLines*(self: ChatTUI) =
   # create info line above input window
   self.infoLine = subwin(self.mainWin, 1, COLS, (LINES.float64 * 0.8).cint, 0)
+
   # write initial text to info line
   wbkgd(self.infoLine, COLOR_PAIR(3).chtype)
   wprintw(self.infoLine, " Type /help to view a list of available commands")
   wrefresh(self.infoLine)
+
   # create lower info line
   self.infoLineBottom = subwin(self.mainWin, 1, COLS, LINES - 1, 0)
 
@@ -107,7 +110,7 @@ proc drawTermTooSmall*(self: ChatTUI) =
   discard
 
 proc drawScreen*(self: ChatTUI) =
-  if LINES < 23 or COLS < 76:
+  if LINES < 24 or COLS < 76:
     self.drawTermTooSmall()
   else:
     self.drawChatWin()
@@ -153,11 +156,11 @@ proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
 
 proc resizeScreen*(self: ChatTUI) =
   # end current windows
-  # endwin()
+  endwin()
   refresh()
   clear()
 
-  if (LINES < 23 or COLS < 76):
+  if LINES < 24 or COLS < 76:
     self.drawTermTooSmall()
   else:
     # redraw windows

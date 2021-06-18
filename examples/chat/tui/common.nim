@@ -78,6 +78,10 @@ proc stop*(self: ChatTUI) {.async.} =
   await allFutures(stopping)
   self.events.close()
 
+  # calling `endwin` here isn't working as expected, i.e. if the terminal is
+  # resized while the chat program is running then the terminal's state is
+  # often "corrupted" when the chat program exits; calling `endwin` before
+  # program exit is supposed to prevent it from being corrupted
   endwin()
   trace "TUI restored the terminal"
 
