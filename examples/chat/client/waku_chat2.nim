@@ -1,5 +1,5 @@
 import # std libs
-  std/[json, options, random, sequtils, strformat, strutils, tables, times, uri]
+  std/[json, options, random, sequtils, strutils, tables, times, uri]
 
 import # vendor libs
   bearssl, chronicles, chronos, chronos/apps/http/httpclient, eth/keys,
@@ -11,10 +11,7 @@ import # vendor libs
   waku/common/utils/nat,
   waku/v2/node/[waku_payload, wakunode2],
   waku/v2/protocol/[waku_filter/waku_filter, waku_lightpush/waku_lightpush,
-                    waku_message, waku_store/waku_store],
-  waku/v2/utils/peers
-
-# stew/shims/net as stewNet,
+                    waku_message, waku_store/waku_store]
 
 export
   byteutils, crypto, keys, minprotobuf, nat, results, secp, utils, waku_message,
