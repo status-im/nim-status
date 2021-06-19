@@ -71,6 +71,7 @@ proc buildAndRun(name: string,
     (if getEnv("SSL_LDFLAGS").strip != "": " --passL:\"" & getEnv("SSL_LDFLAGS") & "\"" else: "") &
     " --threads:on" &
     " --tlsEmulation:off" &
+    " --warning[ObservableStores]:off" &
     " " &
     extra_params &
     " " &
