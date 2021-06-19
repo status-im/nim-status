@@ -6,8 +6,14 @@ import # chat libs
 
 export tasks, task_runner
 
+logScope:
+  topics = "task_runner"
+
 type
   WorkerChannel* = AsyncChannel[ThreadSafeString]
+
+  WorkerKind* = enum pool, thread
+
   ThreadArg* = ref object of RootObj
     awaitTasks*: bool
     chanRecvFromHost*: WorkerChannel
@@ -15,6 +21,7 @@ type
     context*: Context
     contextArg*: ContextArg
     running*: pointer
+
   Worker* = ref object of RootObj
     awaitTasks*: bool
     chanRecvFromWorker*: WorkerChannel

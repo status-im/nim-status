@@ -4,7 +4,7 @@ import # chat libs
 export common
 
 logScope:
-  topics = "chat"
+  topics = "chat client"
 
 type
   ClientEvent* = ref object of Event

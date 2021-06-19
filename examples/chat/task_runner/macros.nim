@@ -1,8 +1,14 @@
 import # std libs
   std/[macros, unicode]
 
+import # vendor libs
+  chronicles
+
 import # chat libs
   ./impl
+
+logScope:
+  topics = "task_runner"
 
 macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyped =
   result = newStmtList()

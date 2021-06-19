@@ -4,7 +4,7 @@ import # chat libs
 export tasks
 
 logScope:
-  topics = "chat"
+  topics = "chat client"
 
 # This module's purpose is to provide wrappers for task invocation to e.g. send
 # a message via nim-status/waku running in a separate thread; starting the

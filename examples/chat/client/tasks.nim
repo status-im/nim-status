@@ -7,7 +7,7 @@ import # chat libs
 export events
 
 logScope:
-  topics = "chat"
+  topics = "chat client"
 
 type
   StatusArg* = ref object of ContextArg

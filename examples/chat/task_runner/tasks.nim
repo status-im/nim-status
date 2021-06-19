@@ -1,18 +1,25 @@
 import # vendor libs
-  chronos, json_serialization
+  chronicles, chronos, json_serialization
 
-export json_serialization
+export chronicles, json_serialization
+
+logScope:
+  topics = "task_runner"
 
 type
   ContextArg* = ref object of RootObj
+
   Context* = proc(arg: ContextArg): Future[void] {.gcsafe, nimcall.}
+
   Task* = proc(taskArgEncoded: string): Future[void] {.gcsafe, nimcall.}
+
   TaskKind* = enum no_rts, rts # rts := "return to sender"
+
   TaskArg* = ref object of RootObj
     chanSendToHost*: ByteAddress # pointer to channel for sending to host
     task*: ByteAddress # pointer to task proc
     taskName*: string
-    workerRunning*: ByteAddress # pointer to task runner's `.running` Atomic[bool]
+    workerRunning*: ByteAddress # pointer to TaskTunner instance's `.running` Atomic[bool]
 
 # there should eventually be the ability to reliably stop individual workers,
 # i.e. each worker would have it's own `.running` Atomic[bool] (maybe

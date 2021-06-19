@@ -7,7 +7,7 @@ import # chat libs
 export screen, strutils, tasks
 
 logScope:
-  topics = "chat"
+  topics = "chat tui"
 
 # Command types are defined in ./common to avoid circular dependency
 

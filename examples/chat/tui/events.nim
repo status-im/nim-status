@@ -4,7 +4,7 @@ import # chat libs
 export actions
 
 logScope:
-  topics = "chat"
+  topics = "chat tui"
 
 # TUIEvent types are defined in ./common to avoid circular dependency
 

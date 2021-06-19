@@ -6,6 +6,9 @@ import # chat libs
 
 export common
 
+logScope:
+  topics = "chat tui"
+
 # Events -----------------------------------------------------------------------
 
 macro `&`[T; A, B: static int](a: array[A, T], b: array[B, T]): untyped =

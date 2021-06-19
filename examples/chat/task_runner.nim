@@ -8,3 +8,6 @@ import # chat libs
   ./task_runner/impl, ./task_runner/macros
 
 export impl, macros
+
+logScope:
+  topics = "task_runner"

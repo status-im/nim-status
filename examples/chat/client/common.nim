@@ -3,6 +3,9 @@ import # chat libs
 
 export config, task_runner
 
+logScope:
+  topics = "chat client"
+
 type
   Event* = ref object of RootObj
 

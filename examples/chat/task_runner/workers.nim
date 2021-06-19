@@ -3,4 +3,5 @@ import # chat libs
 
 export pool_worker, thread_worker, worker
 
-type WorkerKind* = enum pool, thread
+logScope:
+  topics = "task_runner"

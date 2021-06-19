@@ -17,6 +17,9 @@ export
   byteutils, crypto, keys, minprotobuf, nat, results, secp, utils, waku_message,
   wakunode2
 
+logScope:
+  topics = "chat client"
+
 type
   Chat2Message* = object
     nick*: string

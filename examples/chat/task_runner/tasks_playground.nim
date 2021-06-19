@@ -1,3 +1,9 @@
+import # vendor libs
+  chronicles
+
+logScope:
+  topics = "task_runner"
+
 # This module was used to experiment with patterns for no_rts and rts tasks and
 # task contexts. At present it's kept around for reference but will eventually
 # be removed.

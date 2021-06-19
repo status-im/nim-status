@@ -9,6 +9,9 @@ import # chat libs
 
 export confutils, net.ValidIpAddress, net.init
 
+logScope:
+  topics = "chat config"
+
 type
   LLevel* = distinct string
   PK* = distinct string

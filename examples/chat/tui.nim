@@ -4,7 +4,7 @@ import # chat libs
 export events
 
 logScope:
-  topics = "chat"
+  topics = "chat tui"
 
 # TUI: https://en.wikipedia.org/wiki/Text-based_user_interface
 

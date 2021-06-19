@@ -4,7 +4,7 @@ import # chat libs
 export common
 
 logScope:
-  topics = "chat"
+  topics = "chat tui"
 
 const
   ESCAPE* = "ESCAPE"

@@ -4,7 +4,7 @@ import # chat libs
 export parser
 
 logScope:
-  topics = "chat"
+  topics = "chat tui"
 
 # `action` and `command` (see ./commands) procs are `{.async.}` for the
 # convenience of e.g. interaction with channels and tasks. However, they should

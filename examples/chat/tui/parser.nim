@@ -4,7 +4,7 @@ import # chat libs
 export cmd, macros
 
 logScope:
-  topics = "chat"
+  topics = "chat tui"
 
 proc parse*(commandRaw: string): (string, seq[string], bool) =
   var

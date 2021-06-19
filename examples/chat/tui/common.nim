@@ -3,6 +3,9 @@ import # chat libs
 
 export client, ncurses_helpers
 
+logScope:
+  topics = "chat tui"
+
 type
   ChatTUI* = ref object
     chatConfig*: ChatConfig

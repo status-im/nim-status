@@ -1,7 +1,10 @@
 import # vendor libs
-  ncurses
+  chronicles, ncurses
 
 export ncurses
+
+logScope:
+  topics = "chat tui"
 
 var LC_ALL* {.header: "<locale.h>".}: cint
 
