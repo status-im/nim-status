@@ -14,9 +14,7 @@ type
     chatConfig*: ChatConfig
 
 var
-  # using `ptr ChatConfig` is a workaround because some fields of `ChatConfig`
-  # are type `ValidIpAddress` which has `{.requiresInit.}` pragma
-  confPtr {.threadvar.}: ptr ChatConfig
+  conf {.threadvar.}: ChatConfig
   connected {.threadvar.}: bool
   contentTopic {.threadvar.}: ContentTopic
   contextArg {.threadvar.}: StatusArg
@@ -40,8 +38,8 @@ proc resetContext() {.gcsafe, nimcall.} =
 proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
   # set threadvar values that are never reset, i.e. persist across login/logout
   contextArg = cast[StatusArg](arg)
-  confPtr = addr contextArg.chatConfig
-  contentTopic = confPtr[].contentTopic
+  conf = contextArg.chatConfig
+  contentTopic = conf.contentTopic
 
   # threadvar `symKeyGenerated` is a special case because it depends on
   # compile-time `PayloadV1` value and because the value of its counterpart
@@ -79,9 +77,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.stopped: return
   wakuState = WakuState.starting
 
-  let
-    conf = confPtr[]
-    task = taskArg.taskName
+  let task = taskArg.taskName
 
   nick = username
 
