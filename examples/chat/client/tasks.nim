@@ -96,9 +96,18 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
     Port(uint16(conf.tcpPort) + conf.portsShift),
     Port(uint16(conf.udpPort) + conf.portsShift))
 
-  wakuNode = WakuNode.init(conf.nodekey, conf.listenAddress,
-    Port(uint16(conf.tcpPort) + conf.portsShift), extIp,
-    extTcpPort)
+  var nodekey: waku_chat2.crypto.PrivateKey
+
+  if $conf.nodekey == "":
+    nodekey = waku_chat2.crypto.PrivateKey.random(Secp256k1,
+      waku_chat2.keys.newRng()[]).tryGet()
+  else:
+    nodekey = waku_chat2.crypto.PrivateKey(scheme: Secp256k1,
+      skkey: SkPrivateKey.init(
+        waku_chat2.utils.fromHex($conf.nodekey)).tryGet())
+
+  wakuNode = WakuNode.init(nodekey, ValidIpAddress.init($conf.listenAddress),
+    Port(uint16(conf.tcpPort) + conf.portsShift), extIp, extTcpPort)
 
   await wakuNode.start()
 
