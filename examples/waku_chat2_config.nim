@@ -1,3 +1,6 @@
+## Copied from:
+## https://github.com/status-im/nim-waku/blob/master/examples/v2/config_chat2.nim
+
 import
   std/strutils,
   confutils, confutils/defs, confutils/std/net,

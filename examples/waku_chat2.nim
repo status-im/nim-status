@@ -1,4 +1,6 @@
 ## waku_chat2 is an example of usage of Waku v2.
+## Adapted from (with only minor changes):
+## https://github.com/status-im/nim-waku/blob/master/examples/v2/chat2.nim
 ## For suggested usage options, please see the dingpu tutorial in:
 ## https://github.com/status-im/nim-waku/blob/master/docs/tutorial/dingpu.md
 
