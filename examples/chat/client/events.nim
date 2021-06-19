@@ -8,6 +8,7 @@ logScope:
 
 type
   ClientEvent* = ref object of Event
+
   UserMessage* = ref object of ClientEvent
     message*: string
     timestamp*: int64

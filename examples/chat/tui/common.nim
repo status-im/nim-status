@@ -22,23 +22,31 @@ type
     taskRunner*: TaskRunner
 
   TUIEvent* = ref object of Event
+
   InputKey* = ref object of TUIEvent
     key*: int
     name*: string
+
   InputReady* = ref object of TUIEvent
     ready*: bool
+
   InputString* = ref object of TUIEvent
     str*: string
 
-  Command* = ref object of RootObj
   # all fields on types that derive from Command should be of type `string`
+  Command* = ref object of RootObj
+
   Help* = ref object of Command
     command*: string
+
   Login* = ref object of Command
     username*: string
     # password*: string
+
   Logout* = ref object of Command
+
   Quit* = ref object of Command
+
   SendMessage* = ref object of Command
     message*: string
 
