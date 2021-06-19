@@ -20,6 +20,7 @@ const
   defListenAddress = VIP("0.0.0.0")
   defLogFile = "chat.log"
   defLogLevel = when defined(release): LLevel("info") else: LLevel("debug")
+  defLogLevelChron = when defined(release): INFO else: DEBUG
   defMetricsServerAddress = VIP("127.0.0.1")
   defRpcAddress = VIP("127.0.0.1")
 
@@ -394,7 +395,7 @@ proc handleConfig*(config: ChatConfig): ChatConfig =
     of "NON", "NONE", "non", "none":
       logLevel = NONE
     else:
-      logLevel = when defined(release): INFO else: DEBUG
+      logLevel = defLogLevelChron
 
   var cfg = config
   cfg.dataDir = dataDir
