@@ -31,6 +31,7 @@ const debug_opts =
 const release_opts =
   " --define:danger" &
   " --define:strip" &
+  " --hints:off" &
   " --opt:size" &
   " --passC:-flto" &
   " --passL:-flto"
