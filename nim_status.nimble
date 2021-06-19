@@ -83,6 +83,7 @@ proc buildAndRun(name: string,
 task chat, "Build and run the example chat client":
   buildAndRun(
     "chat", "examples/", "build/",
+    " -d:chronicles_runtime_filtering" &
     " -d:chronicles_sinks=textlines[file]" &
     (if getEnv("NCURSES_STATIC").strip != "false": " --dynlibOverride:ncursesw" else: "") &
     (if getEnv("NCURSES_LDFLAGS").strip != "": " --passL:\"" & getEnv("NCURSES_LDFLAGS") & "\"" else: ""))

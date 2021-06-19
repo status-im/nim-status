@@ -4,7 +4,7 @@
 when not(compileOption("threads")):
   {.fatal: "Please compile this program with the --threads:on option!".}
 
-# exporting the following from modules ./chat/config doesn't work as expected,
+# exporting the following modules from ./chat/config doesn't work as expected,
 # so import them here as a workaround
 import # vendor libs
   eth/keys, libp2p/crypto/crypto
