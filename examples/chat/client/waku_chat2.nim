@@ -2,12 +2,11 @@ import # std libs
   std/[json, options, random, sequtils, strformat, strutils, tables, times, uri]
 
 import # vendor libs
-  bearssl, chronicles, chronos, chronos/apps/http/httpclient, confutils,
-  eth/keys,
-  libp2p/[crypto/crypto, multiaddress, muxers/muxer, peerid, peerinfo,
-          protobuf/minprotobuf, protocols/protocol, protocols/secure/secio,
-          stream/connection, switch],
-  nimcrypto/pbkdf2,
+  bearssl, chronicles, chronos, chronos/apps/http/httpclient, eth/keys,
+  libp2p/[crypto/crypto, crypto/secp, multiaddress, muxers/muxer, peerid,
+          peerinfo, protobuf/minprotobuf, protocols/protocol,
+          protocols/secure/secio, stream/connection, switch],
+  nimcrypto/[pbkdf2, utils],
   stew/[byteutils, endians2, results],
   waku/common/utils/nat,
   waku/v2/node/[waku_payload, wakunode2],
@@ -17,7 +16,9 @@ import # vendor libs
 
 # stew/shims/net as stewNet,
 
-export byteutils, minprotobuf, nat, results, waku_message, wakunode2
+export
+  byteutils, crypto, keys, minprotobuf, nat, results, secp, utils, waku_message,
+  wakunode2
 
 type
   Chat2Message* = object

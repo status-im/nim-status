@@ -2,11 +2,12 @@ import # std libs
   std/[macros, os, strutils]
 
 import # vendor libs
-  chronicles, confutils, confutils/std/net, eth/keys,
-  libp2p/[crypto/crypto, crypto/secp],
-  nimcrypto/utils
+  chronicles, confutils, confutils/std/net
 
-export confutils
+import # chat libs
+  ./client/waku_chat2
+
+export confutils, net.ValidIpAddress, net.init
 
 type
   LLevel = distinct string

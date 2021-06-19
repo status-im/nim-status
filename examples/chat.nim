@@ -4,13 +4,6 @@
 when not(compileOption("threads")):
   {.fatal: "Please compile this program with the --threads:on option!".}
 
-# exporting the following modules from ./chat/config doesn't work as expected,
-# so import them here as a workaround
-import # vendor libs
-  eth/keys, libp2p/crypto/crypto
-import
-  confutils/std/net except completeCmdArg, parseCmdArg
-
 import # chat libs
   ./chat/tui
 
