@@ -15,17 +15,16 @@ proc main() {.async.} =
 
   notice "program started"
 
-  var
-    tui = ChatTUI.new(chatConfig)
-    tuiPtr {.threadvar.}: pointer
-
-  tuiPtr = cast[pointer](tui)
-  proc stop() {.noconv.} = waitFor cast[ChatTUI](tuiPtr).stop()
-  setControlCHook(stop)
-
+  var tui = ChatTUI.new(chatConfig)
   await tui.start()
   while tui.running: poll()
 
   notice "program exited"
 
-when isMainModule: waitFor main()
+when isMainModule:
+
+  # chat program will handle all control characters with ncurses in raw mode
+  proc stop() {.noconv.} = discard
+  setControlCHook(stop)
+
+  waitFor main()

@@ -132,22 +132,30 @@ proc initScreen*(): (string, PWindow, bool) =
 
   refresh()
 
-  trace "TUI set the locale", locale
-  trace "TUI initialized ncurses"
-
-  # `halfdelay(N)` will cause ncurses' `getch()` (used in ./tui/tasks) to
-  # return -1 after N tenths of a second if no input was supplied
-  halfdelay(1)
-  noecho()
-  keypad(mainWin, true)
+  # in raw mode, the interrupt, quit, suspend, and flow control characters are
+  # all passed through uninterpreted, instead of generating a signal
+  raw()
+  # achieve similar efffect as `halfdelay(1)`, i.e. getch() will return -1
+  # after 100 milliseconds if no input was supplied
+  timeout(100)
 
   mousemask(ALL_MOUSE_EVENTS.mmask_t, nil)
   let mouse = hasmouse()
 
-  result = (locale, mainWin, mouse)
-
-  setescdelay(0)
   colors()
+  keypad(mainWin, true)
+  noecho()
+  setescdelay(0)
+
+  trace "TUI set the locale", locale
+  trace "TUI initialized ncurses"
+
+  if mouse:
+    trace "TUI has mouse support", mouse
+  else:
+    trace "TUI does not have mouse support", mouse
+
+  (locale, mainWin, mouse)
 
 proc printInput*(self: ChatTUI, input: string) =
   wprintw(self.inputWin, input)
@@ -173,6 +181,7 @@ proc resizeScreen*(self: ChatTUI) =
   endwin()
   refresh()
   clear()
+  refresh()
 
   if LINES < 24 or COLS < 76:
     self.drawTermTooSmall()
