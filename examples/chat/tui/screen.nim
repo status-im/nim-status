@@ -149,11 +149,7 @@ proc initScreen*(): (string, PWindow, bool) =
 
   trace "TUI set the locale", locale
   trace "TUI initialized ncurses"
-
-  if mouse:
-    trace "TUI has mouse support", mouse
-  else:
-    trace "TUI does not have mouse support", mouse
+  trace "TUI determined mouse support", mouse
 
   (locale, mainWin, mouse)
 
@@ -198,3 +194,5 @@ proc resizeScreen*(self: ChatTUI) =
     wcursyncup(self.inputWin)
     wrefresh(self.chatWin)
     wrefresh(self.inputWin)
+
+  trace "TUI redrew screen"

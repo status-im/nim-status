@@ -14,8 +14,11 @@ logScope:
 
 type
   LLevel* = distinct string
+
   PK* = distinct string
+
   VIP* = distinct string
+
   WakuFleet* = enum none, prod, test
 
 const

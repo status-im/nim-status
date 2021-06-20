@@ -15,6 +15,7 @@ logScope:
 type
   WorkerThreadArg = ref object of ThreadArg
     workerName: string
+
   ThreadWorker* = ref object of Worker
     thread: Thread[WorkerThreadArg]
 
@@ -36,15 +37,11 @@ proc start*(self: ThreadWorker) {.async.} =
   trace "worker starting", worker=self.name
   self.chanRecvFromWorker.open()
   self.chanSendToWorker.open()
-  let arg = WorkerThreadArg(
-    awaitTasks: self.awaitTasks,
+  let arg = WorkerThreadArg(awaitTasks: self.awaitTasks,
     chanRecvFromHost: self.chanSendToWorker,
-    chanSendToHost: self.chanRecvFromWorker,
-    context: self.context,
-    contextArg: self.contextArg,
-    running: self.running,
-    workerName: self.name,
-  )
+    chanSendToHost: self.chanRecvFromWorker, context: self.context,
+    contextArg: self.contextArg, running: self.running, workerName: self.name)
+
   createThread(self.thread, workerThread, arg)
   let notice = $(await self.chanRecvFromWorker.recv())
   trace "worker started", notice, worker=self.name
@@ -91,10 +88,12 @@ proc worker(arg: WorkerThreadArg) {.async.} =
 
         trace "worker received message", message, worker
         trace "worker running task", task=taskName, worker
+
         if awaitTasks:
           await task(message)
         else:
           asyncSpawn task(message)
+
       except:
         error "worker received unknown message", message, worker
 

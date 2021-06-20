@@ -14,6 +14,7 @@ logScope:
 
 type
   WorkerTable = TableRef[string, tuple[kind: WorkerKind, worker: Worker]]
+
   TaskRunner* = ref object
     running*: Atomic[bool]
     workers*: WorkerTable

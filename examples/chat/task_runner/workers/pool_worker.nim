@@ -16,15 +16,19 @@ type
   PoolThreadArg = ref object of ThreadArg
     poolName: string
     poolSize: int
+
   PoolWorker* = ref object of Worker
     size*: int
     thread: Thread[PoolThreadArg]
+
   WorkerThreadArg = ref object of ThreadArg
     poolName: string
     workerId: int
+
   ThreadWorker = ref object of Worker
     id: int
     thread: Thread[WorkerThreadArg]
+
   WorkerNotification = ref object
     id: int
     notice: string
@@ -52,16 +56,12 @@ proc start*(self: PoolWorker) {.async.} =
   trace "pool starting", pool=self.name, poolSize=self.size
   self.chanRecvFromWorker.open()
   self.chanSendToWorker.open()
-  let arg = PoolThreadArg(
-    awaitTasks: self.awaitTasks,
+  let arg = PoolThreadArg(awaitTasks: self.awaitTasks,
     chanRecvFromHost: self.chanSendToWorker,
-    chanSendToHost: self.chanRecvFromWorker,
-    context: self.context,
-    contextArg: self.contextArg,
-    running: self.running,
-    poolName: self.name,
-    poolSize: self.size
-  )
+    chanSendToHost: self.chanRecvFromWorker, context: self.context,
+    contextArg: self.contextArg, running: self.running, poolName: self.name,
+    poolSize: self.size)
+
   createThread(self.thread, poolThread, arg)
   let notice = $(await self.chanRecvFromWorker.recv())
   trace "pool started", notice, pool=self.name, poolSize=self.size
@@ -87,16 +87,12 @@ proc new*(T: type ThreadWorker, name: string, id: int, running: pointer,
 
 proc start*(self: ThreadWorker) {.async.} =
   self.chanSendToWorker.open()
-  let arg = WorkerThreadArg(
-    awaitTasks: self.awaitTasks,
+  let arg = WorkerThreadArg(awaitTasks: self.awaitTasks,
     chanRecvFromHost: self.chanSendToWorker,
-    chanSendToHost: self.chanRecvFromWorker,
-    context: self.context,
-    contextArg: self.contextArg,
-    running: self.running,
-    poolName: self.name,
-    workerId: self.id
-  )
+    chanSendToHost: self.chanRecvFromWorker, context: self.context,
+    contextArg: self.contextArg, running: self.running, poolName: self.name,
+    workerId: self.id)
+
   createThread(self.thread, workerThread, arg)
 
 proc stop*(self: ThreadWorker) {.async.} =
@@ -137,6 +133,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
     trace "pool worker starting", pool, workerId
     trace "pool marked new worker as busy", pool, poolSize, workerId,
       workersStarted=workerId
+
     asyncSpawn worker.start()
 
   # when task received and number of busy threads == poolSize, then put task in
@@ -163,6 +160,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
         stopping.add worker.stop()
       for worker in workersBusy.values:
         stopping.add worker.stop()
+
       await allFutures(stopping)
       trace "pool workers all stopped", pool, poolSize
       break
@@ -216,6 +214,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
         taskQueue.delete 0, 0
         trace "pool removed task from queue", pool, queued=taskQueue.len
         shouldSendToWorker = true
+
       elif shouldSendToWorker and taskQueue.len > 0 and
            workersBusy.len < poolSize:
         taskQueue.add message
@@ -223,6 +222,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
         taskQueue.delete 0, 0
         trace "pool added task to queue and removed oldest task from queue",
           pool, queued=taskQueue.len
+
       elif shouldSendToWorker and workersBusy.len == poolSize:
         taskQueue.add message
         trace "pool added task to queue", pool, queued=taskQueue.len
@@ -238,6 +238,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
         trace "pool sent task to worker", pool, workerId
         trace "pool marked worker as busy", pool, poolSize, workerId,
           workersBusy=workersBusy.len, workersIdle=workersIdle.len
+
         asyncSpawn worker.chanSendToWorker.send(message.safe)
 
   chanRecvFromHostOrWorker.close()
@@ -285,10 +286,12 @@ proc worker(arg: WorkerThreadArg) {.async.} =
 
         trace "pool worker received message", message, pool, workerId
         trace "pool worker running task", pool, task=taskName, workerId
+
         if awaitTasks:
           await task(message)
         else:
           asyncSpawn task(message)
+
       except:
         error "pool worker received unknown message", message, pool, workerId
 

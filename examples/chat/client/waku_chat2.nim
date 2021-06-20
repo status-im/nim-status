@@ -27,7 +27,9 @@ type
     timestamp*: int64
 
   PrivateKey* = crypto.PrivateKey
+
   Topic* = wakunode2.Topic
+
   WakuState* = enum stopped, starting, started, stopping
 
 const
