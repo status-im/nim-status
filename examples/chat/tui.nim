@@ -17,7 +17,7 @@ const input = "input"
 
 proc new*(T: type ChatTUI, chatConfig: ChatConfig): T =
   let
-    (locale, mainWin) = initScreen()
+    (locale, mainWin, mouse) = initScreen()
     client = ChatClient.new(chatConfig)
 
   var taskRunner = TaskRunner.new()
@@ -25,7 +25,7 @@ proc new*(T: type ChatTUI, chatConfig: ChatConfig): T =
 
   T(chatConfig: chatConfig, client: client, currentInput: "",
     events: newEventChannel(), inputReady: false, locale: locale,
-    mainWin: mainWin, running: false, taskRunner: taskRunner)
+    mainWin: mainWin, mouse: mouse, running: false, taskRunner: taskRunner)
 
 proc start*(self: ChatTUI) {.async.} =
   debug "TUI starting"

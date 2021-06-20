@@ -124,7 +124,7 @@ proc drawScreen*(self: ChatTUI) =
 
   trace "TUI drew initial screen"
 
-proc initScreen*(): (string, PWindow) =
+proc initScreen*(): (string, PWindow, bool) =
   # initialize ncurses
   let
     locale = $setlocale(LC_ALL, "")
@@ -135,13 +135,17 @@ proc initScreen*(): (string, PWindow) =
   trace "TUI set the locale", locale
   trace "TUI initialized ncurses"
 
-  result = (locale, mainWin)
-
   # `halfdelay(N)` will cause ncurses' `getch()` (used in ./tui/tasks) to
   # return -1 after N tenths of a second if no input was supplied
   halfdelay(1)
   noecho()
   keypad(mainWin, true)
+
+  mousemask(ALL_MOUSE_EVENTS.mmask_t, nil)
+  let mouse = hasmouse()
+
+  result = (locale, mainWin, mouse)
+
   setescdelay(0)
   colors()
 

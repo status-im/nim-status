@@ -20,7 +20,9 @@ logScope:
 # the execution time of procs it may call, is 16 milliseconds so as to maintain
 # at least 60 FPS in the TUI.
 
-const KEY_RESIZE = "KEY_RESIZE"
+const
+  KEY_MOUSE = "KEY_MOUSE"
+  KEY_RESIZE = "KEY_RESIZE"
 
 proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
   let (commandType, args, isCommand) = parse(command)
@@ -33,13 +35,18 @@ proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
 # InputKeuy --------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
-  # handle special keys e.g. arrow keys, ESCAPE, F1, RETURN, et al.
+  # handle mouse events and special keys e.g. arrow keys, ESCAPE, RETURN, et al.
   let
     key = event.key
     name = event.name
 
   case name:
     of ESCAPE:
+      discard
+
+    of KEY_MOUSE:
+      var me: MEvent
+      getmouse(addr me)
       discard
 
     of KEY_RESIZE:

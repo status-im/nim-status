@@ -21,6 +21,7 @@ type
     inputWinBox*: PWindow
     locale*: string
     mainWin*: PWindow
+    mouse*: bool
     running*: bool
     taskRunner*: TaskRunner
 
