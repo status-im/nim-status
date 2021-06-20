@@ -35,10 +35,10 @@ var
 
 proc clearInput*(self: ChatTUI) =
   var x, y: cint
-  getyx(self.mainWin, y, x)
-  move(y, 0)
-  clrtoeol()
-  refresh()
+  getyx(self.inputWin, y, x)
+  wmove(self.inputWin, y, 0)
+  wclrtoeol(self.inputWin)
+  wrefresh(self.inputWin)
 
   trace "TUI cleared input window"
 
@@ -117,6 +117,11 @@ proc drawScreen*(self: ChatTUI) =
     self.drawInputWin()
     self.drawInfoLines()
 
+    # move cursor to input window and refresh
+    wcursyncup(self.inputWin)
+    wrefresh(self.chatWin)
+    wrefresh(self.inputWin)
+
   trace "TUI drew initial screen"
 
 proc initScreen*(): (string, PWindow) =
@@ -141,16 +146,21 @@ proc initScreen*(): (string, PWindow) =
   colors()
 
 proc printInput*(self: ChatTUI, input: string) =
-  printw(input)
-  refresh()
+  wprintw(self.inputWin, input)
+  wrefresh(self.inputWin)
 
   trace "TUI printed in input window"
 
 proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
   username: string) =
+
   let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
-  printw("\n" & tstamp & " " & username & ": " & message)
-  refresh()
+  wprintw(self.chatWin, "\n" & tstamp & " " & username & ": " & message)
+  wrefresh(self.chatWin)
+
+  # move cursor to input window and refresh
+  wcursyncup(self.inputWin)
+  wrefresh(self.inputWin)
 
   trace "TUI printed in message window"
 
@@ -171,7 +181,7 @@ proc resizeScreen*(self: ChatTUI) =
     # redraw ascii splash
     # asciiSplash()
 
-    # refresh and move cursor to input window
-    wrefresh(self.chatWin)
+    # move cursor to input window and refresh
     wcursyncup(self.inputWin)
+    wrefresh(self.chatWin)
     wrefresh(self.inputWin)
