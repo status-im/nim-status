@@ -96,5 +96,5 @@ proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
     timestamp = event.timestamp
     username = event.username
 
-  trace "TUI received user message", message, timestamp, username
+  debug "TUI received user message", message, timestamp, username
   self.printMessage(message, timestamp, username)
