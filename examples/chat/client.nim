@@ -10,6 +10,8 @@ logScope:
 # a message via nim-status/waku running in a separate thread; starting the
 # client also initiates listening for events coming from nim-status/waku.
 
+# `type ChatClient` is defined in ./common to avoid circular dependency
+
 proc new*(T: type ChatClient, chatConfig: ChatConfig): T =
   let statusArg = StatusArg(chatConfig: chatConfig)
   var taskRunner = TaskRunner.new()

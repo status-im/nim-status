@@ -13,7 +13,8 @@ logScope:
 
 const input = "input"
 
-# `proc stop(self: ChatTUI)` is defined in ./common to avoid circular dependency
+# `type ChatTUI` and `proc stop(self: ChatTUI)` are defined in ./common to
+# avoid circular dependency
 
 proc new*(T: type ChatTUI, chatConfig: ChatConfig): T =
   let
