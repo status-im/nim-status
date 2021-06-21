@@ -1,5 +1,5 @@
 import # std libs
-  atomics, json
+  std/[atomics, json]
 
 import # vendor libs
   chronicles, chronos, task_runner

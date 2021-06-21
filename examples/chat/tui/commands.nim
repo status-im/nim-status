@@ -1,5 +1,5 @@
 import # std libs
-  strutils
+  std/strutils
 
 import # chat libs
   ./screen, ./tasks
