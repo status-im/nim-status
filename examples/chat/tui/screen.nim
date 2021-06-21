@@ -9,16 +9,6 @@ export common
 logScope:
   topics = "chat tui"
 
-# NOTE: depending on the OS and/or terminal, font, and related software, there
-# can be a problem with how ncurses displays some emojis and other characters,
-# e.g. those that make use of ZWJ or ZWNJ and more generally known as "extended
-# grapheme clusters"; there's not much that can be done about it at present:
-# * https://stackoverflow.com/a/23533623
-# * https://stackoverflow.com/a/54993513
-# * https://en.wikipedia.org/wiki/Zero-width_joiner
-# * https://en.wikipedia.org/wiki/Zero-width_non-joiner
-# * https://unicode.org/glossary/#extended_grapheme_cluster
-
 # CREDIT: the structure of this module was inspired by TBDChat
 # https://github.com/mgeitz/tbdchat
 
@@ -128,8 +118,8 @@ proc initScreen*(): (string, PWindow, bool) =
   # in raw mode, the interrupt, quit, suspend, and flow control characters are
   # all passed through uninterpreted, instead of generating a signal
   raw()
-  # achieve similar efffect as `halfdelay(1)`, i.e. getch() will return -1
-  # after 100 milliseconds if no input was supplied
+  # achieve similar efffect as ncurses' `halfdelay(1)`, i.e. `getch()` will
+  # return `-1` after 100 milliseconds if no input was supplied
   timeout(100)
 
   mousemask(ALL_MOUSE_EVENTS.mmask_t, nil)

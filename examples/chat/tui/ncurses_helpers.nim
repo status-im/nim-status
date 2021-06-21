@@ -9,6 +9,16 @@ export ncurses
 logScope:
   topics = "chat tui"
 
+# NOTE: depending on OS, terminal emulator, font, and related software, there
+# can be problems re: how ncurses displays some emojis and other characters,
+# e.g. those that make use of ZWJ or ZWNJ (more generally "extended grapheme
+# clusters"); there's not much that can be done about it at present:
+# * https://en.wikipedia.org/wiki/Zero-width_joiner
+# * https://en.wikipedia.org/wiki/Zero-width_non-joiner
+# * https://stackoverflow.com/a/23533623
+# * https://stackoverflow.com/a/54993513
+# * https://unicode.org/glossary/#extended_grapheme_cluster
+
 template NCURSES_MOUSE_MASK(b, m: untyped): untyped = ((m) shl (((b) - 1) * 5))
 
 const
