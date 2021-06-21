@@ -13,6 +13,10 @@ logScope:
 # https://github.com/mgeitz/tbdchat
 
 proc asciiSplash*(self: ChatTUI) =
+  # TODO
+  # there are tools online for making decent looking "ASCII banners", e.g.
+  # * https://patorjk.com/software/taag/#p=display&f=Graffiti&t=status
+  # * https://manytools.org/hacker-tools/ascii-banner/
   discard
 
 proc clearInput*(self: ChatTUI) =
@@ -41,11 +45,11 @@ proc colors() =
   init_pair(8, COLOR_WHITE, COLOR_RED)
 
 proc drawChatWin*(self: ChatTUI) =
-  # create subwindow for the chat box
+  # create subwindow for chat box
   self.chatWinBox = subwin(self.mainWin, (LINES.float64 * 0.8).cint, COLS, 0, 0)
   box(self.chatWinBox, 0, 0)
 
-  # add title to the subwindow
+  # add title to subwindow
   mvwaddch(self.chatWinBox, 0, ((COLS.float64 * 0.5).int - 9).cint, ACS_RTEE)
   wattron(self.chatWinBox, COLOR_PAIR(3).cint)
   mvwaddstr(self.chatWinBox, 0, ((COLS.float64 * 0.5).int - 8).cint,
@@ -56,7 +60,7 @@ proc drawChatWin*(self: ChatTUI) =
   # draw subwindow
   wrefresh(self.chatWinBox)
 
-  # create sub subwindow to hold text
+  # create sub-subwindow to hold text
   self.chatWin = subwin(self.chatWinBox, ((LINES.float64 * 0.8).int - 2).cint,
     COLS - 2, 1, 1)
 
@@ -147,12 +151,14 @@ proc initScreen*(): (string, PWindow, bool) =
 
   (locale, mainWin, mouse)
 
+# replace `printInput` with adaptions of `wprint...` functions in TBDChat
 proc printInput*(self: ChatTUI, input: string) =
   wprintw(self.inputWin, input)
   wrefresh(self.inputWin)
 
   trace "TUI printed in input window"
 
+# replace `printMessage` with adaptions of `wprint...` functions in TBDChat
 proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
   username: string) =
 
