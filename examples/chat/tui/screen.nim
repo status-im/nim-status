@@ -89,9 +89,17 @@ proc drawInputWin*(self: ChatTUI) =
     COLS - 2, ((LINES.float64 * 0.8).int + 2).cint, 1)
 
 proc drawTermTooSmall*(self: ChatTUI) =
-  discard
+  wbkgd(self.mainWin, COLOR_PAIR(8).chtype)
+  wattron(self.mainWin, A_BOLD.cint)
+  mvwaddstr(self.mainWin, ((LINES.float64 * 0.5).int - 1).cint,
+    ((COLS.float64 * 0.5).int - 3).cint, "TERMINAL")
+  mvwaddstr(self.mainWin, (LINES.float64 * 0.5).cint,
+    ((COLS.float64 * 0.5).int - 4).cint, "TOO SMALL!")
+  wattroff(self.mainWin, A_BOLD.cint)
+  wrefresh(self.mainWin)
+  wbkgd(self.mainWin, COLOR_PAIR(1).chtype)
 
-proc drawScreen*(self: ChatTUI) =
+proc drawScreen*(self: ChatTUI, redraw = false) =
   if LINES < 24 or COLS < 76:
     self.drawTermTooSmall()
   else:
@@ -105,7 +113,10 @@ proc drawScreen*(self: ChatTUI) =
     wrefresh(self.chatWin)
     wrefresh(self.inputWin)
 
-  trace "TUI drew the screen"
+  if redraw:
+    trace "TUI redrew the screen"
+  else:
+    trace "TUI drew the initial screen"
 
 proc initScreen*(): (string, PWindow, bool) =
   # initialize ncurses
@@ -162,4 +173,4 @@ proc resizeScreen*(self: ChatTUI) =
   clear()
 
   # redraw the screen
-  self.drawScreen()
+  self.drawScreen(true)
