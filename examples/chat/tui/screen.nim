@@ -1,5 +1,5 @@
 import # std libs
-  std/[bitops, times]
+  std/times
 
 import # chat libs
   ./common
@@ -22,16 +22,8 @@ logScope:
 # CREDIT: the structure of this module was inspired by TBDChat
 # https://github.com/mgeitz/tbdchat
 
-let
-  # TODO: implement `NCURSES_ACS` template in status-im/nim-ncurses
-  # For now refer to:
-  # http://melvilletheatre.com/articles/ncurses-extended-characters/index.html
-  ACS_LTEE = bitor(116.uint32, A_ALT_CHARSET).chtype
-  ACS_RTEE = bitor(117.uint32, A_ALT_CHARSET).chtype
-
-var
-  COLS {.importc: "COLS", dynlib: libncurses.}: cint
-  LINES {.importc: "LINES", dynlib: libncurses.}: cint
+proc asciiSplash*(self: ChatTUI) =
+  discard
 
 proc clearInput*(self: ChatTUI) =
   var x, y: cint
@@ -116,13 +108,14 @@ proc drawScreen*(self: ChatTUI) =
     self.drawChatWin()
     self.drawInputWin()
     self.drawInfoLines()
+    self.asciiSplash()
 
     # move cursor to input window and refresh
     wcursyncup(self.inputWin)
     wrefresh(self.chatWin)
     wrefresh(self.inputWin)
 
-  trace "TUI drew initial screen"
+  trace "TUI drew the screen"
 
 proc initScreen*(): (string, PWindow, bool) =
   # initialize ncurses
@@ -177,22 +170,6 @@ proc resizeScreen*(self: ChatTUI) =
   endwin()
   refresh()
   clear()
-  refresh()
 
-  if LINES < 24 or COLS < 76:
-    self.drawTermTooSmall()
-  else:
-    # redraw windows
-    self.drawChatWin()
-    self.drawInputWin()
-    self.drawInfoLines()
-
-    # redraw ascii splash
-    # asciiSplash()
-
-    # move cursor to input window and refresh
-    wcursyncup(self.inputWin)
-    wrefresh(self.chatWin)
-    wrefresh(self.inputWin)
-
-  trace "TUI redrew screen"
+  # redraw the screen
+  self.drawScreen()
