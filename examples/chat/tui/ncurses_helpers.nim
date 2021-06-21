@@ -19,6 +19,8 @@ logScope:
 # * https://stackoverflow.com/a/54993513
 # * https://unicode.org/glossary/#extended_grapheme_cluster
 
+# TODO: export NCURSES_MOUSE_MASK in status-im/nim-ncurses and/or export more
+# derived mouse masks in status-im/nim-ncurses w.r.t. <curses.h>
 template NCURSES_MOUSE_MASK(b, m: untyped): untyped = ((m) shl (((b) - 1) * 5))
 
 const
