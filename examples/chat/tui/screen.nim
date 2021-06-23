@@ -128,6 +128,7 @@ proc initScreen*(): (string, PWindow, bool) =
     locale = $setlocale(LC_ALL, "")
     mainWin = initscr()
 
+  colors()
   refresh()
 
   # in raw mode, the interrupt, quit, suspend, and flow control characters are
@@ -140,7 +141,6 @@ proc initScreen*(): (string, PWindow, bool) =
   mousemask(ALL_MOUSE_EVENTS.mmask_t, nil)
   let mouse = hasmouse()
 
-  colors()
   keypad(mainWin, true)
   noecho()
   setescdelay(0)
