@@ -180,3 +180,35 @@ proc resizeScreen*(self: ChatTUI) =
 
   # redraw the screen
   self.drawScreen(true)
+
+proc wprintFormat(win: PWindow, timestamp: int64, origin: string, text: string,
+  originColor: int) =
+
+  discard
+
+proc wprintFormatMessage(win: PWindow, timestamp: int64, origin: string,
+  text: string, originColor: int) =
+
+  discard
+
+proc wprintWhoseLineIsItAnyways(win: PWindow, timestamp: int64, user: string,
+  real: string, userColor: int) =
+
+  discard
+
+proc wprintFormatError(win: PWindow, timestamp: int64, error: string) =
+  discard
+
+proc wprintFormatNotice(win: PWindow, timestamp: int64, notice: string) =
+  discard
+
+proc wprintFormatTime(win: PWindow, timestamp: int64) =
+  discard
+
+proc wprintSeperatorTitle(win: PWindow, title: string, color: int,
+  titleColor: int) =
+
+  discard
+
+proc wprintSeperator(win: PWindow, color: int) =
+  discard
