@@ -1,5 +1,5 @@
 import # std libs
-  std/[strutils, times]
+  std/strutils
 
 import # chat libs
   ./events, ./waku_chat2
@@ -74,10 +74,10 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
   T(message: message, timestamp: timestamp, username: username)
 
 proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
+  let task = taskArg.taskName
+
   if wakuState != WakuState.stopped: return
   wakuState = WakuState.starting
-
-  let task = taskArg.taskName
 
   nick = username
 
@@ -160,12 +160,28 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
 
   wakuState = WakuState.started
 
+  let
+    event = NetworkStatus(online: true)
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
 proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
+  let task = taskArg.taskName
+
   if wakuState != WakuState.started: return
   wakuState = WakuState.stopping
 
   await wakuNode.stop()
   resetContext()
+
+  let
+    event = NetworkStatus(online: false)
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.started or not connected: return

@@ -9,12 +9,16 @@ logScope:
 type
   ClientEvent* = ref object of Event
 
+  NetworkStatus* = ref object of ClientEvent
+    online*: bool
+
   UserMessage* = ref object of ClientEvent
     message*: string
     timestamp*: int64
     username*: string
 
 const clientEvents* = [
+  "NetworkStatus",
   "UserMessage"
 ]
 

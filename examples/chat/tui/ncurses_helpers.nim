@@ -27,6 +27,9 @@ const
   # TODO: implement `NCURSES_ACS` template in status-im/nim-ncurses
   # For now refer to:
   # http://melvilletheatre.com/articles/ncurses-extended-characters/index.html
+  ACS_HLINE* = bitor(113.uint32, A_ALT_CHARSET).chtype
+  ACS_VLINE* = bitor(120.uint32, A_ALT_CHARSET).chtype
+
   ACS_LTEE* = bitor(116.uint32, A_ALT_CHARSET).chtype
   ACS_RTEE* = bitor(117.uint32, A_ALT_CHARSET).chtype
 

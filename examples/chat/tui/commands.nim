@@ -89,4 +89,8 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
   @[argsRaw]
 
 proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
-  asyncSpawn self.client.sendMessage(command.message)
+  if not self.client.online:
+    self.wprintFormatError(epochTime().int64,
+      "client is not online, cannot send message.")
+  else:
+    asyncSpawn self.client.sendMessage(command.message)

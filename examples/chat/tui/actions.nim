@@ -88,6 +88,14 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
   if shouldPrint: self.printInput(input)
 
+# NetworkStatus ----------------------------------------------------------------
+
+proc action*(self: ChatTUI, event: NetworkStatus) {.async, gcsafe, nimcall.} =
+  let online = event.online
+
+  self.client.online = online
+  trace "TUI updated client state", online
+
 # UserMessage ------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =

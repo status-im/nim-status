@@ -17,8 +17,8 @@ proc new*(T: type ChatClient, chatConfig: ChatConfig): T =
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, status, statusContext, statusArg)
 
-  T(chatConfig: chatConfig, events: newEventChannel(), running: false,
-    taskRunner: taskRunner)
+  T(chatConfig: chatConfig, events: newEventChannel(), online: false,
+    running: false, taskRunner: taskRunner)
 
 proc start*(self: ChatClient) {.async.} =
   debug "client starting"

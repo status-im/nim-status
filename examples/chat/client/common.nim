@@ -1,7 +1,10 @@
+import # std libs
+  std/times
+
 import # chat libs
   ../config, ../task_runner
 
-export config, task_runner
+export config, task_runner, times
 
 logScope:
   topics = "chat client"
@@ -14,6 +17,7 @@ type
   ChatClient* = ref object
     chatConfig*: ChatConfig
     events*: EventChannel
+    online*: bool
     running*: bool
     taskRunner*: TaskRunner
 

@@ -1,5 +1,5 @@
 import # std libs
-  std/times
+  std/strformat
 
 import # chat libs
   ./common
@@ -164,7 +164,7 @@ proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
   username: string) =
 
   let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
-  wprintw(self.chatWin, "\n" & tstamp & " " & username & ": " & message)
+  wprintw(self.chatWin, tstamp & " " & username & ": " & message & "\n")
   wrefresh(self.chatWin)
 
   # move cursor to input window and refresh
@@ -182,37 +182,96 @@ proc resizeScreen*(self: ChatTUI) =
   # redraw the screen
   self.drawScreen(true)
 
-proc wprintFormat(win: PWindow, timestamp: int64, origin: string, text: string,
+proc wprintFormat(self: ChatTUI, win: PWindow, timestamp: int64, origin: string, text: string,
   originColor: int) =
 
   discard
 
-proc wprintFormatMessage(win: PWindow, timestamp: int64, origin: string,
+proc wprintFormatMessage(self: ChatTUI, win: PWindow, timestamp: int64, origin: string,
   text: string, originColor: int) =
 
   discard
 
-proc wprintFormatmotd(win: PWindow, timestamp: int64, motd: string) =
+proc wprintFormatmotd(self: ChatTUI, win: PWindow, timestamp: int64, motd: string) =
   discard
 
-proc wprintWhoseLineIsItAnyways(win: PWindow, timestamp: int64, user: string,
+proc wprintWhoseLineIsItAnyways(self: ChatTUI, win: PWindow, timestamp: int64, user: string,
   realname: string, realnameColor: int) =
 
   discard
 
-proc wprintFormatError(win: PWindow, timestamp: int64, error: string) =
+proc wprintFormatTime*(self: ChatTUI, timestamp: int64) =
+  let
+    win = self.chatWin
+
+    localdatetime = inZone(fromUnix(timestamp), local())
+    lhour = localdatetime.hour
+    lminute = localdatetime.minute
+    lsecond = localdatetime.second
+
+  # print HH:MM:SS
+  wattron(win, COLOR_PAIR(1).cint)
+  wprintw(win, fmt("{lhour:02}"))
+  wattroff(win, COLOR_PAIR(1).cint)
+  wattron(win, COLOR_PAIR(3).cint)
+  wprintw(win, ":")
+  wattroff(win, COLOR_PAIR(3).cint)
+  wattron(win, COLOR_PAIR(1).cint)
+  wprintw(win, fmt("{lminute:02}"))
+  wattroff(win, COLOR_PAIR(1).cint)
+  wattron(win, COLOR_PAIR(3).cint)
+  wprintw(win, ":")
+  wattroff(win, COLOR_PAIR(3).cint)
+  wattron(win, COLOR_PAIR(1).cint)
+  wprintw(win, fmt("{lsecond:02}"))
+  wattroff(win, COLOR_PAIR(1).cint)
+
+  # print vertical line
+  wattron(win, COLOR_PAIR(7).cint)
+  wprintw(win, " ")
+  waddch(win, ACS_VLINE)
+  wprintw(win, " ")
+  wattroff(win, COLOR_PAIR(7).cint)
+
+proc wprintFormatError*(self: ChatTUI, timestamp: int64, error: string) =
+  let win = self.chatWin
+
+  # print formatted time
+  self.wprintFormatTime(timestamp)
+
+  # error message formatting
+  wattron(win, A_BOLD.cint)
+  wprintw(win, " ")
+  waddch(win, ACS_HLINE)
+  waddch(win, ACS_HLINE)
+  waddch(win, ACS_HLINE)
+  wprintw(win, " ")
+  wattron(win, COLOR_PAIR(8).cint)
+  wprintw(win, "Error")
+  wattroff(win, COLOR_PAIR(8).cint)
+  wattroff(win, A_BOLD.cint)
+
+  # print error message
+  wattron(win, COLOR_PAIR(1).cint)
+  wprintw(win, fmt(" {error}\n"))
+
+  wattroff(win, COLOR_PAIR(1).cint)
+  wrefresh(win)
+
+  warn "TUI printed error message", message=error
+
+  # reset input ??? maybe a bad idea if error messages can be triggered from
+  # non-input events, not sure yet
+  wcursyncup(self.inputWin)
+  self.clearInput()
+
+proc wprintFormatNotice(self: ChatTUI, win: PWindow, timestamp: int64, notice: string) =
   discard
 
-proc wprintFormatNotice(win: PWindow, timestamp: int64, notice: string) =
-  discard
-
-proc wprintFormatTime(win: PWindow, timestamp: int64) =
-  discard
-
-proc wprintSeperatorTitle(win: PWindow, title: string, color: int,
+proc wprintSeperatorTitle(self: ChatTUI, win: PWindow, title: string, color: int,
   titleColor: int) =
 
   discard
 
-proc wprintSeperator(win: PWindow, color: int) =
+proc wprintSeperator(self: ChatTUI, win: PWindow, color: int) =
   discard
