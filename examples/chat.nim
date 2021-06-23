@@ -22,9 +22,8 @@ proc main() {.async.} =
   notice "program exited"
 
 when isMainModule:
-
   # chat program will handle all control characters with ncurses in raw mode
-  proc stop() {.noconv.} = discard
-  setControlCHook(stop)
+  proc nop() {.noconv.} = discard
+  setControlCHook(nop)
 
   waitFor main()
