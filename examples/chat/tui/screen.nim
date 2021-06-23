@@ -19,6 +19,7 @@ proc asciiSplash*(self: ChatTUI) =
   # * https://manytools.org/hacker-tools/ascii-banner/
   discard
 
+# replace `clearInput` with adaptions of ncurses calls in TBDChat
 proc clearInput*(self: ChatTUI) =
   var x, y: cint
   getyx(self.inputWin, y, x)
@@ -35,7 +36,7 @@ proc colors() =
   use_default_colors()
 
   # initialize color pairs
-  init_pair(1, -1, -1) # Default
+  init_pair(1, -1, -1) # default
   init_pair(2, COLOR_CYAN, -1)
   init_pair(3, COLOR_YELLOW, -1)
   init_pair(4, COLOR_RED, -1)
@@ -151,14 +152,14 @@ proc initScreen*(): (string, PWindow, bool) =
 
   (locale, mainWin, mouse)
 
-# replace `printInput` with adaptions of `wprint...` functions in TBDChat
+# replace `printInput` with adaptions of ncurses calls in TBDChat
 proc printInput*(self: ChatTUI, input: string) =
   wprintw(self.inputWin, input)
   wrefresh(self.inputWin)
 
   trace "TUI printed in input window"
 
-# replace `printMessage` with adaptions of `wprint...` functions in TBDChat
+# replace `printMessage` with adaptions of ncurses calls in TBDChat
 proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
   username: string) =
 
@@ -191,8 +192,11 @@ proc wprintFormatMessage(win: PWindow, timestamp: int64, origin: string,
 
   discard
 
+proc wprintFormatmotd(win: PWindow, timestamp: int64, motd: string) =
+  discard
+
 proc wprintWhoseLineIsItAnyways(win: PWindow, timestamp: int64, user: string,
-  real: string, userColor: int) =
+  realname: string, realnameColor: int) =
 
   discard
 
