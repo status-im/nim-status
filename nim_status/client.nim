@@ -11,7 +11,7 @@ import # nim-status libs
   ./multiaccount, ./settings
 
 type StatusObject* = ref object
-  config*: StatusConfig
+  dataDir*: string
   accountsDB*: DbConn
   userDB*: DbConn
 
@@ -36,9 +36,9 @@ proc getSettings*(self: StatusObject): Settings =
   getSettings(self.userDB)
 
 proc login*(self: StatusObject, keyUid: string, password: string) =
-  self.userDB = initializeDB(self.config.rootDataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+  self.userDB = initializeDB(self.dataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
   echo "==============================="
-  echo "DB path: " & (self.config.rootDataDir / keyUid & ".db")
+  echo "DB path: " & (self.dataDir / keyUid & ".db")
   echo "Password: " & password
   let result = self.userDB.value("SELECT public_key from settings") # check if decryption worked
   echo "Result: "
@@ -68,8 +68,3 @@ proc loadChats*(self: StatusObject): seq[Chat] =
 proc close*(self: StatusObject) =
   self.userDB.close()
   self.accountsDB.close()
-
-when isMainModule:
-  let statusConfig = StatusConfig.load()
-  let statusObj = init(statusConfig)
-  # Start a REPL ...
