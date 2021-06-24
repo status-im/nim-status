@@ -4,6 +4,9 @@ import # std libs
 import # chat libs
   ./events, ./waku_chat2
 
+import # nim-status libs
+  ../../nim_status/client
+
 export events
 
 logScope:
@@ -20,6 +23,7 @@ var
   contextArg {.threadvar.}: StatusArg
   nick {.threadvar.}: string
   subscribed {.threadvar.}: bool
+  status {.threadvar.}: StatusObject
   wakuNode {.threadvar.}: WakuNode
   wakuState {.threadvar.}: WakuState
 
@@ -40,6 +44,7 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
   contextArg = cast[StatusArg](arg)
   conf = contextArg.chatConfig
   contentTopic = conf.contentTopic
+  status = StatusObject.new(conf.dataDir)
 
   # threadvar `symKeyGenerated` is a special case because it depends on
   # compile-time `PayloadV1` value and because the value of its counterpart

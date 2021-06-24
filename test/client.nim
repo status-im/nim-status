@@ -13,11 +13,7 @@ procSuite "client":
 
     let dataDir = currentSourcePath.parentDir() / "build" / "data"
 
-    var config = StatusConfig.load(
-      @["--rootDataDir=" & dataDir]
-    )
-
-    let statusObj = init(config)
+    let statusObj = StatusObject.new(dataDir)
 
     var account:Account = Account(
       name: "Test",
