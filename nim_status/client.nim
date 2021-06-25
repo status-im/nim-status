@@ -1,35 +1,29 @@
-import # nim libs
-  os, json
+import # std libs
+  std/[os, json]
 
 import # vendor libs
-  confutils,
-  json_serialization,
-  sqlcipher
+  confutils, json_serialization, sqlcipher
 
 import # nim-status libs
-  ./account,
-  ./accounts,
-  ./chats,
-  ./config,
-  ./database,
+  ./account, ./accounts, ./chats, ./config, ./database,
   ./migrations/sql_scripts_accounts as acc_migration,
   ./migrations/sql_scripts_app as app_migration,
-  ./settings
+  ./multiaccount, ./settings
 
 type StatusObject* = ref object
   config*: StatusConfig
   accountsDB*: DbConn
   userDB*: DbConn
 
-proc init*(config: StatusConfig): StatusObject =
-  result = new StatusObject
-  result.config = config
-  result.accountsDB = initializeDB(config.rootDataDir / config.accountsDbFileName, acc_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+proc new*(T: type StatusObject, dataDir, accountsDbFileName: string = "accounts.sql"): T =
+  # Disabling migrations because we are reusing a status-go DB
+  T(accountsDB: initializeDB(dataDir / accountsDbFileName,
+    acc_migration.newMigrationDefinition(), true), dataDir: dataDir)
 
-proc getAccounts*(self: StatusObject): seq[Account] =
+proc getAccounts*(self: StatusObject): seq[accounts.Account] =
   getAccounts(self.accountsDB)
 
-proc saveAccount*(self: StatusObject, account: Account) =
+proc saveAccount*(self: StatusObject, account: accounts.Account) =
   saveAccount(self.accountsDB, account)
 
 proc updateAccountTimestamp*(self: StatusObject, timestamp: int64, keyUid: string) =
@@ -50,13 +44,19 @@ proc login*(self: StatusObject, keyUid: string, password: string) =
   echo "Result: "
   echo $result
 
-proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject, mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]): seq[MultiAccount] =
+proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject,
+  mnemonicPhraseLength: int, n: int, bip39Passphrase: string,
+  paths: seq[string]): seq[MultiAccount] =
+
   return generateAndDeriveAddresses(mnemonicPhraseLength, n, bip39Passphrase, paths)
 
-proc multiAccountStoreDerivedAccounts*(self: StatusObject, multiAcc: MultiAccount, password: string, pathStrings: seq[string] = newSeq[string]()) =
-  return storeDerivedAccounts(multiAcc, password, pathStrings)
+proc multiAccountStoreDerivedAccounts*(self: StatusObject,
+  multiAcc: MultiAccount, password: string, dataDir: string,
+  pathStrings: seq[string] = newSeq[string]()) =
 
-proc loadAccount*(self: StatusObject, address: string, password: string, dir: string = ""): Account =
+  storeDerivedAccounts(multiAcc, password, dataDir, pathStrings)
+
+proc loadAccount*(self: StatusObject, address: string, password: string, dir: string = ""): account.Account =
   return loadAccount(address, password, dir)
 
 proc closeUserDB*(self: StatusObject) =

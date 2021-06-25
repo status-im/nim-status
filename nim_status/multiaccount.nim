@@ -1,18 +1,20 @@
-import
-  std/[parseutils, strutils],
-  normalize,
-  secp256k1,
-  stew/[results, byteutils],
-  nimcrypto/[sha2, pbkdf2, hash, hmac],
-  account/[types, paths],
-  eth/[keys, keyfile] 
+import # std libs
+  times,
+  std/[json, os, parseutils, streams, strutils]
 
-import mnemonic, account
-import streams, json
-type MultiAccount = object
+import # vendor libs
+  chronicles,
+  eth/[keys, keyfile],
+  nimcrypto/[sha2, pbkdf2, hash, hmac],
+  normalize, secp256k1,
+  stew/[results, byteutils]
+
+import # nim-status libs
+  ./account, ./account/paths, ./account/types, ./mnemonic
+
+type MultiAccount* = object
   mnemonic*: string
   accounts*: seq[Account]
-  
 
 export KeySeed, Mnemonic, SecretKeyResult, KeyPath
 
@@ -55,16 +57,19 @@ proc generateAndDeriveAddresses*(mnemonicPhraseLength: int, n: int, bip39Passphr
 
   return multiAccounts
 
-proc storeDerivedAccounts*(multiAcc: MultiAccount, password: string, dir: string = "", pathStrings: seq[string] = newSeq[string]()) =
+proc storeDerivedAccounts*(multiAcc: MultiAccount, password: string, dir: string = "", pathStrings: seq[string] = newSeq[string](), workFactor: int = 0) =
   for acc in multiAcc.accounts:
     let privateKey = acc.privateKey
-    let keyFileJson = createKeyFileJson(PrivateKey.fromHex(privateKey).get(), password)
+    var tCreateKeyFileJson = cpuTime()
+    let keyFileJson = createKeyFileJson(PrivateKey.fromHex(privateKey).get(),
+      password, 3, CryptKind.AES128CTR, KdfKind.PBKDF2, workfactor)
+    debug "PROFILE nim_status/multiaccount, createKeyFileJson", time=cpuTime()-tCreateKeyFileJson, acc
 
-    writeFile(dir & "/" & acc.address, $keyFileJson.get())
+    writeFile(dir / acc.address, $keyFileJson.get())
 
 
 proc loadAccount*(address: string, password: string, dir: string = ""): Account =
-  let json = parseFile(dir & "/" & address)
+  let json = parseFile(dir / address)
   let privateKey = decodeKeyFileJson(json, password)
 
   return buildAccount(privateKey.get())

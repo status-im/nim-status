@@ -25,11 +25,11 @@ procSuite "multiaccount":
     assert len(multiAcc.accounts) == 3
 
     let password = "qwerty"
-    let dir = "test_accounts"
+    let dir = currentSourcePath.parentDir() / "build" / "data" / "test_accounts"
 
     createDir(dir)
 
-    storeDerivedAccounts(multiAccounts[0], password, dir)
+    storeDerivedAccounts(multiAccounts[0], password, dir, newSeq[string](), 100)
 
     let chatAddress = multiAcc.accounts[2].address
 
