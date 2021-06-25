@@ -18,13 +18,16 @@ import # nim-status libs
   ./settings
 
 type StatusObject* = ref object
-  dataDir*: string
   accountsDB*: DbConn
+  dataDir*: string
   userDB*: DbConn
 
-proc new*(T: type StatusObject, dataDir, accountsDbFileName: string = "accounts.sql"): T =
-  # Disabling migrations because we are reusing a status-go DB
-  T(accountsDB: initializeDB(dataDir / accountsDbFileName, acc_migration.newMigrationDefinition(), true))
+proc new*(T: type StatusObject, dataDir: string,
+  accountsDbFileName: string = "accounts.sql"): T =
+
+  T(accountsDB: initializeDB(dataDir / accountsDbFileName,
+      acc_migration.newMigrationDefinition(), true),
+    dataDir: dataDir)
 
 proc getAccounts*(self: StatusObject): seq[accounts.Account] =
   getAccounts(self.accountsDB)
