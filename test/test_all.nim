@@ -25,4 +25,5 @@ import
   ./permissions,
   ./settings,
   ./tokens,
+  ./tx_history,
   ./waku_smoke
