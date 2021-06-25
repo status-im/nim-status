@@ -62,6 +62,7 @@ proc newWeb3*(settings: Settings): Web3 =
 
 proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode): Response =
   try: 
+    echo "callRPC debug method: ", rpcMethod, "params: ", params
     result = waitFor web3Conn.provider.call($rpcMethod, params)
   except ValueError:
     raise (ref Web3Error)(msg: getCurrentExceptionMsg())
