@@ -14,7 +14,7 @@ procSuite "mailservers":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password, newMigrationDefinition())
+    let db = initializeDB(path, password)
 
     let mailserver1 = Mailserver(
       id: "mailserver-1",

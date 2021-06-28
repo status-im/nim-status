@@ -17,7 +17,7 @@ import ../../nim_status/tx_history/types
 # Initialize db
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/myDatabase"
-let db = initializeDB(path, passwd, newMigrationDefinition())
+let db = initializeDB(path, passwd)
 
 #f315575765b14720b32382a61a89341a # real infura project id
 #40ec14d9d9384d52b7fbcfecdde4e2c0 # test infura project id

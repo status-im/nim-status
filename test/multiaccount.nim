@@ -1,15 +1,12 @@
 import # nim libs
-  os, strutils, unittest
+  os, unittest
 
 import # vednor libs
   chronos, eth/[keys, p2p]
 
-
 import # nim-status libs
-  ../nim_status/account,
-  ../nim_status/mnemonic,
-  ../nim_status/multiaccount,
-  ./test_helpers
+  ../nim_status/[account, multiaccount], ./test_helpers
+
 
 procSuite "multiaccount":
   test "multiaccount":
@@ -17,7 +14,7 @@ procSuite "multiaccount":
     assert entropyStrength == 128
 
     let passphrase = ""
-    let multiAccounts = generateAndDeriveAddresses(12, 1, passphrase, @["m/44'/60'/0'/0", "m/44'/60'/0'/0/0", "m/43'/60'/1581'/0'/0"])
+    let multiAccounts = generateAndDeriveAddresses(12, 1, passphrase, @[PATH_WALLET_ROOT, PATH_DEFAULT_WALLET, PATH_WHISPER])
 
     #assert len(multiAccounts) == 5
 

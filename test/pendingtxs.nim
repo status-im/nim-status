@@ -14,7 +14,7 @@ procSuite "pendingtxs":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password, newMigrationDefinition())
+    let db = initializeDB(path, password)
 
     let tx = PendingTx(
       networkId: 1,

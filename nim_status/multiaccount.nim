@@ -1,18 +1,27 @@
-import
-  std/[parseutils, strutils],
-  normalize,
-  secp256k1,
-  stew/[results, byteutils],
-  nimcrypto/[sha2, pbkdf2, hash, hmac],
-  account/[types, paths],
-  eth/[keys, keyfile]
+import # std libs
+  std/[json, os, strutils]
 
-import mnemonic, account
-import streams, json
+import # vendor libs
+  chronicles, eth/[keys, keyfile], nimcrypto/[sha2, pbkdf2, hash, hmac],
+  secp256k1, stew/[results, byteutils]
+
+import # nim-status libs
+  ./mnemonic, ./account, ./account/types
+
+
+const
+    PATH_WALLET_ROOT* = "m/44'/60'/0'/0"
+    PATH_EIP_1581* = "m/43'/60'/1581'"
+      # EIP1581 Root Key, the extended key from which any whisper key/encryption
+      # key can be derived
+    PATH_DEFAULT_WALLET* = PATH_WALLET_ROOT & "/0"
+      # BIP44-0 Wallet key, the default wallet key
+    PATH_WHISPER* = PATH_EIP_1581 & "/0'/0"
+      # EIP1581 Chat Key 0, the default whisper key
+
 type MultiAccount* = object
   mnemonic*: string
   accounts*: seq[Account]
-
 
 export KeySeed, Mnemonic, SecretKeyResult, KeyPath
 
@@ -26,16 +35,22 @@ proc mnemonicPhraseLengthToEntropyStrength*(length: int): int =
 
   return bitsLength - checksumLength
 
+proc toKeyUid(publicKey: PublicKey): string =
+  let hash = sha256.digest(publicKey.toRaw())
+  "0x" & toHex(toOpenArray(hash.data, 0, len(hash.data) - 1))
+
 proc buildAccount(privateKey: PrivateKey): Account =
   var acc = Account()
   acc.privateKey = $privateKey
   let publicKey = privateKey.toPublicKey()
-  acc.publicKey = $publicKey
-  acc.address = PublicKey(publicKey).toAddress()
+  acc.publicKey = "0x04" & $publicKey
+  acc.address = publicKey.toAddress()
+  acc.keyUid = publicKey.toKeyUid()
 
   return acc
 
-proc generateAndDeriveAddresses*(mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]): seq[MultiAccount] =
+proc generateAndDeriveAddresses*(mnemonicPhraseLength: int, n: int,
+  bip39Passphrase: string, paths: seq[string]): seq[MultiAccount] =
 
   let entropyStrength = mnemonicPhraseLengthToEntropyStrength(mnemonicPhraseLength)
   var multiAccounts = newSeq[MultiAccount]()
@@ -55,16 +70,24 @@ proc generateAndDeriveAddresses*(mnemonicPhraseLength: int, n: int, bip39Passphr
 
   return multiAccounts
 
-proc storeDerivedAccounts*(multiAcc: MultiAccount, password: string, dir: string = "", pathStrings: seq[string] = newSeq[string](), version: int = 3, cryptkind: CryptKind = AES128CTR, kdfkind: KdfKind = PBKDF2, workfactor: int = 0) =
+proc storeDerivedAccounts*(multiAcc: MultiAccount, password: string,
+  dir: string = "", version: int = 3, cryptkind: CryptKind = AES128CTR,
+  kdfkind: KdfKind = PBKDF2, workfactor: int = 0) =
+
+  var workfactorFinal = workfactor
+  when not defined(release):
+    # reduce the account creation time by a factor of 5 for debug builds only
+    if workfactorFinal == 0: workfactorFinal = 100
+
   for acc in multiAcc.accounts:
     let privateKey = acc.privateKey
-    let keyFileJson = createKeyFileJson(PrivateKey.fromHex(privateKey).get(), password, version, cryptkind, kdfkind, workfactor)
+    let keyFileJson = createKeyFileJson(PrivateKey.fromHex(privateKey).get(), password, version, cryptkind, kdfkind, workfactorFinal)
 
-    writeFile(dir & "/" & acc.address, $keyFileJson.get())
+    writeFile(dir / acc.address, $keyFileJson.get())
 
 
 proc loadAccount*(address: string, password: string, dir: string = ""): Account =
-  let json = parseFile(dir & "/" & address)
+  let json = parseFile(dir / address)
   let privateKey = decodeKeyFileJson(json, password)
 
   return buildAccount(privateKey.get())

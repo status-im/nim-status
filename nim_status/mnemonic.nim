@@ -6,9 +6,6 @@ import stew/bitseqs
 import nimcrypto/sysrand as sysrand
 import nimcrypto/sha2 as sha2
 
-const words = staticRead("wordlists/english.txt")
-let wordSeq = words.split("\n")
-
 type 
   EntropyStrength = distinct uint
   BitSeq = seq[byte]
@@ -70,6 +67,9 @@ proc mnemonicPhrase*(strength: int, language: Language): string =
   let checksum = getBits($hash)
 
   entropyBits = concat(entropyBits, checksum[0..3])
+
+  const wordlist = staticRead("wordlists/english.txt")
+  let wordSeq = wordlist.split("\n")
 
   let wordBitSeq = entropyBits.distribute(12)
   var words = newSeq[string]()

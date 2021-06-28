@@ -42,11 +42,17 @@ proc stop*(self: ChatClient) {.async.} =
 
   debug "client stopped"
 
+proc listAccounts*(self: ChatClient) {.async.} =
+  asyncSpawn listAccounts(self.taskRunner, status)
+
 proc login*(self: ChatClient, username: string) {.async.} =
   asyncSpawn startWakuChat2(self.taskRunner, status, username)
 
 proc logout*(self: ChatClient) {.async.} =
   asyncSpawn stopWakuChat2(self.taskRunner, status)
+
+proc generateMultiAccount*(self: ChatClient, password: string) {.async.} =
+  asyncSpawn generateMultiAccount(self.taskRunner, status, password)
 
 proc sendMessage*(self: ChatClient, message: string) {.async.} =
   asyncSpawn publishWakuChat2(self.taskRunner, status, message)

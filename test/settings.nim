@@ -15,7 +15,7 @@ procSuite "settings":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password, newMigrationDefinition())
+    let db = initializeDB(path, password)
 
     let settingsStr = """{
       "address": "0x1122334455667788990011223344556677889900",

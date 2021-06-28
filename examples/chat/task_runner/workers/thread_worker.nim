@@ -94,8 +94,8 @@ proc worker(arg: WorkerThreadArg) {.async.} =
         else:
           asyncSpawn task(message)
 
-      except:
-        error "worker received unknown message", message, worker
+      except Exception as e:
+        error "worker received unknown message", message, worker, error=e.msg
 
   chanRecvFromHost.close()
   chanSendToHost.close()

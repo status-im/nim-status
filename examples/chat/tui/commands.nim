@@ -37,6 +37,32 @@ proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let command = command.command
   discard
 
+# CreateAccount ----------------------------------------------------------------
+
+proc new*(T: type CreateAccount, args: varargs[string]): T =
+  T(password: args[0])
+
+proc split*(T: type CreateAccount, argsRaw: string): seq[string] =
+  return @[argsRaw]
+
+proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe, nimcall.} =
+  if command.password == "":
+    self.wprintFormatError(epochTime().int64,
+      "password cannot be blank, please provide a password as the first argument.")
+  else:
+    asyncSpawn self.client.generateMultiAccount(command.password)
+
+# ListAccounts -----------------------------------------------------------------
+
+proc new*(T: type ListAccounts, args: varargs[string]): T =
+  T()
+
+proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
+  return @[]
+
+proc command*(self: ChatTUI, command: ListAccounts) {.async, gcsafe, nimcall.} =
+  asyncSpawn self.client.listAccounts()
+
 # Login ------------------------------------------------------------------------
 
 proc new*(T: type Login, args: varargs[string]): T {.raises: [].} =

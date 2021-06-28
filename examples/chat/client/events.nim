@@ -1,5 +1,5 @@
 import # chat libs
-  ./common
+  ./common, ../../../nim_status/accounts
 
 export common
 
@@ -8,6 +8,14 @@ logScope:
 
 type
   ClientEvent* = ref object of Event
+
+  CreateAccountResult* = ref object of ClientEvent
+    account*: Account
+    timestamp*: int64
+
+  ListAccountsResult* = ref object of ClientEvent
+    accounts*: seq[Account]
+    timestamp*: int64
 
   NetworkStatus* = ref object of ClientEvent
     online*: bool
@@ -18,6 +26,8 @@ type
     username*: string
 
 const clientEvents* = [
+  "CreateAccountResult",
+  "ListAccountsResult",
   "NetworkStatus",
   "UserMessage"
 ]
