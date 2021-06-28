@@ -1,14 +1,16 @@
 import nimcrypto, re, strutils, unicode, web3/ethtypes
 
-let reHex = re("^[0-9a-f]+$", {reIgnoreCase})
+const hexPattern = "^[0-9a-f]+$"
 
 proc isHexString*(str: string): bool =
+  let reHex = re(hexPattern, {reIgnoreCase})
   str.len > 3 and
   str.len mod 2 == 0 and
   str[0..1] == "0x" and
   match(str[2..^1], reHex)
 
 proc isPubKey*(str: string): bool =
+  let reHex = re(hexPattern, {reIgnoreCase})
   str.len == 132 and
   str[0..3] == "0x04" and
   match(str[2..^1], reHex)

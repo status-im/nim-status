@@ -1,15 +1,28 @@
 import os, results, sqlcipher
 
-import ./migration
+import
+  ./migration,
+  ./migrations/sql_scripts_accounts as acc_migration,
+  ./migrations/sql_scripts_app as app_migration
 
-proc initializeDB*(path:string, definition: MigrationDefinition, runMigrations = true): DbConn =
+proc initializeDB*(path:string): DbConn =
+
   createDir path.parentDir()
+  var runMigrations = false
+  if not path.fileExists():
+    runMigrations = true
   result = openDatabase(path)
-  if runMigrations and not result.migrate(definition).isOk:
-    raise newException(SqliteError, "Failure executing migrations")
+  if runMigrations:
+    let definition = acc_migration.newMigrationDefinition()
+    if not result.migrate(definition).isOk:
+      raise newException(SqliteError, "Failure executing migrations")
 
-proc initializeDB*(path, password: string, definition: MigrationDefinition, runMigrations = true): DbConn =
+proc initializeDB*(path, password: string): DbConn =
+
   createDir path.parentDir()
+  var runMigrations = false
+  if not path.fileExists():
+    runMigrations = true
   result = openDatabase(path)
   result.key(password)
   result.exec("PRAGMA cipher_page_size = 1024")
@@ -18,5 +31,7 @@ proc initializeDB*(path, password: string, definition: MigrationDefinition, runM
   result.exec("PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA1")
   result.exec("PRAGMA foreign_keys = ON")
   result.exec("PRAGMA journal_mode = WAL")
-  if runMigrations and not result.migrate(definition).isOk:
-    raise newException(SqliteError, "Failure executing migrations")
+  if runMigrations:
+    let definition = app_migration.newMigrationDefinition()
+    if not result.migrate(definition).isOk:
+      raise newException(SqliteError, "Failure executing migrations")

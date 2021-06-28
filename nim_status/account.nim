@@ -10,6 +10,7 @@ import
 export KeySeed, Mnemonic, SecretKeyResult, KeyPath
 
 type Account* = ref object
+  keyUid*: string
   address*: string
   publicKey*: string
   privateKey*: string

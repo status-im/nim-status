@@ -4,7 +4,6 @@ import # vendor libs
   web3, chronos, web3/conversions as web3_conversions, web3/ethtypes,
   sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
   stew/byteutils
-import migrations/sql_scripts_app
 import conversions, settings/types, settings, database, conversions, callrpc
 
 var db_conn*: DbConn
@@ -18,7 +17,7 @@ proc login*(accountData, password: string) =
   # TODO: determine where the web3 conn will live
 
   let path =  getCurrentDir() / accountData & ".db"
-  db_conn = initializeDB(path, password, newMigrationDefinition())
+  db_conn = initializeDB(path, password)
 
   # TODO: these settings should have been set when calling saveAccountAndLogin
   let settingsStr = """{
@@ -56,62 +55,63 @@ proc test_removeDB*(accountData: string) = # TODO: remove this once proper db in
   removeFile(path)
 
 type
-  AccountType* {.pure.} = enum
-    Name = "name",
-    Identicon = "identicon",
-    KeycardPairing = "keycardPairing",
-    KeyUid = "keyUid",
-    LoginTimestamp = "loginTimestamp"
+  Account* {.dbTableName("accounts").} = object
+    name* {.serializedFieldName("name"), dbColumnName("name").}: string
+    identicon* {.serializedFieldName("identicon"), dbColumnName("identicon").}: string
+    keycardPairing* {.serializedFieldName("keycardPairing"), dbColumnName("keycardPairing").}: string
+    keyUid* {.serializedFieldName("keyUid"), dbColumnName("keyUid").}: string
+    loginTimestamp* {.serializedFieldName("loginTimestamp"), dbColumnName("loginTimestamp").}: Option[int]
 
-  AccountCol* {.pure.} = enum
-    Name = "name",
-    Identicon = "identicon",
-    KeycardPairing = "keycardPairing",
-    KeyUid = "keyUid",
-    LoginTimestamp = "loginTimestamp"
+proc deleteAccount*(db: DbConn, keyUid: string) =
+  var tblAccounts: Account
+  let query = fmt"""DELETE FROM {tblAccounts.tableName} 
+                    WHERE       {tblAccounts.keyUid.columnName} = ?"""
 
-  Account* = object
-    name* {.serializedFieldName($AccountType.Name), dbColumnName($AccountCol.Name).}: string
-    identicon* {.serializedFieldName($AccountType.Identicon), dbColumnName($AccountCol.Identicon).}: string
-    keycardPairing* {.serializedFieldName($AccountType.KeycardPairing), dbColumnName($AccountCol.KeycardPairing).}: string
-    keyUid* {.serializedFieldName($AccountType.KeyUid), dbColumnName($AccountCol.KeyUid).}: string
-    loginTimestamp* {.serializedFieldName($AccountType.LoginTimestamp), dbColumnName($AccountCol.LoginTimestamp).}: int
+  db.exec(query, keyUid)
 
 proc getAccounts*(db: DbConn): seq[Account] =
-  var accountList: seq[Account] = @[]
-  let query = fmt"""SELECT {$AccountCol.Name}, {$AccountCol.LoginTimestamp}, {$AccountCol.Identicon}, {$AccountCol.KeycardPairing}, {$AccountCol.KeyUid}
-  from accounts ORDER BY {$AccountCol.LoginTimestamp} DESC"""
+  var tblAccounts: Account
+  let query = fmt"""SELECT    {tblAccounts.name.columnName},
+                              {tblAccounts.loginTimestamp.columnName},
+                              {tblAccounts.identicon.columnName},
+                              {tblAccounts.keycardPairing.columnName},
+                              {tblAccounts.keyUid.columnName}
+                    FROM      {tblAccounts.tableName}
+                    ORDER BY  {tblAccounts.loginTimestamp.columnName} DESC"""
   result = db.all(Account, query)
 
 proc saveAccount*(db: DbConn, account: Account) =
+  var tblAccounts: Account
   let query = fmt"""
-    INSERT OR REPLACE INTO accounts (
-    {$AccountCol.Name},
-    {$AccountCol.Identicon},
-    {$AccountCol.KeycardPairing},
-    {$AccountCol.KeyUid}
-    )
-    VALUES (?, ?, ?, ?)"""
+    INSERT OR REPLACE INTO  {tblAccounts.tableName} (
+                            {tblAccounts.name.columnName},
+                            {tblAccounts.identicon.columnName},
+                            {tblAccounts.keycardPairing.columnName},
+                            {tblAccounts.keyUid.columnName},
+                            {tblAccounts.loginTimestamp.columnName})
+    VALUES                  (?, ?, ?, ?, NULL)"""
 
-  db.exec(query, account.name, account.identicon, account.keycardPairing, account.keyUid)
+  db.exec(query, account.name, account.identicon, account.keycardPairing, account.keyUid)#, account.loginTimestamp)
+
+proc toDisplayString*(account: Account): string =
+  fmt"{account.name} ({account.keyUid})"
 
 proc updateAccount*(db: DbConn, account: Account) =
-  let query = fmt"""UPDATE accounts
-  SET {$AccountCol.Name} = ?,
-      {$AccountCol.Identicon} = ?,
-      {$AccountCol.KeycardPairing} = ?
-  WHERE {$AccountCol.KeyUid}= ?"""
+  var tblAccounts: Account
+  let query = fmt"""UPDATE  {tblAccounts.tableName}
+                    SET     {tblAccounts.name.columnName} = ?,
+                            {tblAccounts.identicon.columnName} = ?,
+                            {tblAccounts.keycardPairing.columnName} = ?,
+                            {tblAccounts.loginTimestamp.columnName} = ?
+                    WHERE   {tblAccounts.keyUid.columnName}= ?"""
 
-  db.exec(query, account.name, account.identicon, account.keycardPairing, account.keyUid)
+  db.exec(query, account.name, account.identicon, account.keycardPairing, account.loginTimestamp, account.keyUid)
 
 proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string) =
-  let query = fmt"""UPDATE accounts
-    SET {$AccountCol.LoginTimestamp} = ?
-    WHERE {$AccountCol.KeyUid} = ?"""
+  var tblAccounts: Account
+  let query = fmt"""UPDATE  {tblAccounts.tableName}
+                    SET     {tblAccounts.loginTimestamp.columnName} = ?
+                    WHERE   {tblAccounts.keyUid.columnName} = ?"""
 
   db.exec(query, loginTimestamp, keyUid)
 
-proc deleteAccount*(db: DbConn, keyUid: string) =
-  let query = fmt"""DELETE FROM accounts WHERE {$AccountCol.KeyUid} = ?"""
-
-  db.exec(query, keyUid)

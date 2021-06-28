@@ -43,6 +43,11 @@ type
   Help* = ref object of Command
     command*: string
 
+  CreateAccount* = ref object of Command
+    password*: string
+
+  ListAccounts* = ref object of Command
+
   Login* = ref object of Command
     username*: string
     # password*: string
@@ -66,19 +71,25 @@ const
   commands* = {
     DEFAULT_COMMAND: "SendMessage",
     "help": "Help",
+    "listaccounts": "ListAccounts",
     "login": "Login",
     "logout": "Logout",
-    "quit": "Quit"
+    "quit": "Quit",
+    "createaccount": "CreateAccount"
   }.toTable
 
   aliases* = {
     "?": "help",
+    "create": "createaccount",
+    "list": "listaccounts",
     "send": DEFAULT_COMMAND
   }.toTable
 
   aliased* = {
     DEFAULT_COMMAND: @["send"],
-    "help": @["?"]
+    "createaccount": @["create"],
+    "help": @["?"],
+    "listaccounts": @["list"]
   }.toTable
 
 proc stop*(self: ChatTUI) {.async.} =

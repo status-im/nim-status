@@ -25,8 +25,7 @@ type StatusObject* = ref object
 proc new*(T: type StatusObject, dataDir: string,
   accountsDbFileName: string = "accounts.sql"): T =
 
-  T(accountsDB: initializeDB(dataDir / accountsDbFileName,
-      acc_migration.newMigrationDefinition(), true),
+  T(accountsDB: initializeDB(dataDir / accountsDbFileName),
     dataDir: dataDir)
 
 proc getAccounts*(self: StatusObject): seq[accounts.Account] =
@@ -45,7 +44,7 @@ proc getSettings*(self: StatusObject): Settings =
   getSettings(self.userDB)
 
 proc login*(self: StatusObject, keyUid: string, password: string) =
-  self.userDB = initializeDB(self.dataDir / keyUid & ".db", password, app_migration.newMigrationDefinition(), true) # Disabling migrations because we are reusing a status-go DB
+  self.userDB = initializeDB(self.dataDir / keyUid & ".db", password)
   echo "==============================="
   echo "DB path: " & (self.dataDir / keyUid & ".db")
   echo "Password: " & password
@@ -53,13 +52,20 @@ proc login*(self: StatusObject, keyUid: string, password: string) =
   echo "Result: "
   echo $result
 
-proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject, mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]): seq[MultiAccount] =
-  return generateAndDeriveAddresses(mnemonicPhraseLength, n, bip39Passphrase, paths)
+proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject,
+  mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]
+  ): seq[MultiAccount] =
 
-proc multiAccountStoreDerivedAccounts*(self: StatusObject, multiAcc: MultiAccount, password: string, dir: string, pathStrings: seq[string] = newSeq[string]()) =
-  storeDerivedAccounts(multiAcc, password, dir, pathStrings)
+  generateAndDeriveAddresses(mnemonicPhraseLength, n, bip39Passphrase, paths)
 
-proc loadAccount*(self: StatusObject, address: string, password: string, dir: string = ""): account.Account =
+proc multiAccountStoreDerivedAccounts*(self: StatusObject,
+  multiAcc: MultiAccount, password: string, dir: string) =
+
+  storeDerivedAccounts(multiAcc, password, dir)
+
+proc loadAccount*(self: StatusObject, address: string, password: string,
+  dir: string = ""): account.Account =
+
   return loadAccount(address, password, dir)
 
 proc closeUserDB*(self: StatusObject) =

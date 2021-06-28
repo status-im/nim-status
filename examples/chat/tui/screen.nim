@@ -1,5 +1,5 @@
 import # std libs
-  std/strformat
+  std/[strformat, strutils]
 
 import # chat libs
   ./common
@@ -123,6 +123,9 @@ proc drawScreen*(self: ChatTUI, redraw = false) =
   else:
     trace "TUI drew the initial screen"
 
+proc indent*(spaces: int): string =
+  " ".repeat(spaces)
+
 proc initScreen*(): (string, PWindow, bool) =
   # initialize ncurses
   let
@@ -165,6 +168,19 @@ proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
 
   let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
   wprintw(self.chatWin, tstamp & " " & username & ": " & message & "\n")
+  wrefresh(self.chatWin)
+
+  # move cursor to input window and refresh
+  wcursyncup(self.inputWin)
+  wrefresh(self.inputWin)
+
+  trace "TUI printed in message window"
+
+# replace `printResult` with adaptions of ncurses calls in TBDChat
+proc printResult*(self: ChatTUI, message: string, timestamp: int64) =
+
+  let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
+  wprintw(self.chatWin, tstamp & ": " & message & "\n")
   wrefresh(self.chatWin)
 
   # move cursor to input window and refresh

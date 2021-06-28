@@ -1,5 +1,11 @@
+import # std libs
+  std/strformat
+
 import # chat libs
   ./parser
+
+import # nim-status libs
+  ../../../nim_status/accounts
 
 export parser
 
@@ -32,7 +38,7 @@ proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
     # should print an error/explanation to the screen as well
     error "TUI received malformed or unknown command", command
 
-# InputKeuy --------------------------------------------------------------------
+# InputKey --------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
   # handle mouse events and special keys e.g. arrow keys, ESCAPE, RETURN, et al.
@@ -87,6 +93,40 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
   trace "TUI updated current input", currentInput=self.currentInput
 
   if shouldPrint: self.printInput(input)
+
+# CreateAccountResult -----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: CreateAccountResult) {.async, gcsafe, nimcall.} =
+  let
+    account = event.account
+    timestamp = event.timestamp
+    shouldPrint = if not self.inputReady: false else: true
+
+  trace "TUI created account using nim-status", accounts=(%account)
+
+  if shouldPrint:
+    self.printResult("Created account:", timestamp)
+    self.printResult(2.indent & account.toDisplayString(), timestamp)
+
+# ListAccountsResult -----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: ListAccountsResult) {.async, gcsafe, nimcall.} =
+  let
+    accounts = event.accounts
+    timestamp = event.timestamp
+    shouldPrint = if not self.inputReady: false else: true
+
+  trace "TUI showing accounts from nim-status", accounts=(%accounts)
+
+  if shouldPrint:
+    if accounts.len > 0:
+      var i = 1
+      self.printResult("Existing accounts:", timestamp)
+      for account in accounts:
+        self.printResult(fmt"{2.indent()}{i}. {account.toDisplayString()}", timestamp)
+        i = i + 1
+    else:
+      self.printResult("No accounts. Create an account using the '/create <password>' command.", timestamp)
 
 # NetworkStatus ----------------------------------------------------------------
 

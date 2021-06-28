@@ -1,11 +1,11 @@
 import # std libs
-  std/strutils
+  std/[os, strutils]
 
 import # chat libs
   ./events, ./waku_chat2
 
 import # nim-status libs
-  ../../nim_status/client
+  ../../nim_status/[account, alias, accounts, client, identicon, multiaccount]
 
 export events
 
@@ -77,6 +77,48 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
      username = "[unknown]"
 
   T(message: message, timestamp: timestamp, username: username)
+
+proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
+  let
+    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
+    multiAccounts = status.multiAccountGenerateAndDeriveAddresses(12, 1, password,
+      paths)
+    multiAccount = multiAccounts[0]
+    dir = status.dataDir / "keystore"
+
+  dir.createDir()
+  status.multiAccountStoreDerivedAccounts(multiAccount, password, dir)
+
+  let
+    timestamp = epochTime().int64
+    whisperAcct = multiAccount.accounts[2]
+    account = accounts.Account(
+      name: whisperAcct.publicKey.generateAlias(),
+      identicon: whisperAcct.publicKey.identicon(),
+      keycardPairing: "",
+      keyUid: whisperAcct.keyUid # whisper key-uid
+    )
+
+  status.saveAccount(account)
+  # TODO: status.login(account.keyUid, password)
+
+  let
+    event = CreateAccountResult(account: account, timestamp: timestamp)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
+  let
+    accounts = status.getAccounts()
+    event = ListAccountsResult(accounts: accounts, timestamp: epochTime().int64)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
   let task = taskArg.taskName

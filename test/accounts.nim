@@ -10,36 +10,60 @@ import # nim-status libs
   ./test_helpers
 
 procSuite "accounts":
-  asyncTest "accounts":
+  asyncTest "saveAccount, updateAccountTimestamp, deleteAccount":
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, newMigrationDefinition())
+    let db = initializeDB(path)
 
     var account:Account = Account(
       name: "Test",
-      loginTimestamp: cast[int](cpuTime()),
       identicon: "data:image/png;base64,something",
       keycardPairing: "",
       keyUid: "0x1234"
     )
 
     db.saveAccount(account)
-    account.name = "Test_updated"
-    db.updateAccount(account)
-    db.updateAccountTimestamp(1, "0x1234")
+
+    # check that the values saved correctly
     var accountList = db.getAccounts()
+    check:
+      accountList[0].name == account.name
+      accountList[0].identicon == account.identicon
+      accountList[0].keycardPairing == account.keycardPairing
+      accountList[0].keyUid == account.keyUid
+      accountList[0].loginTimestamp.isSome == false
+
+    # check that we can update name, identicon, keycardPairing, loginTimestamp
+    account.name = account.name & "_updated"
+    account.identicon = account.identicon & "_updated"
+    account.keycardPairing = account.keycardPairing & "_updated"
+    account.loginTimestamp = 0.some
+    db.updateAccount(account)
+    accountList = db.getAccounts()
 
     check:
       accountList.len == 1
-
-    let acc = accountList[0]
+      accountList[0].name == account.name
+      accountList[0].identicon == account.identicon
+      accountList[0].keycardPairing == account.keycardPairing
+      accountList[0].loginTimestamp == account.loginTimestamp
+      accountList[0].keyUid == account.keyUid # should not have been updated
+    
+    # check that we only update timestamp with `updateAccountTimestamp`
+    let newTimestamp = 1
+    db.updateAccountTimestamp(newTimestamp, account.keyUid)
+    accountList = db.getAccounts()
 
     check:
-      acc.name == "Test_updated"
-      acc.loginTimestamp == 1
-      acc.identicon == account.identicon
-      acc.keyUid == account.keyUid
+      accountList.len == 1
+      accountList[0].name == account.name
+      accountList[0].identicon == account.identicon
+      accountList[0].keycardPairing == account.keycardPairing
+      accountList[0].loginTimestamp.isSome and
+        accountList[0].loginTimestamp.get == newTimestamp
+      accountList[0].keyUid == account.keyUid
 
+    # check that we can delete accounts
     db.deleteAccount(account.keyUid)
     accountList = db.getAccounts()
 

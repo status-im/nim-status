@@ -15,7 +15,7 @@ procSuite "contacts":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password, newMigrationDefinition())
+    let db = initializeDB(path, password)
 
     let contact1 = Contact(
       id: "Contact1",

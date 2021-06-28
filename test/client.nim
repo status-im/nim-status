@@ -17,7 +17,7 @@ procSuite "client":
 
     var account:Account = Account(
       name: "Test",
-      loginTimestamp: 1,
+      loginTimestamp: 1.some,
       identicon: "data:image/png;base64,something",
       keycardPairing: "",
       keyUid: "0x1234"
