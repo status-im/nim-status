@@ -53,14 +53,11 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          # installing mingw-w64-x86_64-libxml2 is a workaround for:
-          # https://github.com/msys2/MINGW-packages/issues/8658
           install: >
             base-devel
             git
             unzip
             mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-pcre
             mingw-w64-x86_64-rust
@@ -86,18 +83,24 @@ jobs:
           key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-sqlcipher_static-${{ matrix.sqlcipher }}
 
       - name: Install and build dependencies
+        # setting env var RUSTFLAGS in Windows is a workaround for:
+        # https://github.com/msys2/MINGW-packages/issues/9010
         run: |
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
+          if [[ ${{ matrix.platform.os }} = windows ]]; then
+            export RUSTFLAGS="-Clink-self-contained=no"
+          fi
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
       - name: Build and run tests
         run: |
           # workaround for limitations of BSD `ar` on macOS
           # see: https://github.com/nim-lang/Nim/issues/15589
-          (([[ ${{ matrix.platform.os }} = macos ]] && \
-            mkdir -p "${HOME}/.local/bin" && \
-            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar") || true)
-          export PATH="${HOME}/.local/bin:${PATH}"
+          if [[ ${{ matrix.platform.os }} = macos ]]; then
+            mkdir -p "${HOME}/.local/bin"
+            ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar"
+            export PATH="${HOME}/.local/bin:${PATH}"
+          fi
           make \
             NIMFLAGS="--parallelBuild:${NPROC}" \
             PCRE_STATIC=${{ matrix.pcre }} \
