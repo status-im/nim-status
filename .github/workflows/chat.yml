@@ -34,7 +34,7 @@ jobs:
         release:   [ true ]
         rln:       [ true ]
         sqlcipher: [ true ]
-        ssl:   [ true ]
+        ssl:       [ true ]
     name: ${{ matrix.platform.icon }} - static linking - NCURSES ${{ matrix.ncurses }} | PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }} - RELEASE ${{ matrix.release }}
     runs-on: ${{ matrix.platform.os }}-latest
     defaults:
@@ -113,9 +113,9 @@ jobs:
             deps
 
       - name: Build the example chat client
+        # using `llvm-ar` instead of `ar` on macOS is a workaround for:
+        # https://github.com/nim-lang/Nim/issues/15589
         run: |
-          # workaround for limitations of BSD `ar` on macOS
-          # see: https://github.com/nim-lang/Nim/issues/15589
           if [[ ${{ matrix.platform.os }} = macos ]]; then
             mkdir -p "${HOME}/.local/bin"
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar"

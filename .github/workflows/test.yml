@@ -29,10 +29,20 @@ jobs:
             os: ubuntu,
             shell: bash --noprofile --norc -eo pipefail
           }
-        pcre:      [ true, false ]
-        rln:       [ false ]
-        sqlcipher: [ true, false ]
-        ssl:   [ true, false ]
+        # Using a full matrix of static/shared linking has been useful in the
+        # past for catching edge cases, but none have been experienced in
+        # recent months so limit to static linking to reduce build and run
+        # times in this workflow. The full matrix can always be activated in a
+        # PR branch if it's suspected we're bumping into an edge case as
+        # experienced previously.
+        # pcre:      [ true, false ]
+        # rln:       [ true, false ]
+        # sqlcipher: [ true, false ]
+        # ssl:       [ true, false ]
+        pcre:      [ true ]
+        rln:       [ true ]
+        sqlcipher: [ true ]
+        ssl:       [ true ]
     name: ${{ matrix.platform.icon }} - static linking - PCRE ${{ matrix.pcre }} | RLN ${{ matrix.rln }} | SQLCIPHER ${{ matrix.sqlcipher }} | SSL ${{ matrix.ssl }}
     runs-on: ${{ matrix.platform.os }}-latest
     defaults:
@@ -93,9 +103,9 @@ jobs:
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
       - name: Build and run tests
+        # using `llvm-ar` instead of `ar` on macOS is a workaround for:
+        # https://github.com/nim-lang/Nim/issues/15589
         run: |
-          # workaround for limitations of BSD `ar` on macOS
-          # see: https://github.com/nim-lang/Nim/issues/15589
           if [[ ${{ matrix.platform.os }} = macos ]]; then
             mkdir -p "${HOME}/.local/bin"
             ln -f -s /usr/local/Cellar/llvm/*/bin/llvm-ar "${HOME}/.local/bin/ar"
