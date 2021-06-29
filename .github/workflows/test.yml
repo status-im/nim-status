@@ -93,13 +93,8 @@ jobs:
           key: ${{ matrix.platform.os }}-${{ steps.calc-cache-key.outputs.hash }}-sqlcipher_static-${{ matrix.sqlcipher }}
 
       - name: Install and build dependencies
-        # setting env var RUSTFLAGS in Windows is a workaround for:
-        # https://github.com/msys2/MINGW-packages/issues/9010
         run: |
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update
-          if [[ ${{ matrix.platform.os }} = windows ]]; then
-            export RUSTFLAGS="-Clink-self-contained=no"
-          fi
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 deps
 
       - name: Build and run tests
