@@ -1,12 +1,12 @@
 import # std libs
   std/[os, strutils]
 
+import # nim-status libs
+  ../../nim_status/[account, accounts, alias, client, database, identicon,
+                    multiaccount]
+
 import # chat libs
   ./events, ./waku_chat2
-
-import # nim-status libs
-  ../../nim_status/[account, alias, accounts, client, database, identicon,
-                    multiaccount]
 
 export events
 
@@ -17,6 +17,8 @@ type
   StatusArg* = ref object of ContextArg
     chatConfig*: ChatConfig
 
+  StatusState* = enum loggedout, loggingin, loggedin, loggingout
+
 var
   conf {.threadvar.}: ChatConfig
   connected {.threadvar.}: bool
@@ -25,6 +27,7 @@ var
   nick {.threadvar.}: string
   subscribed {.threadvar.}: bool
   status {.threadvar.}: StatusObject
+  statusState {.threadvar.}: StatusState
   wakuNode {.threadvar.}: WakuNode
   wakuState {.threadvar.}: WakuState
 
@@ -40,21 +43,28 @@ proc resetContext() {.gcsafe, nimcall.} =
   wakuNode = nil
   wakuState = WakuState.stopped
 
-proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall.} =
-  # set threadvar values that are never reset, i.e. persist across login/logout
+const statusContext*: Context = proc(arg: ContextArg) {.async, gcsafe, nimcall,
+  raises: [Defect].} =
+
+  # set threadvar values that are never reset, i.e. persist across dis/connect
   contextArg = cast[StatusArg](arg)
   conf = contextArg.chatConfig
   contentTopic = conf.contentTopic
+
   status = StatusObject.new(conf.dataDir)
+  # threadvar `statusState` is currently out of scope re: "resetting the
+  # context"; the relevant code/logic can be reconsidered in the future, was
+  # originally implemented in context of `startWakuChat2` and `stopWakuChat2`
+  statusState = StatusState.loggedout
 
   # threadvar `symKeyGenerated` is a special case because it depends on
   # compile-time `PayloadV1` value and because the value of its counterpart
   # `symKey` only needs to be set once, i.e. it also persists across
-  # login/logout; but note that `symKey` itself is set for the first time in
+  # dis/connect; but note that `symKey` itself is set for the first time in
   # task `startWakuChat2` as an optimization for TUI startup time
   when PayloadV1: symKeyGenerated = false
 
-  # re/set threadvars that don't persist across login/logout
+  # re/set threadvars that don't persist across dis/connect
   resetContext()
 
 proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
@@ -94,6 +104,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
     timestamp = epochTime().int64
     whisperAcct = multiAccount.accounts[2]
     account = accounts.Account(
+      creationTimestamp: timestamp.int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
       keycardPairing: "",
@@ -101,7 +112,9 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
     )
 
   status.saveAccount(account)
-  # TODO: status.login(account.keyUid, password)
+
+  let userDB = initializeDB(status.dataDir / account.keyUid & ".db", password)
+  userDB.close()
 
   let
     event = CreateAccountResult(account: account, timestamp: timestamp)
@@ -124,6 +137,7 @@ proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.t
     timestamp = epochTime().int64
     whisperAcct = multiAccount.accounts[2]
     account = accounts.Account(
+      creationTimestamp: timestamp.int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
       keycardPairing: "",
@@ -149,6 +163,86 @@ proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
     event = ListAccountsResult(accounts: accounts, timestamp: epochTime().int64)
     eventEnc = event.encode
     task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false).} =
+  let task = taskArg.taskName
+
+  if statusState != StatusState.loggedout: return
+  statusState = StatusState.loggingin
+
+  let allAccounts = status.getAccounts()
+
+  var
+    event: LoginResult
+    eventEnc: string
+    numberedAccount: accounts.Account
+    keyUid: string
+
+  if account < 1 or account > allAccounts.len:
+    statusState = StatusState.loggedout
+
+    event = LoginResult(
+      error: "bad account number. List accounts using `/list`.",
+      loggedin: false)
+
+    eventEnc = event.encode
+
+  else:
+    numberedAccount = allAccounts[account - 1]
+    keyUid = numberedAccount.keyUid
+
+    try:
+      status.login(keyUid, password)
+
+      statusState = StatusState.loggedin
+
+      event = LoginResult(account: numberedAccount, error: "", loggedin: true)
+      eventEnc = event.encode
+
+    except SqliteError as e:
+      error "task encountered a database error", error=e.msg, task
+
+      statusState = StatusState.loggedout
+
+      event = LoginResult(
+        error: "login failed with database error, maybe wrong password?",
+        loggedin: false)
+
+      eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc logout*() {.task(kind=no_rts, stoppable=false).} =
+  let task = taskArg.taskName
+
+  if statusState != StatusState.loggedin: return
+  statusState = StatusState.loggingout
+
+  var
+    event: LogoutResult
+    eventEnc: string
+
+  try:
+    status.logout()
+
+    statusState = StatusState.loggedout
+
+    event = LogoutResult(error: "", loggedin: false)
+    eventEnc = event.encode
+
+  except SqliteError as e:
+    error "task encountered a database error", error=e.msg, task
+
+    statusState = StatusState.loggedin
+
+    event = LogoutResult(error: "logout failed with database error.",
+      loggedin: true)
+
+    eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)

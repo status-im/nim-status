@@ -162,33 +162,6 @@ proc printInput*(self: ChatTUI, input: string) =
 
   trace "TUI printed in input window"
 
-# replace `printMessage` with adaptions of ncurses calls in TBDChat
-proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
-  username: string) =
-
-  let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
-  wprintw(self.chatWin, tstamp & " " & username & ": " & message & "\n")
-  wrefresh(self.chatWin)
-
-  # move cursor to input window and refresh
-  wcursyncup(self.inputWin)
-  wrefresh(self.inputWin)
-
-  trace "TUI printed in message window"
-
-# replace `printResult` with adaptions of ncurses calls in TBDChat
-proc printResult*(self: ChatTUI, message: string, timestamp: int64) =
-
-  let tstamp = timestamp.fromUnix().local().format("'<'MMM' 'dd,' 'HH:mm'>'")
-  wprintw(self.chatWin, tstamp & ": " & message & "\n")
-  wrefresh(self.chatWin)
-
-  # move cursor to input window and refresh
-  wcursyncup(self.inputWin)
-  wrefresh(self.inputWin)
-
-  trace "TUI printed in message window"
-
 proc resizeScreen*(self: ChatTUI) =
   # end current windows
   endwin()
@@ -250,36 +223,78 @@ proc wprintFormatTime*(self: ChatTUI, timestamp: int64) =
   wattroff(win, COLOR_PAIR(7).cint)
 
 proc wprintFormatError*(self: ChatTUI, timestamp: int64, error: string) =
-  let win = self.chatWin
+  let
+    chatWin = self.chatWin
+    inputWin = self.inputWin
 
   # print formatted time
   self.wprintFormatTime(timestamp)
 
   # error message formatting
-  wattron(win, A_BOLD.cint)
-  wprintw(win, " ")
-  waddch(win, ACS_HLINE)
-  waddch(win, ACS_HLINE)
-  waddch(win, ACS_HLINE)
-  wprintw(win, " ")
-  wattron(win, COLOR_PAIR(8).cint)
-  wprintw(win, "Error")
-  wattroff(win, COLOR_PAIR(8).cint)
-  wattroff(win, A_BOLD.cint)
+  wattron(chatWin, A_BOLD.cint)
+  wprintw(chatWin, " ")
+  waddch(chatWin, ACS_HLINE)
+  waddch(chatWin, ACS_HLINE)
+  waddch(chatWin, ACS_HLINE)
+  wprintw(chatWin, " ")
+  wattron(chatWin, COLOR_PAIR(8).cint)
+  wprintw(chatWin, "Error")
+  wattroff(chatWin, COLOR_PAIR(8).cint)
+  wattroff(chatWin, A_BOLD.cint)
 
   # print error message
-  wattron(win, COLOR_PAIR(1).cint)
-  wprintw(win, fmt(" {error}\n"))
+  wattron(chatWin, COLOR_PAIR(1).cint)
+  wprintw(chatWin, fmt(" {error}\n"))
+  wattroff(chatWin, COLOR_PAIR(1).cint)
 
-  wattroff(win, COLOR_PAIR(1).cint)
-  wrefresh(win)
+  # move cursor to input window and refresh
+  wcursyncup(inputWin)
+  wrefresh(chatWin)
+  wrefresh(inputWin)
 
   warn "TUI printed error message", message=error
 
-  # reset input ??? maybe a bad idea if error messages can be triggered from
-  # non-input events, not sure yet
-  wcursyncup(self.inputWin)
-  self.clearInput()
+proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
+  username: string) =
+
+  let
+    chatWin = self.chatWin
+    inputWin = self.inputWin
+
+  # print formatted time
+  self.wprintFormatTime(timestamp)
+
+  # print result
+  wattron(chatWin, COLOR_PAIR(1).cint)
+  wprintw(chatWin, fmt("{username}: {message}\n"))
+  wattroff(chatWin, COLOR_PAIR(1).cint)
+
+  # move cursor to input window and refresh
+  wcursyncup(inputWin)
+  wrefresh(chatWin)
+  wrefresh(inputWin)
+
+  trace "TUI printed in message window", message
+
+proc printResult*(self: ChatTUI, message: string, timestamp: int64) =
+  let
+    chatWin = self.chatWin
+    inputWin = self.inputWin
+
+  # print formatted time
+  self.wprintFormatTime(timestamp)
+
+  # print result
+  wattron(chatWin, COLOR_PAIR(1).cint)
+  wprintw(chatWin, fmt("{message}\n"))
+  wattroff(chatWin, COLOR_PAIR(1).cint)
+
+  # move cursor to input window and refresh
+  wcursyncup(inputWin)
+  wrefresh(chatWin)
+  wrefresh(inputWin)
+
+  trace "TUI printed in message window", message
 
 proc wprintFormatNotice(self: ChatTUI, win: PWindow, timestamp: int64, notice: string) =
   discard

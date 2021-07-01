@@ -53,7 +53,7 @@ proc stop*(self: ThreadWorker) {.async.} =
   self.chanSendToWorker.close()
   trace "worker stopped", worker=self.name
 
-proc worker(arg: WorkerThreadArg) {.async.} =
+proc worker(arg: WorkerThreadArg) {.async, raises: [Defect].} =
   let
     awaitTasks = arg.awaitTasks
     chanRecvFromHost = arg.chanRecvFromHost
@@ -80,22 +80,29 @@ proc worker(arg: WorkerThreadArg) {.async.} =
       break
 
     if running[].load():
+      var
+        msgerr = false
+        parsed: JsonNode
+        task: Task
+        taskName: string
+
       try:
-        let
-          parsed = parseJson(message)
-          task = cast[Task](parsed{"task"}.getInt)
-          taskName = parsed{"taskName"}.getStr
+        parsed = parseJson(message)
+        task = cast[Task](parsed{"task"}.getInt)
+        taskName = parsed{"taskName"}.getStr
 
         trace "worker received message", message, worker
         trace "worker running task", task=taskName, worker
 
+      except CatchableError as e:
+        msgerr = true
+        error "worker received unknown message", error=e.msg, message, worker
+
+      if not msgerr:
         if awaitTasks:
           await task(message)
         else:
           asyncSpawn task(message)
-
-      except Exception as e:
-        error "worker received unknown message", message, worker, error=e.msg
 
   chanRecvFromHost.close()
   chanSendToHost.close()

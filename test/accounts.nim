@@ -15,7 +15,10 @@ procSuite "accounts":
     removeFile(path)
     let db = initializeDB(path)
 
+    let timestamp1 = epochTime().int
+
     var account:Account = Account(
+      creationTimestamp: timestamp1,
       name: "Test",
       identicon: "data:image/png;base64,something",
       keycardPairing: "",
@@ -27,28 +30,32 @@ procSuite "accounts":
     # check that the values saved correctly
     var accountList = db.getAccounts()
     check:
+      accountList[0].creationTimestamp == timestamp1
       accountList[0].name == account.name
       accountList[0].identicon == account.identicon
       accountList[0].keycardPairing == account.keycardPairing
       accountList[0].keyUid == account.keyUid
       accountList[0].loginTimestamp.isSome == false
 
+    let timestamp2 = timestamp1 + 100
+
     # check that we can update name, identicon, keycardPairing, loginTimestamp
     account.name = account.name & "_updated"
     account.identicon = account.identicon & "_updated"
     account.keycardPairing = account.keycardPairing & "_updated"
-    account.loginTimestamp = 0.some
+    account.loginTimestamp = timestamp2.some
     db.updateAccount(account)
     accountList = db.getAccounts()
 
     check:
       accountList.len == 1
+      accountList[0].creationTimestamp == timestamp1
       accountList[0].name == account.name
       accountList[0].identicon == account.identicon
       accountList[0].keycardPairing == account.keycardPairing
       accountList[0].loginTimestamp == account.loginTimestamp
       accountList[0].keyUid == account.keyUid # should not have been updated
-    
+
     # check that we only update timestamp with `updateAccountTimestamp`
     let newTimestamp = 1
     db.updateAccountTimestamp(newTimestamp, account.keyUid)

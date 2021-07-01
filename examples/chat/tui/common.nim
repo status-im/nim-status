@@ -22,6 +22,7 @@ type
     locale*: string
     mainWin*: PWindow
     mouse*: bool
+    outputReady*: bool
     running*: bool
     taskRunner*: TaskRunner
 
@@ -40,11 +41,15 @@ type
   # all fields on types that derive from Command should be of type `string`
   Command* = ref object of RootObj
 
-  Help* = ref object of Command
-    command*: string
+  Connect* = ref object of Command
 
   CreateAccount* = ref object of Command
     password*: string
+
+  Disconnect* = ref object of Command
+
+  Help* = ref object of Command
+    command*: string
 
   ImportMnemonic* = ref object of Command
     mnemonic*: string
@@ -54,8 +59,8 @@ type
   ListAccounts* = ref object of Command
 
   Login* = ref object of Command
-    username*: string
-    # password*: string
+    account*: string
+    password*: string
 
   Logout* = ref object of Command
 
@@ -75,13 +80,15 @@ const
 
   commands* = {
     DEFAULT_COMMAND: "SendMessage",
+    "connect": "Connect",
+    "createaccount": "CreateAccount",
+    "disconnect": "Disconnect",
     "help": "Help",
     "listaccounts": "ListAccounts",
     "importmnemonic": "ImportMnemonic",
     "login": "Login",
     "logout": "Logout",
-    "quit": "Quit",
-    "createaccount": "CreateAccount"
+    "quit": "Quit"
   }.toTable
 
   aliases* = {

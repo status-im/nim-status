@@ -33,7 +33,7 @@ proc readInput*() {.task(kind=no_rts, stoppable=false).} =
   # early in ../../chat and if it's not UTF-8 then the chat program should
   # maybe exit immediately with an error/explanation; it could be possible to
   # support other terminal/environment/OS encodings, but for now this is a
-  # simplifying assumption for the sake of implementing `readInputTask`
+  # simplifying assumption for the sake of implementing `readInput`
 
   while workerRunning[].load():
     if input != -1: trace "task waiting for input", task
