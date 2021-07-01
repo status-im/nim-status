@@ -17,6 +17,8 @@ type
 
   EventChannel* = AsyncChannel[ThreadSafeString]
 
+  # TODO: alphabetise ChatClient above HelpText -- didn't want to interfere
+  # with ongoing work
   ChatClient* = ref object
     account*: Account
     chatConfig*: ChatConfig
