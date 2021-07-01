@@ -46,6 +46,11 @@ type
   CreateAccount* = ref object of Command
     password*: string
 
+  ImportMnemonic* = ref object of Command
+    mnemonic*: string
+    passphrase*: string
+    password*: string
+
   ListAccounts* = ref object of Command
 
   Login* = ref object of Command
@@ -72,6 +77,7 @@ const
     DEFAULT_COMMAND: "SendMessage",
     "help": "Help",
     "listaccounts": "ListAccounts",
+    "importmnemonic": "ImportMnemonic",
     "login": "Login",
     "logout": "Logout",
     "quit": "Quit",
@@ -81,6 +87,7 @@ const
   aliases* = {
     "?": "help",
     "create": "createaccount",
+    "import": "importmnemonic",
     "list": "listaccounts",
     "send": DEFAULT_COMMAND
   }.toTable
@@ -88,6 +95,7 @@ const
   aliased* = {
     DEFAULT_COMMAND: @["send"],
     "createaccount": @["create"],
+    "importmnemonic": @["import"],
     "help": @["?"],
     "listaccounts": @["list"]
   }.toTable

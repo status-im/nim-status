@@ -5,7 +5,8 @@ import # chat libs
   ./parser
 
 import # nim-status libs
-  ../../../nim_status/accounts
+  ../../../nim_status/accounts,
+  ../../../nim_status/multiaccount
 
 export parser
 
@@ -127,6 +128,21 @@ proc action*(self: ChatTUI, event: ListAccountsResult) {.async, gcsafe, nimcall.
         i = i + 1
     else:
       self.printResult("No accounts. Create an account using the '/create <password>' command.", timestamp)
+
+# ImportMnemonicResult -----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: ImportMnemonicResult) {.async, gcsafe, nimcall.} =
+  let
+    multiAcc = event.multiAcc
+    timestamp = event.timestamp
+    shouldPrint = if not self.inputReady: false else: true
+
+  # TODO need proper JSON serialization for this
+  trace "TUI importing account" , multiAcc=multiAcc.encode
+
+  if shouldPrint:
+    self.printResult("Imported account:", timestamp)
+    self.printResult(2.indent & multiAcc.toDisplayString(), timestamp)
 
 # NetworkStatus ----------------------------------------------------------------
 

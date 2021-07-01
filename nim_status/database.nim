@@ -5,6 +5,8 @@ import
   ./migrations/sql_scripts_accounts as acc_migration,
   ./migrations/sql_scripts_app as app_migration
 
+export sqlcipher
+
 proc initializeDB*(path:string): DbConn =
 
   createDir path.parentDir()

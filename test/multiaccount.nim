@@ -14,7 +14,7 @@ procSuite "multiaccount":
     assert entropyStrength == 128
 
     let passphrase = ""
-    let multiAccounts = generateAndDeriveAddresses(12, 1, passphrase, @[PATH_WALLET_ROOT, PATH_DEFAULT_WALLET, PATH_WHISPER])
+    let multiAccounts = generateAndDeriveAccounts(12, 1, passphrase, cast[seq[KeyPath]](@[PATH_WALLET_ROOT, PATH_DEFAULT_WALLET, PATH_WHISPER]))
 
     #assert len(multiAccounts) == 5
 
@@ -23,6 +23,12 @@ procSuite "multiaccount":
 
     let password = "qwerty"
     let dir = "test_accounts"
+    echo "MultiAcc mnemonic: ", cast[string](multiAcc.mnemonic)
+
+    let importedMultiAcc = importMnemonic(multiAcc.mnemonic, passphrase)
+
+    assert cast[string](importedMultiAcc.keyseed) == cast[string](multiAcc.keyseed)
+    echo "MultiAcc keyseed: ", cast[string](multiAcc.keyseed)
 
     createDir(dir)
 

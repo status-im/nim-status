@@ -63,6 +63,46 @@ proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: ListAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listAccounts()
 
+# ImportMnemonic -----------------------------------------------------------------
+
+proc new*(T: type ImportMnemonic, args: varargs[string]): T =
+  T(mnemonic: args[0], passphrase: args[1], password: args[2])
+
+proc split*(T: type ImportMnemonic, argsRaw: string): seq[string] =
+  let args = argsRaw.split(" ")
+  var
+    mnemonic: string
+    passphrase: string
+    password: string
+
+  if args.len == 0:
+    mnemonic = ""
+    passphrase = ""
+    password = ""
+  elif args.len < 14:
+    mnemonic = args[0..11].join(" ")
+    passphrase = ""
+    password = args[12]
+  else:
+    mnemonic = args[0..11].join(" ")
+    passphrase = args[12]
+    password = args[13]
+
+  @[mnemonic, passphrase, password]
+
+proc command*(self: ChatTUI, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
+  if command.mnemonic == "":
+    self.wprintFormatError(epochTime().int64,
+      "mnemonic cannot be blank, please provide a mnemonic as the first argument.")
+  elif command.mnemonic.split(" ").len != 12:
+    self.wprintFormatError(epochTime().int64,
+      "mnemonic phrase must consist of 12 words separated by single spaces.")
+  elif command.password == "":
+    self.wprintFormatError(epochTime().int64,
+      "password cannot be blank, please provide a password as the last argument.")
+  else:
+    asyncSpawn self.client.importMnemonic(command.mnemonic, command.passphrase, command.password)
+
 # Login ------------------------------------------------------------------------
 
 proc new*(T: type Login, args: varargs[string]): T {.raises: [].} =

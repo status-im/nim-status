@@ -8,6 +8,7 @@ import # vendor libs
 
 import # nim-status libs
   ./account,
+  ./account/types,
   ./accounts,
   ./chats,
   ./config,
@@ -52,11 +53,16 @@ proc login*(self: StatusObject, keyUid: string, password: string) =
   echo "Result: "
   echo $result
 
-proc multiAccountGenerateAndDeriveAddresses*(self: StatusObject,
-  mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[string]
+proc multiAccountGenerateAndDeriveAccounts*(self: StatusObject,
+  mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[KeyPath]
   ): seq[MultiAccount] =
 
-  generateAndDeriveAddresses(mnemonicPhraseLength, n, bip39Passphrase, paths)
+  generateAndDeriveAccounts(mnemonicPhraseLength, n, bip39Passphrase, paths)
+
+proc importMnemonicAndDeriveAccounts*(self: StatusObject,
+  mnemonicPhrase: Mnemonic, bip39Passphrase: string, paths: seq[KeyPath]): MultiAccount =
+
+  importMnemonicAndDeriveAccounts(mnemonicPhrase, bip39Passphrase, paths)
 
 proc multiAccountStoreDerivedAccounts*(self: StatusObject,
   multiAcc: MultiAccount, password: string, dir: string) =

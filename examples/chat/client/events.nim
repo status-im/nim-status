@@ -1,5 +1,6 @@
 import # chat libs
-  ./common, ../../../nim_status/accounts
+  ./common, ../../../nim_status/accounts,
+  ../../../nim_status/multiaccount
 
 export common
 
@@ -17,6 +18,10 @@ type
     accounts*: seq[Account]
     timestamp*: int64
 
+  ImportMnemonicResult* = ref object of ClientEvent
+    multiAcc*: MultiAccount
+    timestamp*: int64
+
   NetworkStatus* = ref object of ClientEvent
     online*: bool
 
@@ -28,6 +33,7 @@ type
 const clientEvents* = [
   "CreateAccountResult",
   "ListAccountsResult",
+  "ImportMnemonicResult",
   "NetworkStatus",
   "UserMessage"
 ]
