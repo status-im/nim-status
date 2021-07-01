@@ -64,7 +64,7 @@ type
 
 proc deleteAccount*(db: DbConn, keyUid: string) =
   var tblAccounts: Account
-  let query = fmt"""DELETE FROM {tblAccounts.tableName} 
+  let query = fmt"""DELETE FROM {tblAccounts.tableName}
                     WHERE       {tblAccounts.keyUid.columnName} = ?"""
 
   db.exec(query, keyUid)
@@ -114,4 +114,3 @@ proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string) 
                     WHERE   {tblAccounts.keyUid.columnName} = ?"""
 
   db.exec(query, loginTimestamp, keyUid)
-

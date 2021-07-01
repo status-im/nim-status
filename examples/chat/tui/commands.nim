@@ -25,6 +25,52 @@ logScope:
 # `command` proc should implement the appropriate logic to deal with those
 # values
 
+# Connect ----------------------------------------------------------------------
+
+proc new*(T: type Connect, args: varargs[string]): T {.raises: [].} =
+  T()
+
+proc split*(T: type Connect, argsRaw: string): seq[string] =
+  @[]
+
+proc command*(self: ChatTUI, command: Connect) {.async, gcsafe, nimcall.} =
+  if self.client.loggedin:
+    asyncSpawn self.client.connect(self.client.account.name)
+  else:
+    self.wprintFormatError(epochTime().int64,
+      "client is not logged in, cannot connect.")
+
+# CreateAccount ----------------------------------------------------------------
+
+proc new*(T: type CreateAccount, args: varargs[string]): T =
+  T(password: args[0])
+
+proc split*(T: type CreateAccount, argsRaw: string): seq[string] =
+  @[argsRaw]
+
+proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe,
+  nimcall.} =
+
+  if command.password == "":
+    self.wprintFormatError(epochTime().int64,
+      "password cannot be blank, please provide a password as the first argument.")
+  else:
+    asyncSpawn self.client.generateMultiAccount(command.password)
+
+# Disconnect -------------------------------------------------------------------
+
+proc new*(T: type Disconnect, args: varargs[string]): T =
+  T()
+
+proc split*(T: type Disconnect, argsRaw: string): seq[string] =
+  @[]
+
+proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
+  if self.client.online:
+    asyncSpawn self.client.disconnect()
+  else:
+    self.wprintFormatError(epochTime().int64, "client is not online.")
+
 # Help -------------------------------------------------------------------------
 
 proc new*(T: type Help, args: varargs[string]): T =
@@ -37,28 +83,13 @@ proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let command = command.command
   discard
 
-# CreateAccount ----------------------------------------------------------------
-
-proc new*(T: type CreateAccount, args: varargs[string]): T =
-  T(password: args[0])
-
-proc split*(T: type CreateAccount, argsRaw: string): seq[string] =
-  return @[argsRaw]
-
-proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe, nimcall.} =
-  if command.password == "":
-    self.wprintFormatError(epochTime().int64,
-      "password cannot be blank, please provide a password as the first argument.")
-  else:
-    asyncSpawn self.client.generateMultiAccount(command.password)
-
 # ListAccounts -----------------------------------------------------------------
 
 proc new*(T: type ListAccounts, args: varargs[string]): T =
   T()
 
 proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
-  return @[]
+  @[]
 
 proc command*(self: ChatTUI, command: ListAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listAccounts()
@@ -66,23 +97,36 @@ proc command*(self: ChatTUI, command: ListAccounts) {.async, gcsafe, nimcall.} =
 # Login ------------------------------------------------------------------------
 
 proc new*(T: type Login, args: varargs[string]): T {.raises: [].} =
-  # T(username: args[0], password: args[1])
-  T(username: args[0])
+  T(account: args[0], password: args[1])
 
 proc split*(T: type Login, argsRaw: string): seq[string] =
-  # don't really want to split on space because password could contain spaces
-  # though username would not; also need to consider missing 1 or 2 args
-  # argsRaw.split(" ")
+  let firstSpace = argsRaw.find(" ")
 
-  # simple "name chooser" for now
-  @[argsRaw]
+  var
+    account: string
+    password: string
+
+  if firstSpace != -1:
+    account = argsRaw[0..(firstSpace - 1)]
+    if argsRaw.len > firstSpace + 1:
+      password = argsRaw[(firstSpace + 1)..^1]
+    else:
+      password = ""
+  else:
+    account = ""
+    password = ""
+
+  @[account, password]
 
 proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
-  let
-    username = command.username
-    # password = command.password
+  try:
+    let
+      account = parseInt(command.account)
+      password = command.password
 
-  asyncSpawn self.client.login(username)
+    asyncSpawn self.client.login(account, password)
+  except:
+    self.wprintFormatError(epochTime().int64, "invalid login arguments.")
 
 # Logout -----------------------------------------------------------------------
 
@@ -90,7 +134,7 @@ proc new*(T: type Logout, args: varargs[string]): T =
   T()
 
 proc split*(T: type Logout, argsRaw: string): seq[string] =
-  return @[]
+  @[]
 
 proc command*(self: ChatTUI, command: Logout) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.logout()
@@ -101,7 +145,7 @@ proc new*(T: type Quit, args: varargs[string]): T =
   T()
 
 proc split*(T: type Quit, argsRaw: string): seq[string] =
-  return @[]
+  @[]
 
 proc command*(self: ChatTUI, command: Quit) {.async, gcsafe, nimcall.} =
   await self.stop()

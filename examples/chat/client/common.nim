@@ -4,7 +4,10 @@ import # std libs
 import # chat libs
   ../config, ../task_runner
 
-export config, task_runner, times
+import # nim-status libs
+  ../../../nim_status/accounts
+
+export accounts, config, task_runner, times
 
 logScope:
   topics = "chat client"
@@ -15,8 +18,10 @@ type
   EventChannel* = AsyncChannel[ThreadSafeString]
 
   ChatClient* = ref object
+    account*: Account
     chatConfig*: ChatConfig
     events*: EventChannel
+    loggedin*: bool
     online*: bool
     running*: bool
     taskRunner*: TaskRunner

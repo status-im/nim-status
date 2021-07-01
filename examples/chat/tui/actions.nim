@@ -4,9 +4,6 @@ import # std libs
 import # chat libs
   ./parser
 
-import # nim-status libs
-  ../../../nim_status/accounts
-
 export parser
 
 logScope:
@@ -38,39 +35,41 @@ proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
     # should print an error/explanation to the screen as well
     error "TUI received malformed or unknown command", command
 
-# InputKey --------------------------------------------------------------------
+# InputKey ---------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
-  # handle mouse events and special keys e.g. arrow keys, ESCAPE, RETURN, et al.
-  let
-    key = event.key
-    name = event.name
+  # if TUI is not ready for input then ignore it
+  if self.inputReady:
+    # handle mouse events and special keys e.g. arrow keys, ESCAPE, RETURN, etc.
+    let
+      key = event.key
+      name = event.name
 
-  case name:
-    of ESCAPE:
-      discard
+    case name:
+      of ESCAPE:
+        discard
 
-    of KEY_MOUSE:
-      var me: MEvent
-      getmouse(addr me)
-      discard
+      of KEY_MOUSE:
+        var me: MEvent
+        getmouse(addr me)
+        discard
 
-    of KEY_RESIZE:
-      self.resizeScreen()
+      of KEY_RESIZE:
+        self.resizeScreen()
 
-    of RETURN:
-      let command = self.currentInput
+      of RETURN:
+        let command = self.currentInput
 
-      if command.strip(trailing = false) != "" and
-         not aliased[DEFAULT_COMMAND].contains(command.strip()[1..^1]):
-        self.currentInput = ""
-        trace "TUI reset current input", currentInput=self.currentInput
+        if command.strip(trailing = false) != "" and
+           not aliased[DEFAULT_COMMAND].contains(command.strip()[1..^1]):
+          self.currentInput = ""
+          trace "TUI reset current input", currentInput=self.currentInput
 
-        self.clearInput()
-        self.dispatch(command)
+          self.clearInput()
+          self.dispatch(command)
 
-    else:
-      discard
+      else:
+        discard
 
 # InputReady -------------------------------------------------------------------
 
@@ -81,52 +80,66 @@ proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
   if ready:
     self.inputReady = true
     self.drawScreen()
+    self.outputReady = true
 
 # InputString ------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
-  let
-    input = event.str
-    shouldPrint = if not self.inputReady: false else: true
+  # if TUI is not ready for input then ignore it
+  if self.inputReady:
+    let input = event.str
+    self.currentInput = self.currentInput & input
+    trace "TUI updated current input", currentInput=self.currentInput
 
-  self.currentInput = self.currentInput & input
-  trace "TUI updated current input", currentInput=self.currentInput
+    self.printInput(input)
 
-  if shouldPrint: self.printInput(input)
+# CreateAccountResult ----------------------------------------------------------
 
-# CreateAccountResult -----------------------------------------------------------
+proc action*(self: ChatTUI, event: CreateAccountResult) {.async, gcsafe,
+  nimcall.} =
 
-proc action*(self: ChatTUI, event: CreateAccountResult) {.async, gcsafe, nimcall.} =
-  let
-    account = event.account
-    timestamp = event.timestamp
-    shouldPrint = if not self.inputReady: false else: true
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      account = event.account
+      timestamp = event.timestamp
 
-  trace "TUI created account using nim-status", accounts=(%account)
+      name = account.name
+      keyUid = account.keyUid
+      abbrev = keyUid[0..5] & "..." & keyUid[^4..^1]
 
-  if shouldPrint:
     self.printResult("Created account:", timestamp)
-    self.printResult(2.indent & account.toDisplayString(), timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
 # ListAccountsResult -----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: ListAccountsResult) {.async, gcsafe, nimcall.} =
-  let
-    accounts = event.accounts
-    timestamp = event.timestamp
-    shouldPrint = if not self.inputReady: false else: true
+proc action*(self: ChatTUI, event: ListAccountsResult) {.async, gcsafe,
+  nimcall.} =
 
-  trace "TUI showing accounts from nim-status", accounts=(%accounts)
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      accounts = event.accounts
+      timestamp = event.timestamp
 
-  if shouldPrint:
+    trace "TUI showing accounts from nim-status", accounts=(%accounts)
+
     if accounts.len > 0:
       var i = 1
       self.printResult("Existing accounts:", timestamp)
       for account in accounts:
-        self.printResult(fmt"{2.indent()}{i}. {account.toDisplayString()}", timestamp)
+        let
+          name = account.name
+          keyUid = account.keyUid
+          abbrev = keyUid[0..5] & "..." & keyUid[^4..^1]
+
+        self.printResult(fmt"{2.indent()}{i}. {name} ({abbrev})",
+          timestamp)
         i = i + 1
     else:
-      self.printResult("No accounts. Create an account using the '/create <password>' command.", timestamp)
+      self.printResult(
+        "No accounts. Create an account using `/create <password>`.",
+        timestamp)
 
 # NetworkStatus ----------------------------------------------------------------
 
@@ -139,10 +152,12 @@ proc action*(self: ChatTUI, event: NetworkStatus) {.async, gcsafe, nimcall.} =
 # UserMessage ------------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
-  let
-    message = event.message
-    timestamp = event.timestamp
-    username = event.username
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      message = event.message
+      timestamp = event.timestamp
+      username = event.username
 
-  debug "TUI received user message", message, timestamp, username
-  self.printMessage(message, timestamp, username)
+    debug "TUI received user message", message, timestamp, username
+    self.printMessage(message, timestamp, username)

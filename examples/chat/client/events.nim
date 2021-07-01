@@ -1,5 +1,5 @@
 import # chat libs
-  ./common, ../../../nim_status/accounts
+  ./common
 
 export common
 

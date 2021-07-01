@@ -5,7 +5,7 @@ import # chat libs
   ./events, ./waku_chat2
 
 import # nim-status libs
-  ../../nim_status/[account, alias, accounts, client, identicon, multiaccount]
+  ../../nim_status/[account, accounts, alias, client, identicon, multiaccount]
 
 export events
 
