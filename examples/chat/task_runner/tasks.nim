@@ -9,9 +9,9 @@ logScope:
 type
   ContextArg* = ref object of RootObj
 
-  Context* = proc(arg: ContextArg): Future[void] {.gcsafe, nimcall.}
+  Context* = proc(arg: ContextArg): Future[void] {.gcsafe, nimcall, raises: [Defect].}
 
-  Task* = proc(taskArgEncoded: string): Future[void] {.gcsafe, nimcall.}
+  Task* = proc(taskArgEncoded: string): Future[void] {.gcsafe, nimcall, raises: [Defect].}
 
   TaskKind* = enum no_rts, rts # rts := "return to sender"
 
@@ -19,7 +19,7 @@ type
     chanSendToHost*: ByteAddress # pointer to channel for sending to host
     task*: ByteAddress # pointer to task proc
     taskName*: string
-    workerRunning*: ByteAddress # pointer to TaskTunner instance's `.running` Atomic[bool]
+    workerRunning*: ByteAddress # pointer to taskRunner's .running Atomic[bool]
 
 # there should eventually be the ability to reliably stop individual workers,
 # i.e. each worker would have it's own `.running` Atomic[bool] (maybe

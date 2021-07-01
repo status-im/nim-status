@@ -172,7 +172,7 @@ macro task*(kind: static TaskKind, stoppable: static bool, body: untyped): untyp
   impl.add(body[6])
 
   result.add quote do:
-    const `taskNameImplId`: Task = proc(`taskArgEncId`: string) {.async, gcsafe, nimcall.} =
+    const `taskNameImplId`: Task = proc(`taskArgEncId`: string) {.async, gcsafe, nimcall, raises: [Defect].} =
       `impl`
 
   var

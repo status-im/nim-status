@@ -46,12 +46,10 @@ proc getSettings*(self: StatusObject): Settings =
 
 proc login*(self: StatusObject, keyUid: string, password: string) =
   self.userDB = initializeDB(self.dataDir / keyUid & ".db", password)
-  echo "==============================="
-  echo "DB path: " & (self.dataDir / keyUid & ".db")
-  echo "Password: " & password
-  let result = self.userDB.value("SELECT public_key from settings") # check if decryption worked
-  echo "Result: "
-  echo $result
+
+proc logout*(self: StatusObject) =
+  self.userDB.close()
+  self.userDB = nil
 
 proc multiAccountGenerateAndDeriveAccounts*(self: StatusObject,
   mnemonicPhraseLength: int, n: int, bip39Passphrase: string, paths: seq[KeyPath]

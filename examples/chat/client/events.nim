@@ -1,6 +1,8 @@
+import # nim-status libs
+  ../../../nim_status/accounts, ../../../nim_status/multiaccount
+
 import # chat libs
-  ./common, ../../../nim_status/accounts,
-  ../../../nim_status/multiaccount
+  ./common
 
 export common
 
@@ -14,13 +16,22 @@ type
     account*: Account
     timestamp*: int64
 
+  ImportMnemonicResult* = ref object of ClientEvent
+    multiAcc*: MultiAccount
+    timestamp*: int64
+
   ListAccountsResult* = ref object of ClientEvent
     accounts*: seq[Account]
     timestamp*: int64
 
-  ImportMnemonicResult* = ref object of ClientEvent
-    multiAcc*: MultiAccount
-    timestamp*: int64
+  LoginResult* = ref object of ClientEvent
+    account*: Account
+    error*: string
+    loggedin*: bool
+
+  LogoutResult* = ref object of ClientEvent
+    error*: string
+    loggedin*: bool
 
   NetworkStatus* = ref object of ClientEvent
     online*: bool
@@ -32,8 +43,10 @@ type
 
 const clientEvents* = [
   "CreateAccountResult",
-  "ListAccountsResult",
   "ImportMnemonicResult",
+  "ListAccountsResult",
+  "LoginResult",
+  "LogoutResult",
   "NetworkStatus",
   "UserMessage"
 ]

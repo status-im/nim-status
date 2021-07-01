@@ -8,7 +8,6 @@ import
 export sqlcipher
 
 proc initializeDB*(path:string): DbConn =
-
   createDir path.parentDir()
   var runMigrations = false
   if not path.fileExists():
@@ -20,7 +19,6 @@ proc initializeDB*(path:string): DbConn =
       raise newException(SqliteError, "Failure executing migrations")
 
 proc initializeDB*(path, password: string): DbConn =
-
   createDir path.parentDir()
   var runMigrations = false
   if not path.fileExists():

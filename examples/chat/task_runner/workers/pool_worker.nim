@@ -101,7 +101,7 @@ proc stop*(self: ThreadWorker) {.async.} =
   self.chanSendToWorker.close()
   trace "pool worker stopped", pool=self.name, workerId=self.id
 
-proc pool(arg: PoolThreadArg) {.async.} =
+proc pool(arg: PoolThreadArg) {.async, raises: [Defect].} =
   let
     chanRecvFromHostOrWorker = arg.chanRecvFromHost
     chanSendToHost = arg.chanSendToHost
@@ -197,7 +197,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
                 error "pool received unknown notification from worker", notice,
                   pool, workerId
 
-            except Exception as e:
+            except CatchableError as e:
               error "exception raised while handling pool worker notification",
                 error=e.msg, notification=message, pool
 
@@ -205,8 +205,8 @@ proc pool(arg: PoolThreadArg) {.async.} =
             trace "pool received message", message, pool
             shouldSendToWorker = true
 
-      except:
-        error "pool received unknown message", message, pool
+      except CatchableError as e:
+        error "pool received unknown message", error=e.msg, message, pool
 
       if (not shouldSendToWorker) and taskQueue.len > 0 and
          workersBusy.len < poolSize:
@@ -247,7 +247,7 @@ proc pool(arg: PoolThreadArg) {.async.} =
 proc poolThread(arg: PoolThreadArg) {.thread.} =
   waitFor pool(arg)
 
-proc worker(arg: WorkerThreadArg) {.async.} =
+proc worker(arg: WorkerThreadArg) {.async, raises: [Defect].} =
   let
     awaitTasks = arg.awaitTasks
     chanRecvFromHost = arg.chanRecvFromHost
@@ -278,22 +278,30 @@ proc worker(arg: WorkerThreadArg) {.async.} =
       break
 
     if running[].load():
+      var
+        msgerr = false
+        parsed: JsonNode
+        task: Task
+        taskName: string
+
       try:
-        let
-          parsed = parseJson(message)
-          task = cast[Task](parsed{"task"}.getInt)
-          taskName = parsed{"taskName"}.getStr
+        parsed = parseJson(message)
+        task = cast[Task](parsed{"task"}.getInt)
+        taskName = parsed{"taskName"}.getStr
 
         trace "pool worker received message", message, pool, workerId
         trace "pool worker running task", pool, task=taskName, workerId
 
+      except CatchableError as e:
+        msgerr = true
+        error "pool worker received unknown message", error=e.msg, message,
+          pool, workerId
+
+      if not msgerr:
         if awaitTasks:
           await task(message)
         else:
           asyncSpawn task(message)
-
-      except:
-        error "pool worker received unknown message", message, pool, workerId
 
       let
         notice = "done"
