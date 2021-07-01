@@ -5,7 +5,8 @@ import # chat libs
   ./events, ./waku_chat2
 
 import # nim-status libs
-  ../../nim_status/[account, alias, accounts, client, identicon, multiaccount]
+  ../../nim_status/[account, alias, accounts, client, database, identicon,
+                    multiaccount]
 
 export events
 
@@ -80,8 +81,8 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
 
 proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   let
-    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
-    multiAccounts = status.multiAccountGenerateAndDeriveAddresses(12, 1, password,
+    paths = cast[seq[KeyPath]](@[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET])
+    multiAccounts = status.multiAccountGenerateAndDeriveAccounts(12, 1, password,
       paths)
     multiAccount = multiAccounts[0]
     dir = status.dataDir / "keystore"
@@ -104,6 +105,38 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
 
   let
     event = CreateAccountResult(account: account, timestamp: timestamp)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.task(kind=no_rts, stoppable=false).} =
+  let
+    paths = cast[seq[KeyPath]](@[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET])
+    multiAccount = importMnemonicAndDeriveAccounts(Mnemonic mnemonic, passphrase, paths)
+    dir = status.dataDir / "keystore"
+
+  dir.createDir()
+  status.multiAccountStoreDerivedAccounts(multiAccount, password, dir)
+
+  let
+    timestamp = epochTime().int64
+    whisperAcct = multiAccount.accounts[2]
+    account = accounts.Account(
+      name: whisperAcct.publicKey.generateAlias(),
+      identicon: whisperAcct.publicKey.identicon(),
+      keycardPairing: "",
+      keyUid: whisperAcct.keyUid # whisper key-uid
+    )
+
+  status.saveAccount(account)
+
+  let userDB = initializeDB(status.dataDir / account.keyUid & ".db", password)
+  userDB.close()
+
+  let
+    event = ImportMnemonicResult(multiAcc: multiAccount, timestamp: timestamp)
     eventEnc = event.encode
     task = taskArg.taskName
 

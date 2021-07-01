@@ -54,5 +54,8 @@ proc logout*(self: ChatClient) {.async.} =
 proc generateMultiAccount*(self: ChatClient, password: string) {.async.} =
   asyncSpawn generateMultiAccount(self.taskRunner, status, password)
 
+proc importMnemonic*(self: ChatClient, mnemonic: string, passphrase: string, password: string) {.async.} =
+  asyncSpawn importMnemonic(self.taskRunner, status, mnemonic, passphrase, password)
+
 proc sendMessage*(self: ChatClient, message: string) {.async.} =
   asyncSpawn publishWakuChat2(self.taskRunner, status, message)

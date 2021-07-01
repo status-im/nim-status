@@ -1,33 +1,55 @@
 import
-  std/[parseutils, strutils],
+  std/[parseutils, strformat, strutils],
   normalize,
   secp256k1,
   stew/[results, byteutils],
   nimcrypto/[sha2, pbkdf2, hash, hmac],
+  json_serialization,
   account/[types, paths],
+  alias,
   eth/keys
 
 export KeySeed, Mnemonic, SecretKeyResult, KeyPath
+
+const masterSecret* = "Bitcoin seed"
 
 type Account* = ref object
   keyUid*: string
   address*: string
   publicKey*: string
   privateKey*: string
-  path*: string
+  # TODO remove {.dontSerialize.}
+  path* {.dontSerialize.}: KeyPath
 
 proc `$`*(acc: Account): string =
   echo "Account begin"
   echo "Addr: ", acc.address
   echo "PrivateKey: ", acc.privateKey
   echo "PublicKey: ", acc.publicKey
-  echo "Path: ", acc.path
+  echo "Path: ", cast[string](acc.path)
   echo "Account end"
 
+proc toDisplayString*(account: Account): string =
+  let name = account.publicKey.generateAlias()
+  fmt"{name} ({account.keyUid})"
 
 proc getSeed*(mnemonic: Mnemonic, password: KeystorePass = ""): KeySeed =
   let salt = toNFKD("mnemonic" & password)
   KeySeed sha512.pbkdf2(mnemonic.string, salt, 2048, 64)
+
+proc splitHMAC*(seed: string, salt: string): ExtendedPrivKeyResult =
+  let hmacResult = sha512.hmac(masterSecret, cast[seq[byte]](seed))
+  let secretKey = hmacResult.data[0..31]
+  let chainCode = hmacResult.data[32..63]
+  let sk = SkSecretKey.fromRaw(secretKey)
+  if sk.isErr(): return err("Invalid secret key")
+
+  var extPrivK = ExtendedPrivKey(
+    secretKey: sk.get(),
+    chainCode: chainCode
+  )
+
+  return ok(extPrivK)
 
 proc child(self: ExtendedPrivKey, child: PathLevel): ExtendedPrivKeyResult =
   var hctx: HMAC[sha512]
@@ -56,16 +78,7 @@ proc child(self: ExtendedPrivKey, child: PathLevel): ExtendedPrivKeyResult =
   err($sk.error())
 
 proc derive*(seed: Keyseed, path: KeyPath): SecretKeyResult =
-  let hmacResult = sha512.hmac("Bitcoin seed", seq[byte] seed)
-  let secretKey = hmacResult.data[0..31]
-  let chainCode = hmacResult.data[32..63]
-  let sk = SkSecretKey.fromRaw(secretKey)
-  if sk.isErr(): return err("Invalid secret key")
-
-  var extPrivK = ExtendedPrivKey(
-    secretKey: sk.get(),
-    chainCode: chainCode
-  )
+  var extPrivK = splitHMAC(cast[string](seed), masterSecret).get()
 
   for child in path.pathNodes:
     if child.isErr(): return err(child.error().cstring)

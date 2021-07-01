@@ -5,6 +5,7 @@ import sequtils
 import stew/bitseqs
 import nimcrypto/sysrand as sysrand
 import nimcrypto/sha2 as sha2
+import account/types
 
 type 
   EntropyStrength = distinct uint
@@ -46,7 +47,7 @@ proc getBits*(byteStr: string): BitSeq =
 
 
 # MnemonicPhrase returns a human readable seed for BIP32 Hierarchical Deterministic Wallets
-proc mnemonicPhrase*(strength: int, language: Language): string =
+proc mnemonicPhrase*(strength: int, language: Language): Mnemonic =
   # The mnemonic must encode entropy in a multiple of 32 bits.
   # With more entropy security is improved but the sentence length increases.
   # We refer to the initial entropy length as ENT. The recommended size of ENT is 128-256 bits.
@@ -84,5 +85,5 @@ proc mnemonicPhrase*(strength: int, language: Language): string =
     wordSeparator = "　"
 
 
-  return words.join(wordSeparator)
+  return Mnemonic words.join(wordSeparator)
 
