@@ -16,8 +16,8 @@ procSuite "mnemonic":
 
     echo "BitSeq: ", s
 
-    let mnemonic = mnemonicPhrase(128, Language.English)
+    let mnemonic = mnemonicPhrase(128, Language.English).string
     echo "phrase:"
     echo mnemonic
-    
+
     assert mnemonic.split(" ").len == 12
