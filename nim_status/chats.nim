@@ -63,17 +63,17 @@ type
     invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
     muted* {.serializedFieldName($ChatType.Muted), dbColumnName($ChatCol.Muted).}: bool
 
-proc getChats*(db: DbConn): seq[Chat] = 
+proc getChats*(db: DbConn): seq[Chat] =
   let query = """SELECT * from chats"""
 
   result = db.all(Chat, query)
 
-proc getChatById*(db: DbConn, id: string): Option[Chat] = 
+proc getChatById*(db: DbConn, id: string): Option[Chat] =
   let query = """SELECT * from chats where id = ?"""
-  
+
   result = db.one(Chat, query, id)
 
-proc saveChat*(db: DbConn, chat: Chat) = 
+proc saveChat*(db: DbConn, chat: Chat) =
   let query = fmt"""INSERT INTO chats(
     {$ChatCol.Id},
     {$ChatCol.Name},
@@ -91,9 +91,9 @@ proc saveChat*(db: DbConn, chat: Chat) =
     {$ChatCol.Profile},
     {$ChatCol.InvitationAdmin},
     {$ChatCol.Muted})
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) 
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   """
-  db.exec(query, 
+  db.exec(query,
     chat.id,
     chat.name,
     chat.color,
@@ -146,8 +146,8 @@ proc blockContact*(db: DbConn, contact: Contact): seq[Chat] =
 
   # Recalculate denormalized fields
   query = fmt"""UPDATE chats
-    SET unviewed_message_count = (SELECT COUNT(1) 
-                                  FROM user_messages WHERE seen = 0 
+    SET unviewed_message_count = (SELECT COUNT(1)
+                                  FROM user_messages WHERE seen = 0
                                   AND local_chat_id = chats.id)"""
   db.exec(query)
 
@@ -167,6 +167,6 @@ proc blockContact*(db: DbConn, contact: Contact): seq[Chat] =
       let encodedMessage = $$lastMessage
       query = fmt"""UPDATE chats SET last_message = ? WHERE id = ?"""
       db.exec(query, encodedMessage, c.id)
-      c.lastMessage = some(cast[seq[byte]](encodedMessage))
+      c.lastMessage = some(encodedMessage.toBytes())
 
   chats

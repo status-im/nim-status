@@ -7,7 +7,7 @@ import nimcrypto/sysrand as sysrand
 import nimcrypto/sha2 as sha2
 import account/types
 
-type 
+type
   EntropyStrength = distinct uint
   BitSeq = seq[byte]
   Language* = enum
@@ -17,7 +17,7 @@ proc `$`*(s: BitSeq): string =
   var str: string
   for b in s:
     str.add(if b == 1: '1' else: '0')
-  
+
   return str
 
 
@@ -25,7 +25,7 @@ proc `$`*(s: BitSeq): string =
 proc getBits*(b: byte): BitSeq =
   var s = newSeq[byte]()
   for i in 0..7:
-    let bit = cast[byte]((b shr i) and 1)
+    let bit = (b shr i) and 1
     s.insert(bit, 0)
 
   return s
@@ -40,7 +40,7 @@ proc getBits*(byteSeq: seq[byte]): BitSeq =
 proc getBits*(byteStr: string): BitSeq =
   var s: BitSeq
   for b in byteStr:
-    let bits = getBits(cast[byte](b))
+    let bits = getBits(b.byte)
     s = concat(s, bits)
 
   return s
@@ -86,4 +86,3 @@ proc mnemonicPhrase*(strength: int, language: Language): Mnemonic =
 
 
   return Mnemonic words.join(wordSeparator)
-

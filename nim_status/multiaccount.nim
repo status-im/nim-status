@@ -63,7 +63,7 @@ proc deriveAccounts*(multiAcc: MultiAccount, paths: seq[KeyPath]): seq[Account] 
   var accounts: seq[Account]
   for p in paths:
     let skResult = derive(multiAcc.keySeed, p)
-    var acc = buildAccount(cast[PrivateKey](skResult.get()))
+    var acc = buildAccount(PrivateKey(skResult.get()))
     acc.path = p
     accounts.add(acc)
   return accounts
@@ -71,7 +71,7 @@ proc deriveAccounts*(multiAcc: MultiAccount, paths: seq[KeyPath]): seq[Account] 
 proc importMnemonic*(mnemonicPhrase: Mnemonic, bip39Passphrase: string): MultiAccount =
   let seed = getSeed(Mnemonic mnemonicPhrase, bip39Passphrase)
   # Ensure seed is within expected limits
-  let lseed = len(cast[seq[byte]](seed))
+  let lseed = openArray[byte](seed).len
   if lseed < MIN_SEED_BYTES or lseed > MAX_SEED_BYTES:
     return MultiAccount()
 

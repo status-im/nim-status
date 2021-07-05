@@ -5,15 +5,15 @@ type
   Mnemonic* = distinct string
 
   KeySeed* = distinct seq[byte]
-  
+
   KeystorePass* = string
-  
+
   KeyPath* = distinct string
-  
+
   PathLevel* = distinct uint32
-  
+
   PathLevelResult* = Result[PathLevel, string]
-  
+
   ExtendedPrivKey* = object
     secretKey*: SkSecretKey
     chainCode*: seq[byte]

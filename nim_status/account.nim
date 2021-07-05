@@ -26,7 +26,7 @@ proc `$`*(acc: Account): string =
   echo "Addr: ", acc.address
   echo "PrivateKey: ", acc.privateKey
   echo "PublicKey: ", acc.publicKey
-  echo "Path: ", cast[string](acc.path)
+  echo "Path: ", acc.path.string
   echo "Account end"
 
 proc toDisplayString*(account: Account): string =
@@ -38,7 +38,7 @@ proc getSeed*(mnemonic: Mnemonic, password: KeystorePass = ""): KeySeed =
   KeySeed sha512.pbkdf2(mnemonic.string, salt, 2048, 64)
 
 proc splitHMAC*(seed: string, salt: string): ExtendedPrivKeyResult =
-  let hmacResult = sha512.hmac(masterSecret, cast[seq[byte]](seed))
+  let hmacResult = sha512.hmac(masterSecret, seed.toBytes())
   let secretKey = hmacResult.data[0..31]
   let chainCode = hmacResult.data[32..63]
   let sk = SkSecretKey.fromRaw(secretKey)
@@ -78,7 +78,7 @@ proc child(self: ExtendedPrivKey, child: PathLevel): ExtendedPrivKeyResult =
   err($sk.error())
 
 proc derive*(seed: Keyseed, path: KeyPath): SecretKeyResult =
-  var extPrivK = splitHMAC(cast[string](seed), masterSecret).get()
+  var extPrivK = splitHMAC(string.fromBytes(openArray[byte](seed)), masterSecret).get()
 
   for child in path.pathNodes:
     if child.isErr(): return err(child.error().cstring)
