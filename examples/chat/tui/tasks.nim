@@ -1,3 +1,6 @@
+import # vendor libs
+  stew/byteutils
+
 import # chat libs
   ./common
 
@@ -66,7 +69,7 @@ proc readInput*() {.task(kind=no_rts, stoppable=false).} =
         bytes.add input.byte
 
         if bytes.len == expected:
-          let event = InputString(str: cast[string](bytes))
+          let event = InputString(str: string.fromBytes(bytes))
           eventEnc = event.encode
           shouldSend = true
           bytes = @[]

@@ -81,7 +81,7 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
 
 proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   let
-    paths = cast[seq[KeyPath]](@[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET])
+    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
     multiAccounts = status.multiAccountGenerateAndDeriveAccounts(12, 1, password,
       paths)
     multiAccount = multiAccounts[0]
@@ -113,7 +113,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
 
 proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.task(kind=no_rts, stoppable=false).} =
   let
-    paths = cast[seq[KeyPath]](@[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET])
+    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
     multiAccount = importMnemonicAndDeriveAccounts(Mnemonic mnemonic, passphrase, paths)
     dir = status.dataDir / "keystore"
 
@@ -231,8 +231,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
         let error = decoded.error
         error "received invalid WakuMessage", error
 
-    let topic = cast[waku_chat2.Topic](waku_chat2.DefaultTopic)
-    wakuNode.subscribe(topic, handler)
+    wakuNode.subscribe(DefaultTopic, handler)
 
     subscribed = true
 
@@ -271,4 +270,4 @@ proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
     wakuMessage = WakuMessage(payload: chat2pb.buffer,
       contentTopic: contentTopic, version: 0)
 
-  asyncSpawn wakuNode.publish(waku_chat2.DefaultTopic, wakuMessage)
+  asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage)
