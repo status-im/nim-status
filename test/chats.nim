@@ -2,7 +2,8 @@ import # nim libs
   json, options, os, unittest
 
 import # vendor libs
-  chronos, json_serialization, sqlcipher, web3/conversions as web3_conversions
+  chronos, json_serialization, sqlcipher, stew/byteutils,
+  web3/conversions as web3_conversions
 
 import # nim-status libs
   ../nim_status/[chats, contacts, conversions, database, messages],
@@ -24,12 +25,12 @@ procSuite "chats":
       active: true,
       timestamp: 25,
       deletedAtClockValue: 15,
-      publicKey: cast[seq[byte]]("public-key"),
+      publicKey: "public-key".toBytes(),
       unviewedMessageCount: 3,
       lastClockValue: 18,
-      lastMessage: some(cast[seq[byte]]("lastMessage")),
-      members: cast[seq[byte]]("members"),
-      membershipUpdates: cast[seq[byte]]("membershipUpdates"),
+      lastMessage: some("lastMessage".toBytes()),
+      members: "members".toBytes(),
+      membershipUpdates: "membershipUpdates".toBytes(),
       profile: "profile",
       invitationAdmin: "invitationAdmin",
       muted: false,
@@ -51,7 +52,7 @@ procSuite "chats":
 
     check:
       dbChat.active == true and
-        dbChat.publicKey == cast[seq[byte]]("public-key") and
+        dbChat.publicKey == "public-key".toBytes() and
         dbChat.unviewedMessageCount == 3
 
     # [mute/unmute]Chat
@@ -91,7 +92,7 @@ procSuite "chats":
       id: "msg1",
       whisperTimestamp: 0,
       source: "ContactId",
-      destination: cast[seq[byte]]("default_destination"),
+      destination: "default_destination".toBytes(),
       text: "text",
       contentType: 0,
       username: "user1",
@@ -104,8 +105,8 @@ procSuite "chats":
       clockValue: 0,
       seen: false,
       outgoingStatus: "Delivered",
-      parsedText: cast[seq[byte]]("parsed"),
-      rawPayload: cast[seq[byte]]("raw"),
+      parsedText: "parsed".toBytes(),
+      rawPayload: "raw".toBytes(),
       stickerPack: 0,
       stickerHash: "hash",
       commandId: "command1",
@@ -114,9 +115,9 @@ procSuite "chats":
       commandFrom: "commandFrom",
       commandContract: "commandContract",
       commandTransactionHash: "commandTransactionHash",
-      commandSignature: cast[seq[byte]]("commandSignature"),
+      commandSignature: "commandSignature".toBytes(),
       commandState: 3,
-      audioPayload: cast[seq[byte]]("audioPayload"),
+      audioPayload: "audioPayload".toBytes(),
       audioType: 0,
       audioDurationMs: 10,
       audioBase64: "sdf",
@@ -125,7 +126,7 @@ procSuite "chats":
       lineCount: 5,
       links: "links",
       mentions: "mentions",
-      imagePayload: cast[seq[byte]]("blob"),
+      imagePayload: "blob".toBytes(),
       imageType: "type",
       imageBase64: "sdfsdfsdf"
     )
