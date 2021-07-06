@@ -11,13 +11,13 @@ import # nim-status libs
 
 
 const
-    PATH_WALLET_ROOT* = "m/44'/60'/0'/0"
-    PATH_EIP_1581* = "m/43'/60'/1581'"
+    PATH_WALLET_ROOT* = KeyPath("m/44'/60'/0'/0")
+    PATH_EIP_1581* = KeyPath("m/43'/60'/1581'")
       # EIP1581 Root Key, the extended key from which any whisper key/encryption
       # key can be derived
-    PATH_DEFAULT_WALLET* = PATH_WALLET_ROOT & "/0"
+    PATH_DEFAULT_WALLET* = KeyPath(PATH_WALLET_ROOT.string & "/0")
       # BIP44-0 Wallet key, the default wallet key
-    PATH_WHISPER* = PATH_EIP_1581 & "/0'/0"
+    PATH_WHISPER* = KeyPath(PATH_EIP_1581.string & "/0'/0")
       # EIP1581 Chat Key 0, the default whisper key
     MIN_SEED_BYTES = 16 # 128 bits
       # MinSeedBytes is the minimum number of bytes allowed for a seed to a master node.
