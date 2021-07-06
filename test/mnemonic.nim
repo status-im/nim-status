@@ -11,7 +11,7 @@ import # nim-status libs
 
 procSuite "mnemonic":
   test "mnemonic":
-    let b: byte = cast[byte]('d')
+    let b = 'd'.byte
     let s = getBits b
 
     echo "BitSeq: ", s

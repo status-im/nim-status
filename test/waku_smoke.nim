@@ -2,7 +2,7 @@ import # nim libs
   unittest
 
 import # vendor libs
-  chronicles, chronos, confutils, stew/results,
+  chronicles, chronos, confutils, stew/[byteutils, results],
   waku/v2/node/[config, wakunode2], waku/v2/protocol/waku_message
 
 import # nim-status libs
@@ -18,11 +18,11 @@ procSuite "waku_smoke":
     let
       futures = [newFuture[int](), newFuture[int]()]
       cTopic = "test"
-      message1 = WakuMessage(payload: cast[seq[byte]]("hello"),
+      message1 = WakuMessage(payload: "hello".toBytes(),
         contentTopic: ContentTopic(cTopic))
-      message2 = WakuMessage(payload: cast[seq[byte]]("world"),
+      message2 = WakuMessage(payload: "world".toBytes(),
         contentTopic: ContentTopic(cTopic))
-      done = WakuMessage(payload: cast[seq[byte]]("test done"),
+      done = WakuMessage(payload: "test done".toBytes(),
         contentTopic: ContentTopic(cTopic))
       timeout = 5.minutes
       topic = "testing"
@@ -34,7 +34,7 @@ procSuite "waku_smoke":
     proc handler(topic: Topic, data: seq[byte]) {.async.} =
       let
         message = WakuMessage.init(data).value
-        payload = cast[string](message.payload)
+        payload = string.fromBytes(message.payload)
       info "message received", topic=topic, payload=payload,
         contentTopic=message.contentTopic
       if payload == "hello":
