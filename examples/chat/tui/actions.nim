@@ -1,5 +1,5 @@
 import # std libs
-  std/strformat
+  std/[strformat, strutils]
 
 import # nim-status libs
   ../../../nim_status/[accounts, alias, multiaccount]
