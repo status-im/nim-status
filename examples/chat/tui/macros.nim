@@ -2,7 +2,7 @@ import # std libs
   std/macros
 
 import # chat libs
-  ./common
+  ./common, ../client/common as client_common
 
 export common
 
@@ -103,3 +103,18 @@ macro commandSplitCases*(): untyped =
     casenode.add(ofbranch)
 
   result.add(casenode)
+
+macro buildCommandHelp*(): untyped =
+  result = newStmtList()
+
+  let helpId = ident("_help_")
+  result.add quote do:
+    var `helpId`: seq[HelpText] = @[]
+
+  for command in commands:
+    let
+      commandType = ident(command)
+    result.add(quote do: `helpId`.add(`commandType`.help()))
+
+  result.add quote do: 
+    `helpId`

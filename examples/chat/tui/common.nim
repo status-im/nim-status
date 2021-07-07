@@ -43,6 +43,10 @@ type
 
   Connect* = ref object of Command
 
+  CommandParameter* = ref object of RootObj
+    name*: string
+    description*: string
+
   CreateAccount* = ref object of Command
     password*: string
 
@@ -50,6 +54,12 @@ type
 
   Help* = ref object of Command
     command*: string
+
+  HelpText* = ref object of RootObj
+    command*: string
+    parameters*: seq[CommandParameter]
+    aliases*: seq[string]
+    description*: string
 
   ImportMnemonic* = ref object of Command
     mnemonic*: string
@@ -84,8 +94,8 @@ const
     "createaccount": "CreateAccount",
     "disconnect": "Disconnect",
     "help": "Help",
-    "listaccounts": "ListAccounts",
     "importmnemonic": "ImportMnemonic",
+    "listaccounts": "ListAccounts",
     "login": "Login",
     "logout": "Logout",
     "quit": "Quit"
