@@ -141,7 +141,8 @@ proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
       account = parseInt(command.account)
       password = command.password
 
-    asyncSpawn self.client.login(account, password)
+    self.showModal("Enter password:")
+    # asyncSpawn self.client.login(account, password)
   except:
     self.wprintFormatError(epochTime().int64, "invalid login arguments.")
 

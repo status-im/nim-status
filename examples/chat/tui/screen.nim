@@ -93,6 +93,34 @@ proc drawInputWin*(self: ChatTUI) =
   self.inputWin = subwin(self.inputWinBox, ((LINES.float64 * 0.2).int - 3).cint,
     COLS - 2, ((LINES.float64 * 0.8).int + 2).cint, 1)
 
+proc drawModalWin*(self: ChatTUI) =
+  # create subwindow for the input box
+  self.modalWinBox = subwin(self.mainWin,
+    ((LINES.float64 * 0.333).int - 1).cint,
+    (COLS.float64 * 0.333).cint,
+    ((LINES.float64 * 0.333).int + 1).cint,
+    (COLS.float64 * 0.333).cint)
+  box(self.modalWinBox, 0, 0)
+
+  # draw subwindow
+  # Must call `touchwin` before calling `subwin`
+  # See https://invisible-island.net/ncurses/man/curs_window.3x.html#h3-subwin
+  # for more info.
+  touchwin(self.mainWin)
+  wrefresh(self.modalWinBox)
+
+  # create sub subwindow to hold input text
+  self.modalWin = subwin(self.modalWinBox,
+    ((LINES.float64 * 0.333).int - 3).cint,
+    ((COLS.float64 * 0.333).int - 2).cint,
+    ((LINES.float64 * 0.333).int + 2).cint,
+    ((COLS.float64 * 0.333).int + 1).cint)
+  # Must call `touchwin` before calling `subwin`
+  # See https://invisible-island.net/ncurses/man/curs_window.3x.html#h3-subwin
+  # for more info.
+  touchwin(self.modalWinBox)
+  wrefresh(self.modalWin)
+
 proc drawTermTooSmall*(self: ChatTUI) =
   wbkgd(self.mainWin, COLOR_PAIR(8).chtype)
   wattron(self.mainWin, A_BOLD.cint)
@@ -295,6 +323,25 @@ proc printResult*(self: ChatTUI, message: string, timestamp: int64) =
   wrefresh(inputWin)
 
   trace "TUI printed in message window", message
+
+proc showModal*(self: ChatTUI, message: string) =
+  self.drawModalWin()
+
+  # must move cursor to the window before writing to it
+  wcursyncup(self.modalWin)
+  
+  # print message
+  wattron(self.modalWin, COLOR_PAIR(1).cint)
+  wprintw(self.modalWin, fmt("{message}\n"))
+  wattroff(self.modalWin, COLOR_PAIR(1).cint)
+
+  wrefresh(self.modalWin)
+
+  self.isModalShown = true
+
+proc hideModal*(self: ChatTUI) =
+  self.resizeScreen()
+  self.isModalShown = false
 
 proc wprintFormatNotice(self: ChatTUI, win: PWindow, timestamp: int64, notice: string) =
   discard

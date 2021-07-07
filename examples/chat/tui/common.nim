@@ -19,8 +19,11 @@ type
     inputReady*: bool
     inputWin*: PWindow
     inputWinBox*: PWindow
+    isModalShown*: bool
     locale*: string
     mainWin*: PWindow
+    modalWin*: PWindow
+    modalWinBox*: PWindow
     mouse*: bool
     outputReady*: bool
     running*: bool
