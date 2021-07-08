@@ -103,7 +103,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
   let
     timestamp = epochTime().int64
     whisperAcct = multiAccount.accounts[2]
-    account = accounts.Account(
+    account = PublicAccount(
       creationTimestamp: timestamp.int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
@@ -136,7 +136,7 @@ proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.t
   let
     timestamp = epochTime().int64
     whisperAcct = multiAccount.accounts[2]
-    account = accounts.Account(
+    account = PublicAccount(
       creationTimestamp: timestamp.int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
@@ -178,7 +178,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
   var
     event: LoginResult
     eventEnc: string
-    numberedAccount: accounts.Account
+    numberedAccount: PublicAccount
     keyUid: string
 
   if account < 1 or account > allAccounts.len:

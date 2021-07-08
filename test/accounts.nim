@@ -16,7 +16,7 @@ procSuite "accounts":
 
     let timestamp1 = epochTime().int
 
-    var account:Account = Account(
+    var account:PublicAccount = PublicAccount(
       creationTimestamp: timestamp1,
       name: "Test",
       identicon: "data:image/png;base64,something",

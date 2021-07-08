@@ -15,7 +15,7 @@ procSuite "client":
 
     let statusObj = StatusObject.new(dataDir)
 
-    var account:Account = Account(
+    var account:PublicAccount = PublicAccount(
       name: "Test",
       loginTimestamp: 1.some,
       identicon: "data:image/png;base64,something",

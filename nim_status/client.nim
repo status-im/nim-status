@@ -29,10 +29,10 @@ proc new*(T: type StatusObject, dataDir: string,
   T(accountsDB: initializeDB(dataDir / accountsDbFileName),
     dataDir: dataDir)
 
-proc getAccounts*(self: StatusObject): seq[accounts.Account] =
+proc getAccounts*(self: StatusObject): seq[PublicAccount] =
   getAccounts(self.accountsDB)
 
-proc saveAccount*(self: StatusObject, account: accounts.Account) =
+proc saveAccount*(self: StatusObject, account: PublicAccount) =
   saveAccount(self.accountsDB, account)
 
 proc updateAccountTimestamp*(self: StatusObject, timestamp: int64, keyUid: string) =
@@ -68,7 +68,7 @@ proc multiAccountStoreDerivedAccounts*(self: StatusObject,
   storeDerivedAccounts(multiAcc, password, dir)
 
 proc loadAccount*(self: StatusObject, address: string, password: string,
-  dir: string = ""): multiaccount.Account =
+  dir: string = ""): Account =
 
   return loadAccount(address, password, dir)
 

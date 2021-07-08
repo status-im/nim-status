@@ -57,7 +57,7 @@ import # nim-status libs
 #   removeFile(path)
 
 type
-  Account* {.dbTableName("accounts").} = object
+  PublicAccount* {.dbTableName("accounts").} = object
     creationTimestamp* {.serializedFieldName("creationTimestamp"), dbColumnName("creationTimestamp").}: int
     name* {.serializedFieldName("name"), dbColumnName("name").}: string
     identicon* {.serializedFieldName("identicon"), dbColumnName("identicon").}: string
@@ -66,14 +66,14 @@ type
     loginTimestamp* {.serializedFieldName("loginTimestamp"), dbColumnName("loginTimestamp").}: Option[int]
 
 proc deleteAccount*(db: DbConn, keyUid: string) =
-  var tblAccounts: Account
+  var tblAccounts: PublicAccount
   let query = fmt"""DELETE FROM {tblAccounts.tableName}
                     WHERE       {tblAccounts.keyUid.columnName} = ?"""
 
   db.exec(query, keyUid)
 
-proc getAccounts*(db: DbConn): seq[Account] =
-  var tblAccounts: Account
+proc getAccounts*(db: DbConn): seq[PublicAccount] =
+  var tblAccounts: PublicAccount
   let query = fmt"""SELECT    {tblAccounts.creationTimestamp.columnName},
                               {tblAccounts.name.columnName},
                               {tblAccounts.loginTimestamp.columnName},
@@ -82,10 +82,10 @@ proc getAccounts*(db: DbConn): seq[Account] =
                               {tblAccounts.keyUid.columnName}
                     FROM      {tblAccounts.tableName}
                     ORDER BY  {tblAccounts.creationTimestamp.columnName} ASC"""
-  result = db.all(Account, query)
+  result = db.all(PublicAccount, query)
 
-proc saveAccount*(db: DbConn, account: Account) =
-  var tblAccounts: Account
+proc saveAccount*(db: DbConn, account: PublicAccount) =
+  var tblAccounts: PublicAccount
   let query = fmt"""
     INSERT OR REPLACE INTO  {tblAccounts.tableName} (
                             {tblAccounts.creationTimestamp.columnName},
@@ -98,11 +98,11 @@ proc saveAccount*(db: DbConn, account: Account) =
 
   db.exec(query, account.creationTimestamp, account.name, account.identicon, account.keycardPairing, account.keyUid)#, account.loginTimestamp)
 
-proc toDisplayString*(account: Account): string =
+proc toDisplayString*(account: PublicAccount): string =
   fmt"{account.name} ({account.keyUid})"
 
-proc updateAccount*(db: DbConn, account: Account) =
-  var tblAccounts: Account
+proc updateAccount*(db: DbConn, account: PublicAccount) =
+  var tblAccounts: PublicAccount
   let query = fmt"""UPDATE  {tblAccounts.tableName}
                     SET     {tblAccounts.creationTimestamp.columnName} = ?,
                             {tblAccounts.name.columnName} = ?,
@@ -114,7 +114,7 @@ proc updateAccount*(db: DbConn, account: Account) =
   db.exec(query, account.creationTimestamp, account.name, account.identicon, account.keycardPairing, account.loginTimestamp, account.keyUid)
 
 proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string) =
-  var tblAccounts: Account
+  var tblAccounts: PublicAccount
   let query = fmt"""UPDATE  {tblAccounts.tableName}
                     SET     {tblAccounts.loginTimestamp.columnName} = ?
                     WHERE   {tblAccounts.keyUid.columnName} = ?"""
