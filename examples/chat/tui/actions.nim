@@ -2,7 +2,7 @@ import # std libs
   std/[strformat, strutils]
 
 import # nim-status libs
-  ../../../nim_status/[accounts, alias, multiaccount]
+  ../../../nim_status/[accounts, alias]
 
 import # chat libs
   ./parser

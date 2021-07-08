@@ -7,12 +7,12 @@ import # vendor libs
   sqlcipher
 
 import # nim-status libs
-  ./account,
-  ./account/types,
+  ./extkeys/types,
   ./accounts,
   ./chats,
   ./config,
   ./database,
+  ./account/generator/generator,
   ./migrations/sql_scripts_accounts as acc_migration,
   ./migrations/sql_scripts_app as app_migration,
   ./multiaccount,
@@ -68,7 +68,7 @@ proc multiAccountStoreDerivedAccounts*(self: StatusObject,
   storeDerivedAccounts(multiAcc, password, dir)
 
 proc loadAccount*(self: StatusObject, address: string, password: string,
-  dir: string = ""): account.Account =
+  dir: string = ""): multiaccount.Account =
 
   return loadAccount(address, password, dir)
 

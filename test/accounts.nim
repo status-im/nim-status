@@ -6,7 +6,6 @@ import # vendor libs
 
 import # nim-status libs
   ../nim_status/[accounts, database, conversions],
-  ../nim_status/migrations/sql_scripts_accounts,
   ./test_helpers
 
 procSuite "accounts":

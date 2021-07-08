@@ -13,7 +13,7 @@ type
   ClientEvent* = ref object of Event
 
   CreateAccountResult* = ref object of ClientEvent
-    account*: Account
+    account*: accounts.Account
     timestamp*: int64
 
   ImportMnemonicResult* = ref object of ClientEvent
@@ -21,11 +21,11 @@ type
     timestamp*: int64
 
   ListAccountsResult* = ref object of ClientEvent
-    accounts*: seq[Account]
+    accounts*: seq[accounts.Account]
     timestamp*: int64
 
   LoginResult* = ref object of ClientEvent
-    account*: Account
+    account*: accounts.Account
     error*: string
     loggedin*: bool
 

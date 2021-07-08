@@ -2,7 +2,7 @@ import # std libs
   std/[os, strutils]
 
 import # nim-status libs
-  ../../nim_status/[account, accounts, alias, client, database, identicon,
+  ../../nim_status/[accounts, alias, client, database, extkeys/paths, identicon,
                     multiaccount]
 
 import # chat libs
@@ -127,7 +127,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
 proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.task(kind=no_rts, stoppable=false).} =
   let
     paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
-    multiAccount = importMnemonicAndDeriveAccounts(Mnemonic mnemonic, passphrase, paths)
+    multiAccount = status.importMnemonicAndDeriveAccounts(Mnemonic mnemonic, passphrase, paths)
     dir = status.dataDir / "keystore"
 
   dir.createDir()
