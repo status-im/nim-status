@@ -66,7 +66,15 @@ type
     passphrase*: string
     password*: string
 
+  JoinTopic* = ref object of Command
+    topic*: string
+
+  LeaveTopic* = ref object of Command
+    topic*: string
+
   ListAccounts* = ref object of Command
+
+  ListTopics* = ref object of Command
 
   Login* = ref object of Command
     account*: string
@@ -95,7 +103,10 @@ const
     "disconnect": "Disconnect",
     "help": "Help",
     "importmnemonic": "ImportMnemonic",
+    "jointopic": "JoinTopic",
+    "leavetopic": "LeaveTopic",
     "listaccounts": "ListAccounts",
+    "listtopics": "ListTopics",
     "login": "Login",
     "logout": "Logout",
     "quit": "Quit"
@@ -105,8 +116,17 @@ const
     "?": "help",
     "create": "createaccount",
     "import": "importmnemonic",
+    "join": "jointopic",
+    "leave": "leavetopic",
     "list": "listaccounts",
-    "send": DEFAULT_COMMAND
+    "part": "leavetopic",
+    "send": DEFAULT_COMMAND,
+    "sub": "jointopic",
+    "subscribe": "jointopic",
+    "topics": "listtopics",
+    "unjoin": "leavetopic",
+    "unsub": "leavetopic",
+    "unsubscribe": "leavetopic"
   }.toTable
 
   aliased* = {
@@ -114,7 +134,10 @@ const
     "createaccount": @["create"],
     "importmnemonic": @["import"],
     "help": @["?"],
-    "listaccounts": @["list"]
+    "jointopic": @["join", "sub", "subscribe"],
+    "leavetopic": @["leave", "part", "unjoin", "unsub", "unsubscribe"],
+    "listaccounts": @["list"],
+    "listtopics": @["topics"]
   }.toTable
 
 proc stop*(self: ChatTUI) {.async.} =

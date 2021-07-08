@@ -1,5 +1,5 @@
 import # std libs
-  std/times
+  std/[sets, times]
 
 import # chat libs
   ../config, ../task_runner
@@ -7,7 +7,7 @@ import # chat libs
 import # nim-status libs
   ../../../nim_status/accounts
 
-export accounts, config, task_runner, times
+export accounts, config, task_runner, sets, times
 
 logScope:
   topics = "chat client"
@@ -27,6 +27,7 @@ type
     online*: bool
     running*: bool
     taskRunner*: TaskRunner
+    topics*: OrderedSet[string]
 
 const status* = "status"
 

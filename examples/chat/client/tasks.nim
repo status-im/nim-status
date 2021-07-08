@@ -1,5 +1,5 @@
 import # std libs
-  std/[os, strutils]
+  std/[os, strutils, sets, sugar]
 
 import # nim-status libs
   ../../nim_status/[account, accounts, alias, client, database, identicon,
@@ -19,22 +19,27 @@ type
 
   StatusState* = enum loggedout, loggingin, loggedin, loggingout
 
+  WakuState* = enum stopped, starting, started, stopping
+
+const DefaultTopic = waku_chat2.DefaultTopic
+
 var
   conf {.threadvar.}: ChatConfig
   connected {.threadvar.}: bool
-  contentTopic {.threadvar.}: ContentTopic
+  contentTopics {.threadvar.}: OrderedSet[ContentTopic]
   contextArg {.threadvar.}: StatusArg
+  extIp {.threadvar.}: Option[ValidIpAddress]
+  extTcpPort {.threadvar.}: Option[Port]
+  extUdpPort {.threadvar.}: Option[Port]
+  natIsSetup {.threadvar.}: bool
   nick {.threadvar.}: string
+  nodekey {.threadvar.}: waku_chat2.crypto.PrivateKey
+  nodekeyGenerated {.threadvar.}: bool
   subscribed {.threadvar.}: bool
   status {.threadvar.}: StatusObject
   statusState {.threadvar.}: StatusState
   wakuNode {.threadvar.}: WakuNode
   wakuState {.threadvar.}: WakuState
-
-when PayloadV1:
-  var
-    symKey {.threadvar.}: SymKey
-    symKeyGenerated {.threadvar.}: bool
 
 proc resetContext() {.gcsafe, nimcall.} =
   connected = false
@@ -43,13 +48,28 @@ proc resetContext() {.gcsafe, nimcall.} =
   wakuNode = nil
   wakuState = WakuState.stopped
 
-const statusContext*: Context = proc(arg: ContextArg) {.async, gcsafe, nimcall,
+proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   raises: [Defect].} =
 
-  # set threadvar values that are never reset, i.e. persist across dis/connect
+  # set threadvar values that are never reset, i.e. persist across
+  # waku chat2 dis/connect
   contextArg = cast[StatusArg](arg)
   conf = contextArg.chatConfig
-  contentTopic = conf.contentTopic
+
+  let contentTopicsStr = conf.contentTopics.strip()
+  if contentTopicsStr != "":
+    contentTopics = contentTopicsStr.split(" ").toOrderedSet()
+
+  # threadvar `natIsSetup` is a special case because the values of its
+  # counterparts `ext[Ip,TcpPort,UdpPort]` only need to be set once, i.e. they
+  # also persists across waku chat2 dis/connect; but note that
+  # `ext[Ip,TcpPort,UdpPort]` themselves are set for the first time in task
+  # `startWakuChat2` as a program startup optimization
+  natIsSetup = false
+
+  # threadvar `nodekeyGenerated` is a special case like `natIsSetup`, see
+  # previous comment
+  nodekeyGenerated = false
 
   status = StatusObject.new(conf.dataDir)
   # threadvar `statusState` is currently out of scope re: "resetting the
@@ -57,14 +77,7 @@ const statusContext*: Context = proc(arg: ContextArg) {.async, gcsafe, nimcall,
   # originally implemented in context of `startWakuChat2` and `stopWakuChat2`
   statusState = StatusState.loggedout
 
-  # threadvar `symKeyGenerated` is a special case because it depends on
-  # compile-time `PayloadV1` value and because the value of its counterpart
-  # `symKey` only needs to be set once, i.e. it also persists across
-  # dis/connect; but note that `symKey` itself is set for the first time in
-  # task `startWakuChat2` as an optimization for TUI startup time
-  when PayloadV1: symKeyGenerated = false
-
-  # re/set threadvars that don't persist across dis/connect
+  # re/set threadvars that don't persist across waku chat2 dis/connect
   resetContext()
 
 proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
@@ -84,7 +97,7 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
      # could happen if one/more clients on the same network/topic are able to
      # communicate but are using incompatible encodings for some reason
      message = string.fromBytes(wakuMessage.payload)
-     timestamp = epochTime().int64
+     timestamp = getTime().toUnix()
      username = "[unknown]"
 
   T(message: message, timestamp: timestamp, username: username)
@@ -101,7 +114,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
   status.multiAccountStoreDerivedAccounts(multiAccount, password, dir)
 
   let
-    timestamp = epochTime().int64
+    timestamp = getTime().toUnix()
     whisperAcct = multiAccount.accounts[2]
     account = accounts.Account(
       creationTimestamp: timestamp.int,
@@ -134,7 +147,7 @@ proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.t
   status.multiAccountStoreDerivedAccounts(multiAccount, password, dir)
 
   let
-    timestamp = epochTime().int64
+    timestamp = getTime().toUnix()
     whisperAcct = multiAccount.accounts[2]
     account = accounts.Account(
       creationTimestamp: timestamp.int,
@@ -157,10 +170,40 @@ proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.t
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
+proc joinTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
+  if not contentTopics.contains(topic):
+    contentTopics.incl(topic)
+    trace "joined topic", contentTopic=topic
+  else:
+    trace "topic already joined", contentTopic=topic
+
+  let
+    event = JoinTopicResult(timestamp: getTime().toUnix(), topic: topic)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
+  if contentTopics.contains(topic):
+    contentTopics.excl(topic)
+    trace "left topic", contentTopic=topic
+  else:
+    trace "topic not joined, no need to leave", contentTopic=topic
+
+  let
+    event = LeaveTopicResult(timestamp: getTime().toUnix(), topic: topic)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
 proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
   let
     accounts = status.getAccounts()
-    event = ListAccountsResult(accounts: accounts, timestamp: epochTime().int64)
+    event = ListAccountsResult(accounts: accounts, timestamp: getTime().toUnix())
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -184,10 +227,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
   if account < 1 or account > allAccounts.len:
     statusState = StatusState.loggedout
 
-    event = LoginResult(
-      error: "bad account number. List accounts using `/list`.",
-      loggedin: false)
-
+    event = LoginResult(error: "bad account number", loggedin: false)
     eventEnc = event.encode
 
   else:
@@ -255,34 +295,36 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
 
   nick = username
 
-  when PayloadV1:
-    # generate `symKey` here instead of `statusContext` to decrease startup
-    # time of `TaskRunner` instance and therefore time to first paint of TUI
-    if not symKeyGenerated:
-      symKey = generateSymKey(contentTopic)
-      symKeyGenerated = true
+  # invoke `setupNat` here instead of `statusContext` to decrease startup time
+  # of `TaskRunner` instance; doing so here also avoids e.g. possibly
+  # triggering an OS dialog re: permitting network activity until the time a
+  # waku node initially connects to the network
+  if not natIsSetup:
+    (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
+      Port(uint16(conf.tcpPort) + conf.portsShift),
+      Port(uint16(conf.udpPort) + conf.portsShift))
 
-  let (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
-    Port(uint16(conf.tcpPort) + conf.portsShift),
-    Port(uint16(conf.udpPort) + conf.portsShift))
+    natIsSetup = true
 
-  var nodekey: waku_chat2.crypto.PrivateKey
+  # generate `nodekey` here instead of `statusContext` to decrease startup
+  # time of `TaskRunner` instance and therefore time to first paint of TUI
+  if not nodekeyGenerated:
+    if $conf.nodekey == "":
+      nodekey = waku_chat2.crypto.PrivateKey.random(Secp256k1,
+        waku_chat2.keys.newRng()[]).tryGet()
+    else:
+      nodekey = waku_chat2.crypto.PrivateKey(scheme: Secp256k1,
+        skkey: SkPrivateKey.init(
+          waku_chat2.utils.fromHex($conf.nodekey)).tryGet())
 
-  if $conf.nodekey == "":
-    nodekey = waku_chat2.crypto.PrivateKey.random(Secp256k1,
-      waku_chat2.keys.newRng()[]).tryGet()
-  else:
-    nodekey = waku_chat2.crypto.PrivateKey(scheme: Secp256k1,
-      skkey: SkPrivateKey.init(
-        waku_chat2.utils.fromHex($conf.nodekey)).tryGet())
+    nodekeyGenerated = true
 
   wakuNode = WakuNode.init(nodekey, ValidIpAddress.init($conf.listenAddress),
     Port(uint16(conf.tcpPort) + conf.portsShift), extIp, extTcpPort)
 
   await wakuNode.start()
 
-  wakuNode.mountRelay(conf.topics.split(" "),
-    rlnRelayEnabled = conf.rlnRelay,
+  wakuNode.mountRelay(conf.topics.split(" "), rlnRelayEnabled = conf.rlnRelay,
     relayMessages = conf.relay)
 
   wakuNode.mountLibp2pPing()
@@ -292,34 +334,106 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
     staticnodes = conf.staticnodes
 
   if staticnodes.len > 0:
-    info "Connecting to static peers", nodes=staticnodes
+    info "connecting to static peers", nodes=staticnodes
     await wakuNode.connectToNodes(staticnodes)
 
   elif fleet != WakuFleet.none:
-    info "Static peers not configured, choosing one at random", fleet
+    info "static peers not configured, choosing one at random", fleet
     let node = await selectRandomNode($fleet)
 
-    info "Connecting to peer", node
+    info "connecting to peer", node
     await wakuNode.connectToNodes(@[node])
 
   connected = true
 
   if conf.swap: wakuNode.mountSwap()
 
+  if (conf.storenode != "") or (conf.store == true):
+    wakuNode.mountStore(persistMessages = conf.persistMessages)
+
+    var storenode: Option[string]
+
+    if conf.storenode != "":
+      storenode = some(conf.storenode)
+
+    elif conf.fleet != WakuFleet.none:
+      info "store nodes not configured, choosing one at random", fleet
+      storenode = some(await selectRandomNode($fleet))
+
+    if storenode.isSome():
+      info "connecting to storenode", storenode
+      wakuNode.wakuStore.setPeer(parsePeerInfo(storenode.get()))
+
+      proc handler(response: HistoryResponse) {.gcsafe.} =
+        let
+          wakuMessages = response.messages
+          count = wakuMessages.len
+
+        trace "handling historical messages", count
+
+        for message in wakuMessages:
+          let
+            event = UserMessage.new(message)
+            eventEnc = event.encode
+
+          trace "task sent event to host", event=eventEnc, task
+          asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+      let contentFilters = collect(newSeq):
+        for contentTopic in contentTopics:
+          HistoryContentFilter(contentTopic: contentTopic)
+
+      await wakuNode.query(HistoryQuery(contentFilters: contentFilters),
+        handler)
+
+  if conf.lightpushnode != "":
+    mountLightPush(wakuNode)
+    wakuNode.wakuLightPush.setPeer(parsePeerInfo(conf.lightpushnode))
+
+  if conf.filternode != "":
+    wakuNode.mountFilter()
+    wakuNode.wakuFilter.setPeer(parsePeerInfo(conf.filternode))
+
+    proc handler(message: WakuMessage) {.gcsafe.} =
+      trace "handling filtered message", contentTopic=message.contentTopic
+
+      let
+        event = UserMessage.new(message)
+        eventEnc = event.encode
+
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+    let contentFilters = collect(newSeq):
+      for contentTopic in contentTopics:
+        ContentFilter(contentTopic: contentTopic)
+
+    await wakuNode.subscribe(FilterRequest(contentFilters: contentFilters,
+      pubSubTopic: DefaultTopic, subscribe: true), handler)
+
   if conf.relay:
     proc handler(topic: waku_chat2.Topic, data: seq[byte]) {.async, gcsafe.} =
+      trace "handling relayed message", topic
+
       let decoded = WakuMessage.init(data)
 
       if decoded.isOk():
         let message = decoded.get()
         trace "decoded WakuMessage", message
 
-        let
-          event = UserMessage.new(message)
-          eventEnc = event.encode
+        let contentTopic = message.contentTopic
 
-        trace "task sent event to host", event=eventEnc, task
-        asyncSpawn chanSendToHost.send(eventEnc.safe)
+        if not (contentTopic in contentTopics):
+          trace "ignored message for unjoined topic", contentTopic,
+            joined=contentTopics
+
+        else:
+          let
+            event = UserMessage.new(message)
+            eventEnc = event.encode
+
+          trace "task sent event to host", event=eventEnc, task
+          asyncSpawn chanSendToHost.send(eventEnc.safe)
 
       else:
         let error = decoded.error
@@ -346,6 +460,16 @@ proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.started: return
   wakuState = WakuState.stopping
 
+  if not wakuNode.wakuFilter.isNil():
+    let contentFilters = collect(newSeq):
+      for contentTopic in contentTopics:
+        ContentFilter(contentTopic: contentTopic)
+
+    await wakuNode.unsubscribe(FilterRequest(contentFilters: contentFilters,
+      pubSubTopic: DefaultTopic, subscribe: false))
+
+  wakuNode.unsubscribeAll(DefaultTopic)
+
   await wakuNode.stop()
   resetContext()
 
@@ -356,12 +480,28 @@ proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
+proc lightpushHandler(response: PushResponse) {.gcsafe.} =
+  trace "received lightpush response", response
+
 proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.started or not connected: return
 
-  let
-    chat2pb = Chat2Message.init(nick, message).encode()
-    wakuMessage = WakuMessage(payload: chat2pb.buffer,
-      contentTopic: contentTopic, version: 0)
+  let chat2pb = Chat2Message.init(nick, message).encode()
 
-  asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage)
+  if contentTopics.len < 1:
+    trace "message not published, no topics joined", joined=contentTopics,
+      message, nick
+
+  else:
+    trace "published message to all joined topics", joined=contentTopics,
+      message, nick
+
+    for contentTopic in contentTopics:
+      let wakuMessage = WakuMessage(payload: chat2pb.buffer,
+        contentTopic: contentTopic, version: 0)
+
+      if not wakuNode.wakuLightPush.isNil():
+        asyncSpawn wakuNode.lightpush(DefaultTopic, wakuMessage,
+          lightpushHandler)
+      else:
+        asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)

@@ -19,12 +19,11 @@ proc asciiSplash*(self: ChatTUI) =
   # * https://manytools.org/hacker-tools/ascii-banner/
   discard
 
-# replace `clearInput` with adaptions of ncurses calls in TBDChat
+# replace `clearInput` with adaptations of ncurses calls in TBDChat
 proc clearInput*(self: ChatTUI) =
   var x, y: cint
-  getyx(self.inputWin, y, x)
-  wmove(self.inputWin, y, 0)
-  wclrtoeol(self.inputWin)
+  wmove(self.inputWin, 0, 0)
+  wclear(self.inputWin)
   wrefresh(self.inputWin)
 
   trace "TUI cleared input window"
@@ -155,7 +154,7 @@ proc initScreen*(): (string, PWindow, bool) =
 
   (locale, mainWin, mouse)
 
-# replace `printInput` with adaptions of ncurses calls in TBDChat
+# replace `printInput` with adaptations of ncurses calls in TBDChat
 proc printInput*(self: ChatTUI, input: string) =
   wprintw(self.inputWin, input)
   wrefresh(self.inputWin)

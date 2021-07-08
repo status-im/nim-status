@@ -23,8 +23,10 @@ type
 
 const
   defDataDir = "data"
+  defDataDirComp = "./" & defDataDir
   defListenAddress = VIP("0.0.0.0")
   defLogFile = "chat.log"
+  defLogFileComp = "./" & defDataDir & "/" & defLogFile
   defLogLevel = when defined(release): LLevel("info") else: LLevel("debug")
   defLogLevelChron = when defined(release): INFO else: DEBUG
   defMetricsServerAddress = VIP("127.0.0.1")
@@ -53,10 +55,10 @@ proc `$`*(input: VIP): string =
 macro config(): untyped =
   var
     chatConfigId = ident("ChatConfig")
-    dataDirLit = newStrLitNode("./" & defDataDir)
+    dataDirLit = newStrLitNode(defDataDirComp)
     filterId = ident("filter")
     swapId = ident("swap")
-    logFileLit = newStrLitNode("./" & defDataDir & "/" & defLogFile)
+    logFileLit = newStrLitNode(defLogFileComp)
     logLevelLit = newStrLitNode($defLogLevel)
     lightpushId = ident("lightpush")
     listenAddrLit = newStrLitNode($defListenAddress)
@@ -67,20 +69,20 @@ macro config(): untyped =
     type
       `chatConfigId` = object
         dataDir* {.
-          defaultValue: "./data"
+          defaultValue: "[placeholder]"
           desc: "Data directory. Relative path will be resolved from ${PWD}"
           name: "data-dir"
         .}: string
 
         logFile* {.
-          defaultValue: "./data/chat.log"
+          defaultValue: "[placeholder]"
           desc: "Log file. Relative path will be resolved from ${PWD}. If " &
                 "not specified then chat.log will be written to --data-dir"
           name: "log-file"
         .}: string
 
         logLevel* {.
-          defaultValue: "info"
+          defaultValue: "[placeholder]"
           desc: "Log level. " &
                 "Must be one of: trace, debug, info, notice, warn, error, " &
                 "fatal, none",
@@ -99,7 +101,7 @@ macro config(): untyped =
         .}: PK
 
         listenAddress* {.
-          defaultValue: "0.0.0.0"
+          defaultValue: "[placeholder]"
           desc: "Listening address for the LibP2P traffic"
           name: "waku-listen-address"
         .}: VIP
@@ -240,7 +242,7 @@ macro config(): untyped =
         .}: bool
 
         rpcAddress* {.
-          defaultValue: "127.0.0.1"
+          defaultValue: "[placeholder]"
           desc: "Listening address of the JSON-RPC server"
           name: "waku-rpc-address"
         .}: VIP
@@ -272,7 +274,7 @@ macro config(): untyped =
         .}: bool
 
         metricsServerAddress* {.
-          defaultValue: "127.0.0.1"
+          defaultValue: "[placeholder]"
           desc: "Listening address of the metrics server"
           name: "waku-metrics-server-address"
         .}: VIP
@@ -298,10 +300,11 @@ macro config(): untyped =
           name: "waku-fleet"
         .}: WakuFleet
 
-        contentTopic* {.
+        contentTopics* {.
           defaultValue: "/toy-chat/2/huilong/proto"
-          desc: "Content topic for chat messages"
-          name: "waku-content-topic"
+          desc: "Default content topics for chat messages " &
+                "(space separated list)",
+          name: "waku-content-topics"
         .}: string
 
     export `chatConfigId`
@@ -363,21 +366,13 @@ proc parseCmdArg*(T: type Port, p: TaintedString): T =
 proc completeCmdArg*(T: type Port, val: TaintedString): seq[string] =
   return @[]
 
-proc defaultDataDir*(): string =
-  # logic here could evolve to something more complex (e.g. platform-specific)
-  # like the `defaultDataDir()` of status-desktop
-  joinPath(getCurrentDir(), defDataDir)
-
-proc defaultLogFile*(): string =
-  joinPath(defaultDataDir(), defLogFile)
-
 proc handleConfig*(config: ChatConfig): ChatConfig =
   let
     dataDir = absolutePath(expandTilde(config.dataDir))
     logFile =
-      if config.dataDir != defaultDataDir() and
-         config.logFile == defaultLogFile():
-        joinPath(dataDir, extractFilename(defaultLogFile()))
+      if config.dataDir != defDataDirComp and
+         config.logFile == defLogFileComp:
+        joinPath(dataDir, extractFilename(defLogFile))
       else:
         absolutePath(expandTilde(config.logFile))
 
