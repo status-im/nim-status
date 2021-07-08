@@ -27,3 +27,9 @@ when isMainModule:
   setControlCHook(nop)
 
   waitFor main()
+
+  # avoid exception at program exit related to a problem with a thread started
+  # by nim-eth / nim-nat-traversal sometimes not having shut down cleanly by
+  # the time chat program is ready to exit
+  # ??? does this technique work every time? are there any downsides?
+  quit(QuitSuccess)

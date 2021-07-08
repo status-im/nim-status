@@ -20,6 +20,14 @@ type
     multiAcc*: MultiAccount
     timestamp*: int64
 
+  JoinTopicResult* = ref object of ClientEvent
+    timestamp*: int64
+    topic*: string
+
+  LeaveTopicResult* = ref object of ClientEvent
+    timestamp*: int64
+    topic*: string
+
   ListAccountsResult* = ref object of ClientEvent
     accounts*: seq[Account]
     timestamp*: int64
@@ -44,6 +52,8 @@ type
 const clientEvents* = [
   "CreateAccountResult",
   "ImportMnemonicResult",
+  "JoinTopicResult",
+  "LeaveTopicResult",
   "ListAccountsResult",
   "LoginResult",
   "LogoutResult",

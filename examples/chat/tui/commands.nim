@@ -41,7 +41,7 @@ proc command*(self: ChatTUI, command: Connect) {.async, gcsafe, nimcall.} =
   if self.client.loggedin:
     asyncSpawn self.client.connect(self.client.account.name)
   else:
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix(),
       "client is not logged in, cannot connect.")
 
 # CreateAccount ----------------------------------------------------------------
@@ -63,7 +63,7 @@ proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe,
   nimcall.} =
 
   if command.password == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix(),
       "password cannot be blank, please provide a password as the first argument.")
   else:
     asyncSpawn self.client.generateMultiAccount(command.password)
@@ -84,7 +84,7 @@ proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
   if self.client.online:
     asyncSpawn self.client.disconnect()
   else:
-    self.wprintFormatError(epochTime().int64, "client is not online.")
+    self.wprintFormatError(getTime().toUnix(), "client is not online.")
 
 
 # ImportMnemonic -----------------------------------------------------------------
@@ -131,17 +131,70 @@ proc split*(T: type ImportMnemonic, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
   if command.mnemonic == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix(),
       "mnemonic cannot be blank, please provide a mnemonic as the first argument.")
   elif command.mnemonic.split(" ").len != 12:
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix(),
       "mnemonic phrase must consist of 12 words separated by single spaces.")
   elif command.password == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix(),
       "password cannot be blank, please provide a password as the last argument.")
   else:
     asyncSpawn self.client.importMnemonic(command.mnemonic, command.passphrase,
       command.password)
+
+# JoinTopic --------------------------------------------------------------------
+
+proc help*(T: type JoinTopic): HelpText =
+  let command = "jointopic"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "topic", description: "Name of the topic to join.")
+  ], description: "Watches for messages with the specified waku v2 content " &
+    "topic.")
+
+proc new*(T: type JoinTopic, args: varargs[string]): T =
+  T(topic: args[0])
+
+proc split*(T: type JoinTopic, argsRaw: string): seq[string] =
+  @[argsRaw.strip()]
+
+proc command*(self: ChatTUI, command: JoinTopic) {.async, gcsafe, nimcall.} =
+  let topic = command.topic
+
+  if topic == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "topic cannot be blank, please provide a topic as the first argument.")
+  elif self.client.topics.contains(topic):
+    self.printResult(fmt"Topic already joined: {topic}", getTime().toUnix())
+  else:
+    asyncSpawn self.client.joinTopic(topic)
+
+# LeaveTopic -------------------------------------------------------------------
+
+proc help*(T: type LeaveTopic): HelpText =
+  let command = "leavetopic"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "topic", description: "Name of the topic to leave.")
+  ], description: "Stops watching for messages with the specified waku v2 " &
+    "content topic.")
+
+proc new*(T: type LeaveTopic, args: varargs[string]): T =
+  T(topic: args[0])
+
+proc split*(T: type LeaveTopic, argsRaw: string): seq[string] =
+  @[argsRaw.strip()]
+
+proc command*(self: ChatTUI, command: LeaveTopic) {.async, gcsafe, nimcall.} =
+  let topic = command.topic
+
+  if topic == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "topic cannot be blank, please provide a topic as the first argument.")
+  elif not self.client.topics.contains(topic):
+    self.printResult(fmt"Topic not joined, no need to leave: {topic}",
+      getTime().toUnix())
+  else:
+    asyncSpawn self.client.leaveTopic(topic)
 
 # ListAccounts -----------------------------------------------------------------
 
@@ -158,6 +211,35 @@ proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: ListAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listAccounts()
+
+# ListTopics -----------------------------------------------------------------
+
+proc help*(T: type ListTopics): HelpText =
+  let command = "listtopics"
+  HelpText(command: command, aliases: aliased[command], description: "Lists " &
+    "all topics that will be joined when client is online.")
+
+proc new*(T: type ListTopics, args: varargs[string]): T =
+  T()
+
+proc split*(T: type ListTopics, argsRaw: string): seq[string] =
+  @[]
+
+proc command*(self: ChatTUI, command: ListTopics) {.async, gcsafe, nimcall.} =
+  let
+    timestamp = getTime().toUnix()
+    topics = self.client.topics
+
+  if topics.len > 0:
+    var i = 1
+    self.printResult("Joined topics:", timestamp)
+    for topic in topics:
+      self.printResult(fmt"{2.indent()}{i}. {topic}", timestamp)
+      i = i + 1
+
+  else:
+    self.printResult("No topics joined. Join a topic using `/join <topic>`.",
+      timestamp)
 
 # Login ------------------------------------------------------------------------
 
@@ -199,7 +281,7 @@ proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
 
     asyncSpawn self.client.login(account, password)
   except:
-    self.wprintFormatError(epochTime().int64, "invalid login arguments.")
+    self.wprintFormatError(getTime().toUnix(), "invalid login arguments.")
 
 # Logout -----------------------------------------------------------------------
 
@@ -252,7 +334,7 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
   if not self.client.online:
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix(),
       "client is not online, cannot send message.")
   else:
     asyncSpawn self.client.sendMessage(command.message)
@@ -289,15 +371,15 @@ proc split*(T: type Help, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let
     command = command.command
-    timestamp = epochTime().int64
-  
+    timestamp = getTime().toUnix()
+
   trace "executing help", command
 
   var helpTexts = buildCommandHelp()
 
   if command != "":
     helpTexts = helpTexts.filter(help => help.command == command or help.aliases.contains(command))
-  
+
   # display on screen
   trace "TUI showing cli help", helpTexts=(%helpTexts)
 
@@ -357,7 +439,7 @@ proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
 
       self.printResult(finalText.replace("/, ", ""), timestamp)
       self.printResult(fmt"{(spacing * 2).indent}{desc}", timestamp)
-      
+
       let
         params = helpText.parameters
         totalParamSpace = params.longest + spacing
@@ -377,4 +459,3 @@ proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
       self.printResult("", timestamp)
 
   trace "Sending help texts to the client", help=(%helpTexts)
-

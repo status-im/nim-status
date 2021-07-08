@@ -11,11 +11,12 @@ import # vendor libs
   waku/common/utils/nat,
   waku/v2/node/[waku_payload, wakunode2],
   waku/v2/protocol/[waku_filter/waku_filter, waku_lightpush/waku_lightpush,
-                    waku_message, waku_store/waku_store]
+                    waku_message, waku_store/waku_store],
+  waku/v2/utils/peers
 
 export
-  byteutils, crypto, keys, minprotobuf, nat, results, secp, utils, waku_message,
-  wakunode2
+  byteutils, crypto, keys, minprotobuf, nat, peers, results, secp, utils,
+  waku_filter, waku_lightpush, waku_message, waku_store, wakunode2
 
 logScope:
   topics = "chat client"
@@ -30,11 +31,7 @@ type
 
   Topic* = wakunode2.Topic
 
-  WakuState* = enum stopped, starting, started, stopping
-
-const
-  DefaultTopic* = "/waku/2/default-waku/proto"
-  PayloadV1* {.booldefine.} = false
+const DefaultTopic* = "/waku/2/default-waku/proto"
 
 # Initialize the default random number generator, only needs to be called once:
 # https://nim-lang.org/docs/random.html#randomize
@@ -65,16 +62,6 @@ proc init*(T: type Chat2Message, nick: string, message: string): T =
     timestamp = getTime().toUnix()
 
   T(nick: nick, payload: payload, timestamp: timestamp)
-
-proc generateSymKey*(contentTopic: ContentTopic): SymKey =
-  var
-    ctx: HMAC[sha256]
-    symKey: SymKey
-
-  if pbkdf2(ctx, contentTopic.toBytes(), "", 65356, symKey) != sizeof(SymKey):
-    raise (ref Defect)(msg: "Should not occur as array is properly sized")
-
-  symKey
 
 proc selectRandomNode*(fleetStr: string): Future[string] {.async.} =
   let

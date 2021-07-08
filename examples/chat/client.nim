@@ -17,8 +17,13 @@ proc new*(T: type ChatClient, chatConfig: ChatConfig): T =
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, status, statusContext, statusArg)
 
-  T(chatConfig: chatConfig, events: newEventChannel(),
-    loggedin: false, online: false, running: false, taskRunner: taskRunner)
+  var topics: OrderedSet[string]
+  let topicsStr = chatConfig.contentTopics.strip()
+  if topicsStr != "":
+    topics = topicsStr.split(" ").toOrderedSet()
+
+  T(chatConfig: chatConfig, events: newEventChannel(), loggedin: false,
+    online: false, running: false, taskRunner: taskRunner, topics: topics)
 
 proc start*(self: ChatClient) {.async.} =
   debug "client starting"
@@ -51,6 +56,18 @@ proc disconnect*(self: ChatClient) {.async.} =
 proc generateMultiAccount*(self: ChatClient, password: string) {.async.} =
   asyncSpawn generateMultiAccount(self.taskRunner, status, password)
 
+proc importMnemonic*(self: ChatClient, mnemonic: string, passphrase: string,
+  password: string) {.async.} =
+
+  asyncSpawn importMnemonic(self.taskRunner, status, mnemonic, passphrase,
+    password)
+
+proc joinTopic*(self: ChatClient, topic: string) {.async.} =
+  asyncSpawn joinTopic(self.taskRunner, status, topic)
+
+proc leaveTopic*(self: ChatClient, topic: string) {.async.} =
+  asyncSpawn leaveTopic(self.taskRunner, status, topic)
+
 proc listAccounts*(self: ChatClient) {.async.} =
   asyncSpawn listAccounts(self.taskRunner, status)
 
@@ -59,11 +76,6 @@ proc login*(self: ChatClient, account: int, password: string) {.async.} =
 
 proc logout*(self: ChatClient) {.async.} =
   asyncSpawn logout(self.taskRunner, status)
-
-proc importMnemonic*(self: ChatClient, mnemonic: string, passphrase: string,
-  password: string) {.async.} =
-
-  asyncSpawn importMnemonic(self.taskRunner, status, mnemonic, passphrase, password)
 
 proc sendMessage*(self: ChatClient, message: string) {.async.} =
   asyncSpawn publishWakuChat2(self.taskRunner, status, message)

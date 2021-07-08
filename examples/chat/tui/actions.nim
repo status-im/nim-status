@@ -134,6 +134,34 @@ proc action*(self: ChatTUI, event: ImportMnemonicResult) {.async, gcsafe, nimcal
     self.printResult("Imported account:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
+# JoinTopicResult --------------------------------------------------------------
+
+proc action*(self: ChatTUI, event: JoinTopicResult) {.async, gcsafe, nimcall.} =
+  let
+    timestamp = event.timestamp
+    topic = event.topic
+
+  if not self.client.topics.contains(topic):
+    self.client.topics.incl(topic)
+    self.printResult(fmt"Joined topic: {topic}", timestamp)
+  else:
+    self.printResult(fmt"Topic already joined: {topic}", timestamp)
+
+# LeaveTopicResult -------------------------------------------------------------
+
+proc action*(self: ChatTUI, event: LeaveTopicResult) {.async, gcsafe,
+  nimcall.} =
+  let
+    timestamp = event.timestamp
+    topic = event.topic
+
+  if self.client.topics.contains(topic):
+    self.client.topics.excl(topic)
+    self.printResult(fmt"Left topic: {topic}", timestamp)
+  else:
+    self.printResult(fmt"Topic not joined, no need to leave: {topic}",
+      timestamp)
+
 # ListAccountsResult -----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: ListAccountsResult) {.async, gcsafe,
@@ -172,10 +200,10 @@ proc action*(self: ChatTUI, event: LoginResult) {.async, gcsafe, nimcall.} =
     loggedin = event.loggedin
 
   if error != "":
-    self.wprintFormatError(epochTime().int64, fmt"{error}")
+    self.wprintFormatError(getTime().toUnix(), fmt"{error}")
   else:
     self.client.account = event.account
-    self.printResult("Login successful.", epochTime().int64)
+    self.printResult("Login successful.", getTime().toUnix())
     if not self.client.online:
       asyncSpawn self.client.connect(self.client.account.name)
 
@@ -190,10 +218,10 @@ proc action*(self: ChatTUI, event: LogoutResult) {.async, gcsafe, nimcall.} =
     loggedin = event.loggedin
 
   if error != "":
-    self.wprintFormatError(epochTime().int64, fmt"{error}")
+    self.wprintFormatError(getTime().toUnix(), fmt"{error}")
   else:
     self.client.account = Account()
-    self.printResult("Logout successful.", epochTime().int64)
+    self.printResult("Logout successful.", getTime().toUnix())
     if self.client.online:
       asyncSpawn self.client.disconnect()
 

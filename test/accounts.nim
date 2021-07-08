@@ -15,7 +15,7 @@ procSuite "accounts":
     removeFile(path)
     let db = initializeDB(path)
 
-    let timestamp1 = epochTime().int
+    let timestamp1 = getTime().toUnix().int
 
     var account:Account = Account(
       creationTimestamp: timestamp1,
