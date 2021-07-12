@@ -1,6 +1,3 @@
-import # nim-status libs
-  ../../../nim_status/accounts
-
 import # chat libs
   ./common
 

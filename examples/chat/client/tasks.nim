@@ -2,7 +2,7 @@ import # std libs
   std/[os, strutils, sets, sugar]
 
 import # nim-status libs
-  ../../nim_status/[accounts, client, database],
+  ../../nim_status/[client, database],
   ../../nim_status/extkeys/[paths, types]
 
 import # chat libs
@@ -193,7 +193,7 @@ proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
 
 proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
   let
-    accounts = status.getAccounts()
+    accounts = status.getPublicAccounts()
     event = ListAccountsResult(accounts: accounts, timestamp: getTime().toUnix())
     eventEnc = event.encode
     task = taskArg.taskName
@@ -207,7 +207,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
   if statusState != StatusState.loggedout: return
   statusState = StatusState.loggingin
 
-  let allAccounts = status.getAccounts()
+  let allAccounts = status.getPublicAccounts()
 
   var
     event: LoginResult
