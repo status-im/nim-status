@@ -81,6 +81,7 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   resetContext()
 
 proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
+  let topic = wakuMessage.contentTopic
   var
     message: string
     timestamp: int64
@@ -100,7 +101,7 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
      timestamp = getTime().toUnix()
      username = "[unknown]"
 
-  T(message: message, timestamp: timestamp, username: username)
+  T(message: message, timestamp: timestamp, topic: topic, username: username)
 
 proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   let

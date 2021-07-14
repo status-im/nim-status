@@ -47,6 +47,7 @@ type
   UserMessage* = ref object of ClientEvent
     message*: string
     timestamp*: int64
+    topic*: string
     username*: string
 
 const clientEvents* = [

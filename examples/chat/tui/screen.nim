@@ -254,7 +254,7 @@ proc wprintFormatError*(self: ChatTUI, timestamp: int64, error: string) =
   warn "TUI printed error message", message=error
 
 proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
-  username: string) =
+  username: string, topic: string) =
 
   let
     chatWin = self.chatWin
@@ -264,8 +264,14 @@ proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
   self.wprintFormatTime(timestamp)
 
   # print result
+  wattron(chatWin, COLOR_PAIR(3).cint)
+  wprintw(chatWin, fmt("[{topic}]"))
+  wattroff(chatWin, COLOR_PAIR(3).cint)
+  wattron(chatWin, COLOR_PAIR(2).cint)
+  wprintw(chatWin, fmt(" {username}"))
+  wattroff(chatWin, COLOR_PAIR(2).cint)
   wattron(chatWin, COLOR_PAIR(1).cint)
-  wprintw(chatWin, fmt("{username}: {message}\n"))
+  wprintw(chatWin, fmt(": {message}\n"))
   wattroff(chatWin, COLOR_PAIR(1).cint)
 
   # move cursor to input window and refresh

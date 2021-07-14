@@ -9,6 +9,8 @@ export common, screen, strutils, tasks
 logScope:
   topics = "chat tui"
 
+const hashCharSet = {'#'}
+
 # Command types are defined in ./common to avoid circular dependency
 
 # `split` procs for command args should only be concerned about splitting the
@@ -159,7 +161,15 @@ proc split*(T: type JoinTopic, argsRaw: string): seq[string] =
   @[argsRaw.strip()]
 
 proc command*(self: ChatTUI, command: JoinTopic) {.async, gcsafe, nimcall.} =
-  let topic = command.topic
+  var topic = command.topic
+  let topicSplit = topic.split('/')
+
+  # if event.topic is a properly formatted waku v2 content topic then the
+  # whole string will be passed to joinTopic
+  if topicSplit.len != 5:
+    # otherwise convert it to a properly formatted content topic
+    topic = topic.strip(true, false, hashCharSet)
+    if topic != "": topic = fmt"/toy-chat/2/{topic}/proto"
 
   if topic == "":
     self.wprintFormatError(getTime().toUnix(),
