@@ -246,5 +246,14 @@ proc action*(self: ChatTUI, event: UserMessage) {.async, gcsafe, nimcall.} =
       timestamp = event.timestamp
       username = event.username
 
+    var topic = event.topic
+    let topicSplit = topic.split('/')
+
+    # if event.topic is not a properly formatted waku v2 content topic then the
+    # whole string will be passed to printMessage
+    if topicSplit.len == 5:
+      # for "/toy-chat/2/example/proto", topic would be "example"
+      topic = topicSplit[3]
+
     debug "TUI received user message", message, timestamp, username
-    self.printMessage(message, timestamp, username)
+    self.printMessage(message, timestamp, username, topic)
