@@ -56,7 +56,7 @@ proc createAccount*(self: StatusObject,
       paths, password, dir)
     whisperAcct = accountInfos[2]
     account = PublicAccount(
-      creationTimestamp: epochTime().int,
+      creationTimestamp: getTime().toUnix().int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
       keycardPairing: "",
@@ -64,7 +64,7 @@ proc createAccount*(self: StatusObject,
     )
 
   self.accountsDb.saveAccount(account)
-  
+
   # create the user db on disk by initializing it then immediately closing it
   self.userDb = initializeDB(self.dataDir / account.keyUid & ".db", password)
   self.userDb.close()
@@ -81,7 +81,7 @@ proc importMnemonic*(self: StatusObject, mnemonic: Mnemonic,
       paths, password, dir)
     whisperAcct = accountInfos[2]
     account = PublicAccount(
-      creationTimestamp: epochTime().int,
+      creationTimestamp: getTime().toUnix().int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
       keycardPairing: "",
