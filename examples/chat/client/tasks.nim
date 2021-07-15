@@ -105,7 +105,7 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
 
 proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   let
-    timestamp = epochTime().int64
+    timestamp = getTime().toUnix()
     paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
     dir = status.dataDir / "keystore"
     # Hardcode bip39Passphrase to empty string. Can be enabled in UI later if
@@ -136,7 +136,7 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
   password: string) {.task(kind=no_rts, stoppable=false).} =
 
   let
-    timestamp = epochTime().int64
+    timestamp = getTime().toUnix()
     paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
     dir = status.dataDir / "keystore"
     importedResult = status.importMnemonic(Mnemonic mnemonic, bip39Passphrase,
