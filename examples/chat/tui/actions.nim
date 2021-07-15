@@ -2,7 +2,7 @@ import # std libs
   std/[strformat, strutils]
 
 import # nim-status libs
-  ../../../nim_status/[accounts, alias, multiaccount]
+  ../../../nim_status/[accounts, alias]
 
 import # chat libs
   ./parser
@@ -220,7 +220,7 @@ proc action*(self: ChatTUI, event: LogoutResult) {.async, gcsafe, nimcall.} =
   if error != "":
     self.wprintFormatError(getTime().toUnix(), fmt"{error}")
   else:
-    self.client.account = Account()
+    self.client.account = PublicAccount()
     self.printResult("Logout successful.", getTime().toUnix())
     if self.client.online:
       asyncSpawn self.client.disconnect()

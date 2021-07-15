@@ -2,7 +2,7 @@ import # std libs
   std/[os, strutils, sets, sugar]
 
 import # nim-status libs
-  ../../nim_status/[account, accounts, alias, client, database, identicon,
+  ../../nim_status/[accounts, alias, client, database, extkeys/paths, identicon,
                     multiaccount]
 
 import # chat libs
@@ -117,7 +117,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
   let
     timestamp = getTime().toUnix()
     whisperAcct = multiAccount.accounts[2]
-    account = accounts.Account(
+    account = PublicAccount(
       creationTimestamp: timestamp.int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
@@ -141,7 +141,7 @@ proc generateMultiAccount*(password: string) {.task(kind=no_rts, stoppable=false
 proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.task(kind=no_rts, stoppable=false).} =
   let
     paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
-    multiAccount = importMnemonicAndDeriveAccounts(Mnemonic mnemonic, passphrase, paths)
+    multiAccount = status.importMnemonicAndDeriveAccounts(Mnemonic mnemonic, passphrase, paths)
     dir = status.dataDir / "keystore"
 
   dir.createDir()
@@ -150,7 +150,7 @@ proc importMnemonic*(mnemonic: string, passphrase: string, password: string) {.t
   let
     timestamp = getTime().toUnix()
     whisperAcct = multiAccount.accounts[2]
-    account = accounts.Account(
+    account = PublicAccount(
       creationTimestamp: timestamp.int,
       name: whisperAcct.publicKey.generateAlias(),
       identicon: whisperAcct.publicKey.identicon(),
@@ -222,7 +222,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
   var
     event: LoginResult
     eventEnc: string
-    numberedAccount: accounts.Account
+    numberedAccount: PublicAccount
     keyUid: string
 
   if account < 1 or account > allAccounts.len:
