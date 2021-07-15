@@ -1,6 +1,9 @@
 import # std libs
   std/[strformat, strutils]
 
+import # vendor libs
+  web3/conversions
+
 import # chat libs
   ./parser
 
@@ -93,6 +96,26 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
     self.printInput(input)
 
+# AddWalletAccountResult ----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: AddWalletAccountResult) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      timestamp = event.timestamp
+      name = event.name
+      address = $event.address
+      abbrev = address[0..5] & "..." & address[^4..^1]
+
+    self.printResult("Added wallet account:", timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
+
 # CreateAccountResult ----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: CreateAccountResult) {.async, gcsafe,
@@ -120,6 +143,10 @@ proc action*(self: ChatTUI, event: CreateAccountResult) {.async, gcsafe,
 proc action*(self: ChatTUI, event: ImportMnemonicResult) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
   if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
     let
       account = event.account
       timestamp = event.timestamp
@@ -188,6 +215,39 @@ proc action*(self: ChatTUI, event: ListAccountsResult) {.async, gcsafe,
     else:
       self.printResult(
         "No accounts. Create an account using `/create <password>`.",
+        timestamp)
+
+# ListWalletAccountsResult -----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: ListWalletAccountsResult) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      accounts = event.accounts
+      timestamp = event.timestamp
+
+    trace "TUI showing wallet accounts from nim-status", accounts=(%accounts)
+
+    if accounts.len > 0:
+      var i = 1
+      self.printResult("Wallet accounts:", timestamp)
+      for account in accounts:
+        let
+          name = account.name
+          address = $account.address
+
+        self.printResult(fmt"{2.indent()}{i}. {name} ({address})",
+          timestamp)
+        i = i + 1
+    else:
+      self.printResult(
+        "No wallet accounts. Generate a wallet using `/add <name> <password>`.",
         timestamp)
 
 # LoginResult ------------------------------------------------------------------

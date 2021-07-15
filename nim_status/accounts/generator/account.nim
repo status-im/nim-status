@@ -1,3 +1,6 @@
+import # std libs
+  std/tables
+
 import # vendor libs
   chronicles, eth/keys, eth/keyfile/uuid, nimcrypto/sha2, secp256k1,
   stew/byteutils
@@ -22,7 +25,7 @@ type
     mnemonic*: Mnemonic
   
   GeneratedAndDerivedAccountInfo* = ref object of GeneratedAccountInfo
-    derived*: seq[AccountInfo]
+    derived*: Table[KeyPath, AccountInfo]
 
 proc toAccountInfo*(a: Account): AccountInfo =
   let
@@ -57,7 +60,7 @@ proc toGeneratedAccountInfo*(a: Account, id: UUID,
     publicKey: idInfo.publicKey, address: idInfo.address, mnemonic: mnemonic)
 
 proc toGeneratedAndDerived*(a: GeneratedAccountInfo,
-  derived: seq[AccountInfo]): GeneratedAndDerivedAccountInfo =
+  derived: Table[KeyPath, AccountInfo]): GeneratedAndDerivedAccountInfo =
 
   GeneratedAndDerivedAccountInfo(mnemonic: a.mnemonic, id: a.id,
     keyUid: a.keyUid, publicKey: a.publicKey, address: a.address,

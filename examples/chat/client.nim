@@ -47,6 +47,9 @@ proc stop*(self: ChatClient) {.async.} =
 
   debug "client stopped"
 
+proc addWalletAccount*(self: ChatClient, name, password: string) {.async.} =
+  asyncSpawn addWalletAccount(self.taskRunner, status, name, password)
+
 proc connect*(self: ChatClient, username: string) {.async.} =
   asyncSpawn startWakuChat2(self.taskRunner, status, username)
 
@@ -70,6 +73,9 @@ proc leaveTopic*(self: ChatClient, topic: string) {.async.} =
 
 proc listAccounts*(self: ChatClient) {.async.} =
   asyncSpawn listAccounts(self.taskRunner, status)
+
+proc listWalletAccounts*(self: ChatClient) {.async.} =
+  asyncSpawn listWalletAccounts(self.taskRunner, status)
 
 proc login*(self: ChatClient, account: int, password: string) {.async.} =
   asyncSpawn login(self.taskRunner, status, account, password)

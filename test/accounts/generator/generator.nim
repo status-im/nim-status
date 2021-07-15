@@ -108,14 +108,14 @@ procSuite "generator":
     
     echo "Imported Accounts [path: address]"
     var i = 0
-    for accountInfo in derived:
+    for accountInfo in derived.values:
       echo fmt"{paths[i].string}: {accountInfo.address}"
       i = i + 1
 
     assert derived.len == 2, "should have derived 2 addresses"
-    assert testAccount.bip44Address0 == derived[0].address,
+    assert testAccount.bip44Address0 == derived[path0].address,
       "first derived address should match bip44Address0"
-    assert testAccount.bip44Address1 == derived[1].address,
+    assert testAccount.bip44Address1 == derived[path1].address,
       "second derived address should match bip44Address1"
 
   test "import private key":

@@ -18,11 +18,11 @@ type
 
   AddAccountResult = Result[UUID, string]
 
-  DeriveAddressesResult = Result[seq[AccountInfo], string]
+  DeriveAddressesResult = Result[Table[KeyPath, AccountInfo], string]
 
   DeriveChildAccountResult = Result[Account, string]
 
-  DeriveChildAccountsResult = Result[seq[Account], string]
+  DeriveChildAccountsResult = Result[Table[KeyPath, Account], string]
 
   GenerateAndDeriveAddressesResult* = Result[
     seq[GeneratedAndDerivedAccountInfo], string]
@@ -35,9 +35,7 @@ type
 
   LoadAccountResult* = Result[IdentifiedAccountInfo, string]
 
-  PublicAccountResult* = Result[PublicAccount, string]
-
-  StoreDerivedAccountsResult* = Result[seq[AccountInfo], string]
+  StoreDerivedAccountsResult* = Result[Table[KeyPath, AccountInfo], string]
 
 proc new*(T: type Generator): T =
   T(accounts: newTable[string, Account]())
@@ -64,9 +62,9 @@ proc deriveChildAccount(self: Generator, a: Account,
 proc deriveChildAccounts(self: Generator, a: Account,
   paths: seq[KeyPath]): DeriveChildAccountsResult =
 
-  var derived: seq[Account] = @[]
+  var derived = initTable[KeyPath, Account]()
   for path in paths:
-    derived.add ?self.deriveChildAccount(a, path)
+    derived[path] = ?self.deriveChildAccount(a, path)
 
   ok(derived)
 
@@ -84,10 +82,10 @@ proc deriveAddresses*(self: Generator, accountId: UUID,
     acc = ?self.findAccount(accountId)
     children = ?self.deriveChildAccounts(acc, paths)
 
-  var derived: seq[AccountInfo] = @[]
+  var derived = initTable[KeyPath, AccountInfo]()
 
-  for child in children:
-    derived.add child.toAccountInfo()
+  for path, account in children.pairs:
+    derived[path] = account.toAccountInfo()
 
   DeriveAddressesResult.ok(derived)
 
@@ -159,8 +157,7 @@ proc loadAccount*(self: Generator, address: string, password: string,
     privateKeyResult = decodeKeyFileJson(json, password)
   
   if privateKeyResult.isErr:
-    return LoadAccountResult.err fmt"Error decoding private key from file {json}: " &
-      $privateKeyResult.error
+    return LoadAccountResult.err fmt"Error decoding private key from file. Wrong password?"
 
   # TODO: Add ValidateKeystoreExtendedKey
   # https://github.com/status-im/status-go/blob/e0eb96a992fea9d52d16ae9413b1198827360278/accounts/generator/generator.go#L213-L215
@@ -190,25 +187,25 @@ proc storeDerivedAccounts*(self: Generator, accountId: UUID, paths: seq[KeyPath]
 
   let
     acc = ?self.findAccount(accountId)
-    children = ?self.deriveChildAccounts(acc, paths)
+    derived = ?self.deriveChildAccounts(acc, paths)
 
-  var accountInfos: seq[AccountInfo] = @[]
+  var accounts = initTable[KeyPath, AccountInfo]()
 
-  for child in children:
-    let keyFileJsonResult = createKeyFileJson(PrivateKey child.secretKey, password, version, cryptkind,
-          kdfkind, workfactorFinal)
+  for path, account in derived.pairs:
+    let keyFileJsonResult = createKeyFileJson(PrivateKey account.secretKey,
+      password, version, cryptkind, kdfkind, workfactorFinal)
 
     if keyFileJsonResult.isErr:
       return StoreDerivedAccountsResult.err "Error creating key file: " &
         $keyFileJsonResult.error
 
     let
-      accountInfo = child.toAccountInfo
+      accountInfo = account.toAccountInfo
       keyFileJson = $keyFileJsonResult.get()
 
     dir.createDir()
     writeFile(dir / accountInfo.address, keyFileJson)
-    accountInfos.add accountInfo
+    accounts[path] = accountInfo
     self.reset()
 
-  StoreDerivedAccountsResult.ok(accountInfos)
+  StoreDerivedAccountsResult.ok(accounts)

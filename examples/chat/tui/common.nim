@@ -41,6 +41,10 @@ type
   # all fields on types that derive from Command should be of type `string`
   Command* = ref object of RootObj
 
+  AddWalletAccount* = ref object of Command
+    name*: string
+    password*: string
+
   Connect* = ref object of Command
 
   CommandParameter* = ref object of RootObj
@@ -74,6 +78,8 @@ type
 
   ListAccounts* = ref object of Command
 
+  ListWalletAccounts* = ref object of Command
+
   ListTopics* = ref object of Command
 
   Login* = ref object of Command
@@ -98,6 +104,7 @@ const
 
   commands* = {
     DEFAULT_COMMAND: "SendMessage",
+    "addaccount": "AddWalletAccount",
     "connect": "Connect",
     "createaccount": "CreateAccount",
     "disconnect": "Disconnect",
@@ -106,6 +113,7 @@ const
     "jointopic": "JoinTopic",
     "leavetopic": "LeaveTopic",
     "listaccounts": "ListAccounts",
+    "listwalletaccounts": "ListWalletAccounts",
     "listtopics": "ListTopics",
     "login": "Login",
     "logout": "Logout",
@@ -114,11 +122,13 @@ const
 
   aliases* = {
     "?": "help",
+    "add": "addaccount",
     "create": "createaccount",
     "import": "importmnemonic",
     "join": "jointopic",
     "leave": "leavetopic",
     "list": "listaccounts",
+    "listwallets": "listwalletaccounts",
     "part": "leavetopic",
     "send": DEFAULT_COMMAND,
     "sub": "jointopic",
@@ -126,18 +136,21 @@ const
     "topics": "listtopics",
     "unjoin": "leavetopic",
     "unsub": "leavetopic",
-    "unsubscribe": "leavetopic"
+    "unsubscribe": "leavetopic",
+    "wallets": "listwalletaccounts"
   }.toTable
 
   aliased* = {
     DEFAULT_COMMAND: @["send"],
+    "addaccount": @["add"],
     "createaccount": @["create"],
     "importmnemonic": @["import"],
     "help": @["?"],
     "jointopic": @["join", "sub", "subscribe"],
     "leavetopic": @["leave", "part", "unjoin", "unsub", "unsubscribe"],
     "listaccounts": @["list"],
-    "listtopics": @["topics"]
+    "listtopics": @["topics"],
+    "listwalletaccounts": @["listwallets", "wallets"]
   }.toTable
 
 proc stop*(self: ChatTUI) {.async.} =
