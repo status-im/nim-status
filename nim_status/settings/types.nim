@@ -1,11 +1,16 @@
 
 import # nim libs
-  options, json, sugar, sequtils
+  std/[json, options, os, sequtils, sugar]
 
 import # vendor libs
   json_serialization, json_serialization/[reader, writer, lexer],
   json_serialization/std/options as json_options,
   web3/conversions as web3_conversions, web3/ethtypes, sqlcipher
+
+import # nim-status libs
+  ../networks
+
+export networks
 
 
 type
@@ -111,21 +116,6 @@ type
     WakuBloomFilterMode = "waku_bloom_filter_mode",
     WebviewAllowPermissionRequests = "webview_allow_permission_requests"
 
-  UpstreamConfig* = object
-    enabled* {.serializedFieldName("Enabled").}: bool
-    url* {.serializedFieldName("URL").}: string
-
-  NetworkConfig* = object
-    dataDir* {.serializedFieldName("DataDir").}: string
-    networkId* {.serializedFieldName("NetworkId").}: int
-    upstreamConfig* {.serializedFieldName("UpstreamConfig").}: UpstreamConfig
-
-  Network* = object
-    config* {.serializedFieldName("config").}: NetworkConfig
-    etherscanLink* {.serializedFieldName("etherscan-link").}: Option[string]
-    id* {.serializedFieldName("id").}: string
-    name*: string
-
   Settings* {.dbTableName("settings").} = object
     userAddress* {.serializedFieldName($SettingsType.Address), dbColumnName($SettingsCol.Address).}: Address
     chaosMode* {.serializedFieldName($SettingsType.ChaosMode), dbColumnName($SettingsCol.ChaosMode).}: Option[bool]
@@ -185,6 +175,6 @@ type
 proc `$`*(self: Settings): string =
   return Json.encode(self)
 
-proc getNetwork*(self: Settings): Option[Network] =
+proc getCurrentNetwork*(self: Settings): Option[Network] =
   let found = self.networks.filter(network => network.id == self.currentNetwork)
   result = if found.len > 0: some found[0] else: none(Network)

@@ -1,5 +1,11 @@
+import # vendor libs
+  web3/ethtypes
+
 import # chat libs
   ./common
+
+import # nim-status libs
+  ../../../nim_status/client
 
 export common
 
@@ -8,6 +14,12 @@ logScope:
 
 type
   ClientEvent* = ref object of Event
+
+  AddWalletAccountResult* = ref object of ClientEvent
+    name*: string
+    address*: Address
+    error*: string
+    timestamp*: int64
 
   CreateAccountResult* = ref object of ClientEvent
     account*: PublicAccount
@@ -31,6 +43,11 @@ type
     accounts*: seq[PublicAccount]
     timestamp*: int64
 
+  ListWalletAccountsResult* = ref object of ClientEvent
+    accounts*: seq[WalletAccount]
+    error*: string
+    timestamp*: int64
+
   LoginResult* = ref object of ClientEvent
     account*: PublicAccount
     error*: string
@@ -50,11 +67,13 @@ type
     username*: string
 
 const clientEvents* = [
+  "AddWalletAccountResult",
   "CreateAccountResult",
   "ImportMnemonicResult",
   "JoinTopicResult",
   "LeaveTopicResult",
   "ListAccountsResult",
+  "ListWalletAccountsResult",
   "LoginResult",
   "LogoutResult",
   "NetworkStatus",

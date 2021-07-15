@@ -1,5 +1,5 @@
 import # std libs
-  std/[json, options, strutils, times]
+  std/[json, options, strutils, times, typetraits]
 
 import # vendor libs
   chronicles, json_serialization, json_serialization/std/options as json_options,
@@ -15,30 +15,6 @@ from ./tx_history/types as tx_history_types import TxType
 export json_options
 
 const dtFormat = "yyyy-MM-dd HH:mm:ss fffffffff"
-
-proc parseAddress*(address: string): Address =
-  Address.fromHex(address)
-
-proc toDbValue*[T: Address](val: T): DbValue =
-  DbValue(kind: sqliteText, strVal: $val)
-
-proc toDbValue*(val: DateTime): DbValue =
-  DbValue(kind: sqliteText, strVal: val.format(dtFormat))
-
-proc toDbValue*(val: JsonNode): DbValue =
-  DbValue(kind: sqliteText, strVal: $val)
-
-proc toDbValue*(val: KeyPath): DbValue =
-  DbValue(kind: sqliteText, strVal: val.string)
-
-proc toDbValue*[T: seq[auto]](val: T): DbValue =
-  DbValue(kind: sqliteText, strVal: Json.encode(val))
-
-proc toDbValue*(val: SkPublicKey): DbValue =
-  DbValue(kind: sqliteBlob, blobVal: ($val).hexToSeqByte)
-
-proc toDbValue*(val: TxType): DbValue =
-  DbValue(kind: sqliteText, strVal: $val)
 
 proc fromDbValue*(val: DbValue, T: typedesc[Address]): Address =
   val.strVal.parseAddress
@@ -75,3 +51,32 @@ proc intToHex*(n: int): string =
   s.removePrefix({'0'})
   result = "0x" & s
 
+proc parseAddress*(address: string): Address =
+  Address.fromHex(address)
+
+proc readValue*(r: var JsonReader, T: type KeyPath): T =
+  KeyPath r.readValue(string)
+
+proc toDbValue*[T: Address](val: T): DbValue =
+  DbValue(kind: sqliteText, strVal: $val)
+
+proc toDbValue*(val: DateTime): DbValue =
+  DbValue(kind: sqliteText, strVal: val.format(dtFormat))
+
+proc toDbValue*(val: JsonNode): DbValue =
+  DbValue(kind: sqliteText, strVal: $val)
+
+proc toDbValue*(val: KeyPath): DbValue =
+  DbValue(kind: sqliteText, strVal: val.string)
+
+proc toDbValue*[T: seq[auto]](val: T): DbValue =
+  DbValue(kind: sqliteText, strVal: Json.encode(val))
+
+proc toDbValue*(val: SkPublicKey): DbValue =
+  DbValue(kind: sqliteBlob, blobVal: ($val).hexToSeqByte)
+
+proc toDbValue*(val: TxType): DbValue =
+  DbValue(kind: sqliteText, strVal: $val)
+
+proc writeValue*(w: var JsonWriter, v: KeyPath) =
+  w.writeValue distinctBase(v)

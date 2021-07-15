@@ -1,14 +1,17 @@
 import # std libs
-  std/[os, strutils, sets, sugar]
+  std/[os, strutils, sets, sugar, times]
+
+import # vendor libs
+  web3/conversions as web3_conversions
 
 import # nim-status libs
-  ../../nim_status/[client, database],
+  ../../nim_status/[conversions, client, database],
   ../../nim_status/extkeys/[paths, types]
 
 import # chat libs
   ./events, ./waku_chat2
 
-export events
+export conversions, events, web3_conversions
 
 logScope:
   topics = "chat client"
@@ -98,20 +101,75 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
      # could happen if one/more clients on the same network/topic are able to
      # communicate but are using incompatible encodings for some reason
      message = string.fromBytes(wakuMessage.payload)
-     timestamp = getTime().toUnix()
+     timestamp = getTime().toUnix
      username = "[unknown]"
 
-  T(message: message, timestamp: timestamp, topic: topic, username: username)
+  T(message: message, timestamp: timestamp, username: username)
 
-proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
+proc addWalletAccount*(name: string,
+  password: string) {.task(kind=no_rts, stoppable=false).} =
+
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = AddWalletAccountResult(error: "Not logged in, " &
+        "cannot create a new wallet account.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
   let
-    timestamp = getTime().toUnix()
-    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
     dir = status.dataDir / "keystore"
     # Hardcode bip39Passphrase to empty string. Can be enabled in UI later if
     # needed.
-    publicAccountResult = status.createAccount(12, 1, "", password,
-      paths, dir)
+    walletAccountResult = status.addWalletAccount(name, password, dir) 
+
+  if walletAccountResult.isErr:
+    let
+      event = AddWalletAccountResult(error: "Error creating wallet account, " &
+        "error: " & walletAccountResult.error, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    walletAccount = walletAccountResult.get
+    walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
+    event = AddWalletAccountResult(name: walletName,
+      address: walletAccount.address, timestamp: timestamp)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedout:
+    let
+      eventNotLoggedOut = AddWalletAccountResult(error: "You must be logged " &
+        "out to create a new account.",
+        timestamp: timestamp)
+      eventNotLoggedOutEnc = eventNotLoggedOut.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedOutEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedOutEnc.safe)
+    return
+
+  let
+    dir = status.dataDir / "keystore"
+    # Hardcode bip39Passphrase to empty string. Can be enabled in UI later if
+    # needed.
+    publicAccountResult = status.createAccount(12, "", password, dir)
 
   if publicAccountResult.isErr:
     let
@@ -136,11 +194,10 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
   password: string) {.task(kind=no_rts, stoppable=false).} =
 
   let
-    timestamp = getTime().toUnix()
-    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
+    timestamp = getTime().toUnix
     dir = status.dataDir / "keystore"
     importedResult = status.importMnemonic(Mnemonic mnemonic, bip39Passphrase,
-      password, paths, dir)
+      password, dir)
 
   if importedResult.isErr:
     let
@@ -194,14 +251,37 @@ proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
 proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
   let
     accounts = status.getPublicAccounts()
-    event = ListAccountsResult(accounts: accounts, timestamp: getTime().toUnix())
+    event = ListAccountsResult(accounts: accounts, timestamp: getTime().toUnix)
     eventEnc = event.encode
     task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false).} =
+proc listWalletAccounts*() {.task(kind=no_rts, stoppable=false).} =
+  let accounts = status.getWalletAccounts()
+  if accounts.isErr:
+    let
+      event = ListWalletAccountsResult(error: accounts.error)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    event = ListWalletAccountsResult(accounts: accounts.get,
+      timestamp: getTime().toUnix)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc login*(account: int,
+  password: string) {.task(kind=no_rts, stoppable=false).} =
+
   let task = taskArg.taskName
 
   if statusState != StatusState.loggedout: return
@@ -210,7 +290,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
   let allAccounts = status.getPublicAccounts()
 
   var
-    event: LoginResult
+    event: events.LoginResult
     eventEnc: string
     numberedAccount: PublicAccount
     keyUid: string
@@ -218,7 +298,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
   if account < 1 or account > allAccounts.len:
     statusState = StatusState.loggedout
 
-    event = LoginResult(error: "bad account number", loggedin: false)
+    event = events.LoginResult(error: "bad account number", loggedin: false)
     eventEnc = event.encode
 
   else:
@@ -226,11 +306,20 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
     keyUid = numberedAccount.keyUid
 
     try:
-      status.login(keyUid, password)
+      let loginResult = status.login(keyUid, password)
+      if loginResult.isErr:
+        statusState = StatusState.loggedout
+        event = events.LoginResult(error: loginResult.error, loggedin: false)
+        eventEnc = event.encode
+
+        trace "task sent event to host", event=eventEnc, task
+        asyncSpawn chanSendToHost.send(eventEnc.safe)
+        return
 
       statusState = StatusState.loggedin
 
-      event = LoginResult(account: numberedAccount, error: "", loggedin: true)
+      event = events.LoginResult(account: loginResult.get, error: "",
+        loggedin: true)
       eventEnc = event.encode
 
     except SqliteError as e:
@@ -238,7 +327,7 @@ proc login*(account: int, password: string) {.task(kind=no_rts, stoppable=false)
 
       statusState = StatusState.loggedout
 
-      event = LoginResult(
+      event = events.LoginResult(
         error: "login failed with database error, maybe wrong password?",
         loggedin: false)
 
@@ -254,15 +343,23 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
   statusState = StatusState.loggingout
 
   var
-    event: LogoutResult
+    event: events.LogoutResult
     eventEnc: string
 
   try:
-    status.logout()
+    let logoutResult = status.logout()
+    if logoutResult.isErr:
+      statusState = StatusState.loggedin
+      event = events.LogoutResult(error: logoutResult.error, loggedin: true)
+      eventEnc = event.encode
+
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
 
     statusState = StatusState.loggedout
 
-    event = LogoutResult(error: "", loggedin: false)
+    event = events.LogoutResult(error: "", loggedin: false)
     eventEnc = event.encode
 
   except SqliteError as e:
@@ -270,7 +367,7 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
 
     statusState = StatusState.loggedin
 
-    event = LogoutResult(error: "logout failed with database error.",
+    event = events.LogoutResult(error: "logout failed with database error.",
       loggedin: true)
 
     eventEnc = event.encode

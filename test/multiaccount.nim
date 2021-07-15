@@ -1,5 +1,5 @@
 import # nim libs
-  os, unittest
+  std/[os, tables, unittest]
 
 import # vednor libs
   chronos, eth/[keys, p2p], stew/byteutils
@@ -55,7 +55,7 @@ procSuite "multiaccount":
 
     let
       storeDerivedAccs = storeDerivedAccsResult.get
-      chatAddress = storeDerivedAccs[2].address
+      chatAddress = storeDerivedAccs[paths[2]].address
       loadAccResult = gntr.loadAccount(chatAddress, password, dir)
 
     assert loadAccResult.isOk, "failed loading account"

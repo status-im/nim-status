@@ -1,8 +1,22 @@
-import # nim-status libs
-  ../../extkeys/mnemonic
+import # std libs
+  std/[strutils, random, times]
 
-# MnemonicPhraseLengthToEntropyStrength returns the entropy strength for a given mnemonic length
+import # nim-status libs
+  ../../extkeys/mnemonic, ./signing_phrases
+
+proc generateSigningPhrase*(count: int): string =
+  let now = getTime()
+  var rng = initRand(now.toUnix * 1000000000 + now.nanosecond)
+  var phrases: seq[string] = @[]
+  
+  for i in 1..count:
+    phrases.add(rng.sample(signing_phrases.phrases))
+
+  result = phrases.join(" ")
+
 proc mnemonicPhraseLengthToEntropyStrength*(length: int): EntropyStrength =
+  # MnemonicPhraseLengthToEntropyStrength returns the entropy strength for a
+  # given mnemonic length
   if length < 12 or length > 24 or length mod 3 != 0:
     return EntropyStrength(0)
 

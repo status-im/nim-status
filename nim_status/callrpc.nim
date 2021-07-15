@@ -51,7 +51,7 @@ type RemoteMethod* {.pure.} = enum
 
 
 proc newWeb3*(settings: Settings): Web3 =
-  let network = settings.getNetwork()
+  let network = settings.getCurrentNetwork()
   if network.isNone:
     raise (ref Web3Error)(msg: "config not found for network " & settings.currentNetwork)
 
