@@ -111,7 +111,7 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
     # Hardcode bip39Passphrase to empty string. Can be enabled in UI later if
     # needed.
     publicAccountResult = status.createAccount(12, 1, "", password,
-      paths, dir) 
+      paths, dir)
 
   if publicAccountResult.isErr:
     let
@@ -150,6 +150,7 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
 
   let
     account = importedResult.get
