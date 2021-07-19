@@ -55,20 +55,21 @@ jobs:
           rm -f /usr/local/opt/openssl
           ln -s /usr/local/opt/openssl@1.1 /usr/local/opt/openssl
 
-      - uses: msys2/setup-msys2@v2
+      - name: Install tools and libraries via MSYS2
+        uses: msys2/setup-msys2@v2
         if: matrix.platform.os == 'windows'
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >
             base-devel
             git
             unzip
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-ncurses
-            mingw-w64-x86_64-openssl
-            mingw-w64-x86_64-pcre
-            mingw-w64-x86_64-rust
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-ncurses
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-pcre
+            mingw-w64-ucrt-x86_64-rust
 
       - uses: actions/checkout@v2
         with:

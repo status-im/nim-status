@@ -189,13 +189,13 @@ ifeq ($(detected_OS),macOS)
   override SSL_LIB_DIR = /usr/local/opt/openssl/lib
  endif
 else ifeq ($(detected_OS),Windows)
- SSL_INCLUDE_DIR ?= /mingw64/include/openssl
+ SSL_INCLUDE_DIR ?= /ucrt64/include/openssl
  ifeq ($(SSL_INCLUDE_DIR),)
-  override SSL_INCLUDE_DIR = /mingw64/include/openssl
+  override SSL_INCLUDE_DIR = /ucrt64/include/openssl
  endif
- SSL_LIB_DIR ?= /mingw64/lib
+ SSL_LIB_DIR ?= /ucrt64/lib
  ifeq ($(SSL_LIB_DIR),)
-  override SSL_LIB_DIR = /mingw64/lib
+  override SSL_LIB_DIR = /ucrt64/lib
  endif
 else
  SSL_INCLUDE_DIR ?= /usr/include
@@ -265,13 +265,13 @@ ifeq ($(detected_OS),macOS)
   override PCRE_LIB_DIR = /usr/local/opt/pcre/lib
  endif
 else ifeq ($(detected_OS),Windows)
- PCRE_INCLUDE_DIR ?= /mingw64/include
+ PCRE_INCLUDE_DIR ?= /ucrt64/include
  ifeq ($(PCRE_INCLUDE_DIR),)
-  override PCRE_INCLUDE_DIR = /mingw64/include
+  override PCRE_INCLUDE_DIR = /ucrt64/include
  endif
- PCRE_LIB_DIR ?= /mingw64/lib
+ PCRE_LIB_DIR ?= /ucrt64/lib
  ifeq ($(PCRE_LIB_DIR),)
-  override PCRE_LIB_DIR = /mingw64/lib
+  override PCRE_LIB_DIR = /ucrt64/lib
  endif
 else
  PCRE_INCLUDE_DIR ?= /usr/include
@@ -312,9 +312,9 @@ ifeq ($(detected_OS),macOS)
   override NCURSES_LIB_DIR = /usr/local/opt/ncurses/lib
  endif
 else ifeq ($(detected_OS),Windows)
- NCURSES_LIB_DIR ?= /mingw64/lib
+ NCURSES_LIB_DIR ?= /ucrt64/lib
  ifeq ($(NCURSES_LIB_DIR),)
-  override NCURSES_LIB_DIR = /mingw64/lib
+  override NCURSES_LIB_DIR = /ucrt64/lib
  endif
 else
  NCURSES_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
@@ -419,7 +419,7 @@ ifeq ($(SQLCIPHER_STATIC),false)
  LD_LIBRARY_PATH_NIMBLE := $(shell pwd)/$(shell dirname $(SQLCIPHER)):$(LD_LIBRARY_PATH_NIMBLE)
 endif
 
-# for NCURSES, PCRE, SSL assume already in PATH of MSYS2 shell, e.g. in /mingw64/bin
+# for NCURSES, PCRE, SSL assume already in PATH of MSYS2 shell, e.g. in /ucrt64/bin
 PATH_NIMBLE := $${PATH}
 ifeq ($(RLN_STATIC),false)
  PATH_NIMBLE := $(RLN_LIB_DIR):$(PATH_NIMBLE)
