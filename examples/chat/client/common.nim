@@ -1,8 +1,11 @@
 import # std libs
   std/[sets, times]
 
+import # vendor libs
+  task_runner
+
 import # chat libs
-  ../config, ../task_runner
+  ../config
 
 import # nim-status libs
   ../../../nim_status/accounts/public_accounts
