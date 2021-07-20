@@ -104,7 +104,7 @@ proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
      timestamp = getTime().toUnix
      username = "[unknown]"
 
-  T(message: message, timestamp: timestamp, username: username)
+  T(message: message, timestamp: timestamp, topic: topic, username: username)
 
 proc addWalletAccount*(name: string,
   password: string) {.task(kind=no_rts, stoppable=false).} =
