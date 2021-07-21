@@ -2,17 +2,18 @@ import # std libs
   std/[json, options, strutils, times, typetraits]
 
 import # vendor libs
-  chronicles, json_serialization, json_serialization/std/options as json_options,
-  secp256k1, stew/byteutils, sqlcipher, web3/ethtypes
+  chronicles, eth/keys, json_serialization,
+  json_serialization/std/options as json_options, secp256k1, stew/byteutils,
+  sqlcipher, web3/[conversions, ethtypes]
 
 import # nim_status libs
-  ./extkeys/types as key_types, ./settings/types
+  ./extkeys/types as key_types
 
 from ./tx_history/types as tx_history_types import TxType
 
 # needed because nim-sqlcipher calls toDbValue/fromDbValue which does not have
 # json_serialization/std/options imported 
-export json_options
+export conversions, ethtypes, json_options
 
 const dtFormat = "yyyy-MM-dd HH:mm:ss fffffffff"
 
@@ -56,6 +57,12 @@ proc parseAddress*(address: string): Address =
 
 proc readValue*(r: var JsonReader, T: type KeyPath): T =
   KeyPath r.readValue(string)
+
+proc toAddress*(secretKey: SkSecretKey): Address =
+  let
+    publicKey = secretKey.toPublicKey
+    address = (PublicKey publicKey).toAddress
+  address.parseAddress
 
 proc toDbValue*[T: Address](val: T): DbValue =
   DbValue(kind: sqliteText, strVal: $val)

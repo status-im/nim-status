@@ -3,7 +3,7 @@ import # nim libs
     typetraits]
 
 import # vendor libs
-  confutils, eth/keyfile/uuid, json_serialization, secp256k1, sqlcipher,
+  confutils, eth/[keyfile/uuid, keys], json_serialization, secp256k1, sqlcipher,
   stew/results, web3/ethtypes
 
 import # nim-status libs
@@ -178,8 +178,54 @@ proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
   except Exception as e:
     return PublicAccountResult.err e.msg
 
+proc validatePassword(self: StatusObject, password, dir: string): bool =
+
+  let address = self.userDb.getSetting(string, SettingsCol.WalletRootAddress)
+  if address.isNone:
+    return false
+  let loadAcctResult = self.accountsGenerator.loadAccount(
+    address.get.parseAddress, password, dir)
+  return loadAcctResult.isOk
+
+proc storeImportedWalletAccount(self: StatusObject, privateKey: SkSecretKey,
+  name, password, dir: string, accountType: AccountType): WalletAccountResult =
+
+  try:
+    if not self.validatePassword(password, dir):
+      return WalletAccountResult.err "Invalid password"
+
+    discard ?self.accountsGenerator.storeKeyFile(privateKey, password, dir)
+
+    let keyPath = PATH_DEFAULT_WALLET # NOTE: this is the keypath
+      # given to imported wallet accounts in status-desktop
+    var walletName = name
+    if walletName == "":
+      let walletAccts {.used.} = self.userDb.getWalletAccounts()
+      walletName = fmt"Wallet account {walletAccts.len}"
+
+    let
+      publicKey = privateKey.toPublicKey
+      walletAccount = accounts.Account(
+        address: (PublicKey publicKey).toAddress.parseAddress,
+        wallet: false.some, # NOTE: this *should* be true, however in status-go,
+        # only the wallet root account is true, and there is a unique db
+        # constraint enforcing only one account to have wallet = true
+        chat: false.some,
+        `type`: ($accountType).some,
+        storage: string.none,
+        path: keyPath.some,
+        publicKey: publicKey.some,
+        name: walletName.some,
+        color: "#4360df".some # TODO: pass in colour
+      )
+    self.userDb.createAccount(walletAccount)
+
+    return WalletAccountResult.ok(walletAccount)
+  except Exception as e:
+    return WalletAccountResult.err e.msg
+
 proc addWalletAccount*(self: StatusObject, name, password,
-  #[privateKey: Option[string],]# dir: string): WalletAccountResult =
+  dir: string): WalletAccountResult =
 
   if not self.isLoggedIn:
     return WalletAccountResult.err "Not logged in. You must be logged in to " &
@@ -193,8 +239,8 @@ proc addWalletAccount*(self: StatusObject, name, password,
   let
     lastDerivedPathIdx =
       self.userDb.getSetting(int, SettingsCol.LatestDerivedPath, 0)
-    loadedAccount = ?self.accountsGenerator.loadAccount(address.get, password,
-      dir)
+    loadedAccount = ?self.accountsGenerator.loadAccount(
+      address.get.parseAddress, password, dir)
     newIdx = lastDerivedPathIdx + 1
     path = fmt"{PATH_WALLET_ROOT}/{newIdx}"
     walletAccount = ?self.storeDerivedAccount(loadedAccount.id,
@@ -204,6 +250,23 @@ proc addWalletAccount*(self: StatusObject, name, password,
   self.userDb.saveSetting(SettingsCol.LatestDerivedPath, newIdx)
 
   WalletAccountResult.ok(walletAccount)
+
+proc addWalletPrivateKey*(self: StatusObject, privateKeyHex: string,
+  name, password, dir: string): WalletAccountResult =
+
+  try:
+    var privateKeyStripped = privateKeyHex
+    privateKeyStripped.removePrefix("0x")
+
+    let secretKeyResult = SkSecretKey.fromHex(privateKeyStripped)
+    if secretKeyResult.isErr:
+      return WalletAccountResult.err $secretKeyResult.error
+
+    return self.storeImportedWalletAccount(secretKeyResult.get, name, password,
+      dir, AccountType.Key)
+
+  except Exception as e:
+    return WalletAccountResult.err e.msg
 
 proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
   bip39Passphrase, password: string, dir: string): PublicAccountResult =

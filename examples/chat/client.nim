@@ -50,6 +50,12 @@ proc stop*(self: ChatClient) {.async.} =
 proc addWalletAccount*(self: ChatClient, name, password: string) {.async.} =
   asyncSpawn addWalletAccount(self.taskRunner, status, name, password)
 
+proc addWalletPrivateKey*(self: ChatClient, name: string, privateKey: string,
+  password: string) {.async.} =
+
+  asyncSpawn addWalletPrivateKey(self.taskRunner, status, name, privateKey,
+    password)
+
 proc connect*(self: ChatClient, username: string) {.async.} =
   asyncSpawn startWakuChat2(self.taskRunner, status, username)
 

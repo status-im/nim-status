@@ -4,11 +4,10 @@ import # nim libs
 
 import # vendor libs
   json_serialization, json_serialization/[reader, writer, lexer],
-  json_serialization/std/options as json_options,
-  web3/conversions as web3_conversions, web3/ethtypes, sqlcipher
+  json_serialization/std/options as json_options, sqlcipher
 
 import # nim-status libs
-  ../networks
+  ../conversions, ../networks
 
 export networks
 

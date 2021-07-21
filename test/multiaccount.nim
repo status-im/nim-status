@@ -5,7 +5,7 @@ import # vednor libs
   chronos, eth/[keys, p2p], stew/byteutils
 
 import # nim-status libs
-  ../nim_status/accounts/generator/generator, ../nim_status/extkeys/paths,
+  ../nim_status/[accounts/generator/generator, conversions, extkeys/paths],
   ./test_helpers
 
 
@@ -55,13 +55,13 @@ procSuite "multiaccount":
 
     let
       storeDerivedAccs = storeDerivedAccsResult.get
-      chatAddress = storeDerivedAccs[paths[2]].address
+      chatAddress = storeDerivedAccs[paths[2]].address.parseAddress
       loadAccResult = gntr.loadAccount(chatAddress, password, dir)
 
     assert loadAccResult.isOk, "failed loading account"
 
     let loadAcc = loadAccResult.get
 
-    assert loadAcc.address == chatAddress
+    assert loadAcc.address.parseAddress == chatAddress
 
     removeDir(dir)

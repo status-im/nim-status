@@ -1,9 +1,11 @@
 import # nim libs
   json, options, strutils, strformat
+
 import # vendor libs
-  web3/conversions as web3_conversions, web3/ethtypes,
-  sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
-  stew/byteutils
+  json_serialization, json_serialization/[reader, writer, lexer],
+  stew/byteutils, sqlcipher
+
+import ./conversions
 
 type
   PendingTxType* {.pure.} = enum

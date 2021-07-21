@@ -2,8 +2,7 @@ import # nim libs
   std/[json, options, os, unittest]
 
 import # vendor libs
-  chronos, json_serialization, sqlcipher,
-  web3/conversions as web3_conversions
+  chronos, json_serialization, sqlcipher
 
 import # nim-status libs
   ../nim_status/[client, conversions, database, settings],
