@@ -2,8 +2,7 @@ import # nim libs
   json, options, os, unittest
 
 import # vendor libs
-  chronos, json_serialization, sqlcipher, stew/byteutils,
-  web3/conversions as web3_conversions
+  chronos, json_serialization, sqlcipher, stew/byteutils
 
 import # nim-status libs
   ../nim_status/[chats, contacts, conversions, database, messages],

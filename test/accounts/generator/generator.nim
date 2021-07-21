@@ -1,10 +1,11 @@
 import # nim libs
-  std/[strformat, strutils, tables, unittest]
+  std/[os, strformat, strutils, tables, unittest]
 
 import # vednor libs
   chronos, eth/keys, eth/keyfile/uuid
 
 import # nim-status libs
+  ../../../nim_status/conversions,
   ../../../nim_status/accounts/generator/generator,
   ../../../nim_status/extkeys/types, ../../test_helpers
 
@@ -137,6 +138,60 @@ procSuite "generator":
       "should match"
     assert testAccount.bip44Address0 == idAcctInfo.address, "addresses " &
       "should match"
+
+  test "store key file and load account":
+    let gntr = Generator.new()
+    assert gntr.accounts.len == 0, "should start with 0 accounts"
+
+    let secretKeyResult = SkSecretKey.fromHex(testAccount.bip44Key0)
+    assert secretKeyResult.isOk, "failed to parse secret key"
+
+    let
+      secretKey = secretKeyResult.get
+      dir = "build/test"
+
+    var storeKeyFileResult = gntr.storeKeyFile(secretKey,
+        testAccount.encryptionPassword, dir)
+
+    assert storeKeyFileResult.isOK, "Failed to store keyfile: " &
+      storeKeyFileResult.error
+
+    let storedKeyFilePath = storeKeyFileResult.get
+    defer: removeFile storedKeyFilePath
+
+    assert storedKeyFilePath.fileExists, "stored key file doesn't exist"
+
+    echo "Stored key file path: " & storedKeyFilePath
+
+    # try stroing the same key file, should fail
+    storeKeyFileResult = gntr.storeKeyFile(secretKey,
+        testAccount.encryptionPassword, dir)
+
+    assert storeKeyFileResult.isErr, "Shouldn't be able to store the same " &
+      "key file more than once"
+
+    let
+      address = secretKey.toAddress
+      loadAcctResult = gntr.loadAccount(address,
+        testAccount.encryptionPassword, dir)
+
+    echo "Loaded account: "
+    echo "  id: ", loadAcctResult.get.id
+    echo "  publicKey: ", loadAcctResult.get.publicKey
+    echo "  address: ", loadAcctResult.get.address
+    echo "  keyUid: ", loadAcctResult.get.keyUid
+
+    assert loadAcctResult.isOk, "failed to load account: " &
+      loadAcctResult.error
+    let loadedAcct = loadAcctResult.get
+
+    assert loadedAcct.publicKey == testAccount.bip44PubKey0, "loaded public " &
+      "key is incorrect"
+    assert loadedAcct.address == testAccount.bip44Address0, "loaded address " &
+      "is incorrect"
+    assert gntr.accounts.len == 1, "should have loaded 1 account"
+
+
 
   # TODO: this needs to be done so that we can ensure created master/child
   # keys are hardened

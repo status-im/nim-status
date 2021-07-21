@@ -2,11 +2,10 @@ import # nim libs
   std/[os, json, options, tables]
 
 import # vendor libs
-  sqlcipher, json_serialization, web3/conversions as web3_conversions
+  sqlcipher, json_serialization
 
 import # nim-status libs
-  ../../nim_status/[settings, database, callrpc],
-  ../../nim_status/tx_history/types
+  ../../nim_status/[conversions, callrpc, database, settings, tx_history/types]
 
 from ../../nim_status/tx_history import nil
 

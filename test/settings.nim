@@ -3,7 +3,7 @@ import # nim libs
 
 import # vendor libs
   chronos, json_serialization, json_serialization/std/options as json_options,
-  sqlcipher, web3/conversions as web3_conversions, web3/ethtypes
+  sqlcipher
 
 import # nim-status libs
   ../nim_status/[conversions, database, settings],

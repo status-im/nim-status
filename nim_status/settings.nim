@@ -2,7 +2,7 @@ import # nim libs
   std/[json, options, strutils, strformat]
 
 import # vendor libs
-  json_serialization, sqlcipher, web3/conversions as web3_conversions 
+  json_serialization, sqlcipher
 
 import # nim-status libs
   ./conversions, ./settings/types
