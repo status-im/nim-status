@@ -229,7 +229,7 @@ proc storeKeyFile*(self: Generator, secretKey: SkSecretKey, password: string,
 
   let
     keyFileJson = $keyFileJsonResult.get
-    now {.used.} = now().format("yyyy-MM-dd'T'HH-mm-ss'.'fffffffff'Z'")
+    now {.used.} = now().utc.format("yyyy-MM-dd'T'HH-mm-ss'.'fffffffff'Z'")
     keyFilePath = dir / fmt"UTC--{now}--{($address).strip0xPrefix}"
 
   dir.createDir()
