@@ -1,18 +1,21 @@
 import # std libs
-  std/[json, os, strformat, strutils, tables]
+  std/[json, os, strformat, strutils, sugar, tables, times]
 
 import # vendor libs
   eth/keys, eth/keyfile/[keyfile, uuid], json_serialization, secp256k1,
-  stew/results
+  stew/results, web3/ethtypes
 
 import # nim-status libs
-  ./account, ../../extkeys/[hdkey, mnemonic, types], ../public_accounts, ./utils
+  ./account, ../../conversions, ../../extkeys/[hdkey, mnemonic, types],
+  ../public_accounts, ./utils
 
 export utils
 
 type
   Generator* = ref object
-    accounts*: TableRef[string, Account]
+    accounts*: TableRef[string, Account] # TODO: this should be made private,
+      # and we should adjust tests accordingly. The tests should reflect client
+      # usage, which should not obtain access to the accounts field.
 
   AccountResult = Result[Account, string]
 
@@ -23,6 +26,8 @@ type
   DeriveChildAccountResult = Result[Account, string]
 
   DeriveChildAccountsResult = Result[Table[KeyPath, Account], string]
+
+  FindKeyFileResult = Result[seq[(PathComponent, string)], string]
 
   GenerateAndDeriveAddressesResult* = Result[
     seq[GeneratedAndDerivedAccountInfo], string]
@@ -36,6 +41,8 @@ type
   LoadAccountResult* = Result[IdentifiedAccountInfo, string]
 
   StoreDerivedAccountsResult* = Result[Table[KeyPath, AccountInfo], string]
+
+  StoreKeyFileResult* = Result[string, string]
 
 proc new*(T: type Generator): T =
   T(accounts: newTable[string, Account]())
@@ -149,13 +156,34 @@ proc generateAndDeriveAddresses*(self: Generator, mnemonicPhraseLength: int,
   
   GenerateAndDeriveAddressesResult.ok(generatedAndDerived)
 
-proc loadAccount*(self: Generator, address: string, password: string,
+proc findKeyFile(self: Generator, address: Address,
+  dir: string): FindKeyFileResult =
+
+  let strAddress = $address
+
+  var found: seq[(PathComponent, string)] = @[]
+  for kind, path in dir.walkDir:
+    if kind == PathComponent.pcFile and path.endsWith(strAddress.strip0xPrefix):
+      found.add (kind, path)
+
+  if found.len == 0:
+    return FindKeyFileResult.err "Could not find key file for address " &
+      strAddress
+  if found.len > 1:
+    return FindKeyFileResult.err "Found more than one key file for address " &
+      strAddress
+
+  FindKeyFileResult.ok found
+
+proc loadAccount*(self: Generator, address: Address, password: string,
   dir: string = ""): LoadAccountResult =
 
   let
-    json = parseFile(dir / address)
+    found = ?self.findKeyFile(address, dir)
+    (kind, path) = found[0]
+    json = parseFile(path)
     privateKeyResult = decodeKeyFileJson(json, password)
-  
+
   if privateKeyResult.isErr:
     return LoadAccountResult.err fmt"Error decoding private key from file. Wrong password?"
 
@@ -175,15 +203,44 @@ proc reset(self: Generator) =
   # Reset resets the accounts map removing all the accounts from memory.
   self.accounts.clear()
 
-proc storeDerivedAccounts*(self: Generator, accountId: UUID, paths: seq[KeyPath],
-  password: string, dir: string = "", version: int = 3,
-  cryptkind: CryptKind = AES128CTR, kdfkind: KdfKind = PBKDF2,
-  workfactor: int = 0): StoreDerivedAccountsResult =
+proc storeKeyFile*(self: Generator, secretKey: SkSecretKey, password: string,
+  dir: string, version: int = 3, cryptkind: CryptKind = AES128CTR,
+  kdfkind: KdfKind = PBKDF2, workfactor: int = 0): StoreKeyFileResult =
+
+  let
+    address = secretKey.toAddress
+    findKeyFileResult = self.findKeyFile(address, dir)
+
+  if findKeyFileResult.isOk:
+    return StoreKeyFileResult.err fmt"Key file for address {address} already " &
+      "exists"
 
   var workfactorFinal = workfactor
   when not defined(release):
     # reduce the account creation time by a factor of 5 for debug builds only
     if workfactorFinal == 0: workfactorFinal = 100
+
+  let keyFileJsonResult = createKeyFileJson(PrivateKey secretKey, password,
+    version, cryptkind, kdfkind, workfactorFinal)
+
+  if keyFileJsonResult.isErr:
+    return StoreKeyFileResult.err "Error creating key file: " &
+      $keyFileJsonResult.error
+
+  let
+    keyFileJson = $keyFileJsonResult.get
+    now {.used.} = now().format("yyyy-MM-dd'T'HH-mm-ss'.'fffffffff'Z'")
+    keyFilePath = dir / fmt"UTC--{now}--{($address).strip0xPrefix}"
+
+  dir.createDir()
+  keyFilePath.writeFile(keyFileJson)
+  self.reset()
+  StoreKeyFileResult.ok keyFilePath
+
+proc storeDerivedAccounts*(self: Generator, accountId: UUID, paths: seq[KeyPath],
+  password: string, dir: string = "", version: int = 3,
+  cryptkind: CryptKind = AES128CTR, kdfkind: KdfKind = PBKDF2,
+  workfactor: int = 0): StoreDerivedAccountsResult =
 
   let
     acc = ?self.findAccount(accountId)
@@ -192,20 +249,11 @@ proc storeDerivedAccounts*(self: Generator, accountId: UUID, paths: seq[KeyPath]
   var accounts = initTable[KeyPath, AccountInfo]()
 
   for path, account in derived.pairs:
-    let keyFileJsonResult = createKeyFileJson(PrivateKey account.secretKey,
-      password, version, cryptkind, kdfkind, workfactorFinal)
+    let accountInfo = account.toAccountInfo
 
-    if keyFileJsonResult.isErr:
-      return StoreDerivedAccountsResult.err "Error creating key file: " &
-        $keyFileJsonResult.error
+    discard ?self.storeKeyFile(account.secretKey, password, dir,
+      version, cryptkind, kdfkind, workfactor)
 
-    let
-      accountInfo = account.toAccountInfo
-      keyFileJson = $keyFileJsonResult.get()
-
-    dir.createDir()
-    writeFile(dir / accountInfo.address, keyFileJson)
     accounts[path] = accountInfo
-    self.reset()
 
   StoreDerivedAccountsResult.ok(accounts)

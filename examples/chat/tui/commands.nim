@@ -30,7 +30,7 @@ const hashCharSet = {'#'}
 # AddWalletAccount ----------------------------------------------------------------
 
 proc help*(T: type AddWalletAccount): HelpText =
-  let command = "addaccount"
+  let command = "addwallet"
   HelpText(command: command, aliases: aliased[command], parameters: @[
     CommandParameter(name: "name", description: "(Optional) Display name for " &
       "the new account."),
@@ -56,6 +56,7 @@ proc split*(T: type AddWalletAccount, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: AddWalletAccount) {.async, gcsafe,
   nimcall.} =
+
   try:
     if command.password == "":
       self.wprintFormatError(epochTime().int64,
@@ -65,6 +66,49 @@ proc command*(self: ChatTUI, command: AddWalletAccount) {.async, gcsafe,
   except:
     self.wprintFormatError(epochTime().int64, "invalid arguments.")
 
+# AddWalletPrivateKey -----------------------------------------------------------------
+
+proc help*(T: type AddWalletPrivateKey): HelpText =
+  let command = "addwalletpk"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "name", description: "(Optional) Display name for " &
+      "the new account."),
+    CommandParameter(name: "privatekey", description: "Private key of the " &
+      "wallet account to import."),
+    CommandParameter(name: "password", description: "Password of the current " &
+      "account.")
+    ], description: "Imports a wallet account from a private key.")
+
+proc new*(T: type AddWalletPrivateKey, args: varargs[string]): T =
+  var
+    name = ""
+    privateKey = ""
+    password = ""
+  if args.len > 2:
+    name = args[0]
+    privateKey = args[1]
+    password = args[2]
+  elif args.len > 1:
+    privateKey = args[0]
+    password = args[1]
+
+  T(name: name, privateKey: privateKey, password: password)
+
+proc split*(T: type AddWalletPrivateKey, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: ChatTUI, command: AddWalletPrivateKey) {.async, gcsafe,
+  nimcall.} =
+
+  if command.privateKey == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "private key cannot be blank.")
+  elif command.password == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "password cannot be blank, please provide a password as the last argument.")
+  else:
+    asyncSpawn self.client.addWalletPrivateKey(command.name,
+      command.privateKey, command.password)
 # Connect ----------------------------------------------------------------------
 
 proc help*(T: type Connect): HelpText =
@@ -125,7 +169,6 @@ proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
     asyncSpawn self.client.disconnect()
   else:
     self.wprintFormatError(getTime().toUnix(), "client is not online.")
-
 
 # ImportMnemonic -----------------------------------------------------------------
 

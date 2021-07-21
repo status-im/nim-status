@@ -1,9 +1,6 @@
 import # std libs
   std/[os, strutils, sets, sugar, times]
 
-import # vendor libs
-  web3/conversions as web3_conversions
-
 import # nim-status libs
   ../../nim_status/[conversions, client, database],
   ../../nim_status/extkeys/[paths, types]
@@ -11,7 +8,7 @@ import # nim-status libs
 import # chat libs
   ./events, ./waku_chat2
 
-export conversions, events, web3_conversions
+export conversions, events
 
 logScope:
   topics = "chat client"
@@ -132,6 +129,49 @@ proc addWalletAccount*(name: string,
   if walletAccountResult.isErr:
     let
       event = AddWalletAccountResult(error: "Error creating wallet account, " &
+        "error: " & walletAccountResult.error, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    walletAccount = walletAccountResult.get
+    walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
+    event = AddWalletAccountResult(name: walletName,
+      address: walletAccount.address, timestamp: timestamp)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
+  {.task(kind=no_rts, stoppable=false).} =
+
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = AddWalletAccountResult(error: "Not logged in, " &
+        "cannot add a new wallet account.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  let
+    dir = status.dataDir / "keystore"
+    walletAccountResult = status.addWalletPrivateKey(privateKey, name, password,
+      dir) 
+
+  if walletAccountResult.isErr:
+    let
+      event = AddWalletAccountResult(error: "Error adding wallet account, " &
         "error: " & walletAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName

@@ -3,7 +3,7 @@ import # nim libs
 
 import # vendor libs
   chronos, json_serialization, json_serialization/[reader, writer, lexer],
-  secp256k1, sqlcipher, web3/conversions as web3_conversions, web3/ethtypes
+  secp256k1, sqlcipher
 
 import # nim-status libs
   ../conversions, ../database, ../extkeys/types, ../settings

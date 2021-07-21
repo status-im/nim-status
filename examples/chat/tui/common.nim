@@ -45,6 +45,11 @@ type
     name*: string
     password*: string
 
+  AddWalletPrivateKey* = ref object of Command
+    name*: string
+    password*: string
+    privateKey*: string
+
   Connect* = ref object of Command
 
   CommandParameter* = ref object of RootObj
@@ -104,7 +109,8 @@ const
 
   commands* = {
     DEFAULT_COMMAND: "SendMessage",
-    "addaccount": "AddWalletAccount",
+    "addwallet": "AddWalletAccount",
+    "addwalletpk": "AddWalletPrivateKey",
     "connect": "Connect",
     "createaccount": "CreateAccount",
     "disconnect": "Disconnect",
@@ -122,7 +128,8 @@ const
 
   aliases* = {
     "?": "help",
-    "add": "addaccount",
+    "add": "addwallet",
+    "addpk": "addwalletpk",
     "create": "createaccount",
     "import": "importmnemonic",
     "join": "jointopic",
@@ -142,7 +149,8 @@ const
 
   aliased* = {
     DEFAULT_COMMAND: @["send"],
-    "addaccount": @["add"],
+    "addwallet": @["add"],
+    "addwalletpk": @["addpk"],
     "createaccount": @["create"],
     "importmnemonic": @["import"],
     "help": @["?"],

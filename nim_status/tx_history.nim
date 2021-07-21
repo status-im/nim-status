@@ -7,7 +7,6 @@ import sets
 import tables
 import rlocks
 import # vendor libs
-  web3/conversions as web3_conversions, web3/ethtypes,
   sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
   stew/byteutils
 
