@@ -100,3 +100,12 @@ proc logout*(self: ChatClient) {.async.} =
 
 proc sendMessage*(self: ChatClient, message: string) {.async.} =
   asyncSpawn publishWakuChat2(self.taskRunner, status, message)
+
+proc getCustomTokens*(self: ChatClient) {.async.} =
+  asyncSpawn getCustomTokens(self.taskRunner, status)
+
+proc addCustomToken*(self: ChatClient, address, name, symbol, color, decimals: string) {.async.} =
+  asyncSpawn addCustomToken(self.taskRunner, status, address, name, symbol, color, decimals)
+
+proc deleteCustomToken*(self: ChatClient, address: string) {.async.} =
+  asyncSpawn deleteCustomToken(self.taskRunner, status, address)

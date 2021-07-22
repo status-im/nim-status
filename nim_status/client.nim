@@ -11,12 +11,18 @@ import # nim-status libs
   ./accounts/generator/[generator, utils],
   ./accounts/generator/account as generator_account, ./alias, ./chats,
   ./conversions, ./database, ./extkeys/[hdkey, mnemonic, paths, types],
-  ./identicon, ./settings, ./settings/types as settings_types, ./util
+  ./identicon, ./settings, ./settings/types as settings_types, ./tokens, ./util
 
 export results
 
 type
+  AddCustomTokenResult* = Result[Token, string]
+
   CreateSettingsResult* = Result[void, string]
+
+  DeleteCustomTokenResult* = Result[Address, string]
+
+  CustomTokensResult = Result[seq[Token], string]
 
   GetSettingsResult* = Result[Settings, string]
 
@@ -215,6 +221,36 @@ proc storeImportedWalletAccount(self: StatusObject, privateKey: SkSecretKey,
   except Exception as e:
     return WalletAccountResult.err e.msg
 
+proc addCustomToken*(self: StatusObject, address, name, symbol, color, decimals: string): AddCustomTokenResult =
+  if not self.isLoggedIn:
+    return AddCustomTokenResult.err "Not logged in. You must be logged in to " &
+      "add a new custom token."
+
+  var uintDecimals: uint
+  if decimals != "":
+    uintDecimals = parseUInt(decimals)
+  # TODO
+  let token = Token(address: cast[Address](address), name: name, symbol: symbol, color: color, decimals: uintDecimals)
+  try:
+    self.userDb.addCustomToken(token)
+  except Exception as e:
+    return AddCustomTokenResult.err "Error adding a custom token: " & e.msg
+
+  AddCustomTokenResult.ok(token)
+
+proc deleteCustomToken*(self: StatusObject, address: string): DeleteCustomTokenResult =
+  if not self.isLoggedIn:
+    return DeleteCustomTokenResult.err "Not logged in. You must be logged in to " &
+      "delete a custom token."
+
+  try:
+    self.userDb.deleteCustomToken(cast[Address](address))
+  except Exception as e:
+    return DeleteCustomTokenResult.err "Error deleting a custom token: " & e.msg
+
+  DeleteCustomTokenResult.ok cast[Address](address)
+
+
 proc addWalletAccount*(self: StatusObject, name, password,
   dir: string): WalletAccountResult =
 
@@ -361,6 +397,17 @@ proc getPublicAccounts*(self: StatusObject): seq[PublicAccount] =
 proc toWalletAccount(account: accounts.Account): WalletAccount {.used.} =
   let name = if account.name.isNone: "" else: account.name.get
   WalletAccount(address: account.address, name: name)
+
+proc getCustomTokens*(self: StatusObject): CustomTokensResult =
+  if not self.isLoggedIn:
+    return CustomTokensResult.err "Not logged in. Must be logged in to get " &
+      "custom tokens."
+  try:
+    let tokens = self.userDb.getCustomTokens()
+    return CustomTokensResult.ok tokens
+  except Exception as e:
+    return CustomTokensResult.err "Error getting wallet accounts: " & e.msg
+
 
 proc getWalletAccounts*(self: StatusObject): WalletAccountsResult =
   if not self.isLoggedIn:
