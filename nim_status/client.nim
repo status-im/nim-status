@@ -10,8 +10,8 @@ import # nim-status libs
   ./accounts/[accounts, public_accounts],
   ./accounts/generator/[generator, utils],
   ./accounts/generator/account as generator_account, ./alias, ./chats,
-  ./conversions, ./database, ./extkeys/[paths, types], ./identicon, ./settings,
-  ./settings/types as settings_types, ./util
+  ./conversions, ./database, ./extkeys/[hdkey, mnemonic, paths, types],
+  ./identicon, ./settings, ./settings/types as settings_types, ./util
 
 export results
 
@@ -69,9 +69,35 @@ proc close*(self: StatusObject) =
 proc initUserDb(self: StatusObject, keyUid, password: string) =
   self.userDbConn = initializeDB(self.dataDir / keyUid & ".db", password)
 
-proc storeDerivedAccount(self: StatusObject, id: UUID, keyUid: string,
-  path: KeyPath, name, password, dir: string,
-  accountType: AccountType): WalletAccountResult =
+proc storeWalletAccount(self: StatusObject, name: string, address: Address,
+  publicKey: SkPublicKey, accountType: AccountType,
+  path: KeyPath): WalletAccountResult =
+
+  var walletName = name
+  if walletName == "":
+    let walletAccts {.used.} = self.userDb.getWalletAccounts()
+    walletName = fmt"Wallet account {walletAccts.len}"
+
+  let
+    walletAccount = accounts.Account(
+      address: address,
+      wallet: false.some, # NOTE: this *should* be true, however in status-go,
+      # only the wallet root account is true, and there is a unique db
+      # constraint enforcing only one account to have wallet = true
+      chat: false.some,
+      `type`: ($accountType).some,
+      storage: string.none,
+      path: path.some,
+      publicKey: publicKey.some,
+      name: walletName.some,
+      color: "#4360df".some # TODO: pass in colour
+    )
+  self.userDb.createAccount(walletAccount)
+
+  return WalletAccountResult.ok(walletAccount)
+
+proc storeDerivedAccount(self: StatusObject, id: UUID, path: KeyPath, name,
+  password, dir: string, accountType: AccountType): WalletAccountResult =
 
   let
     accountInfos = ?self.accountsGenerator.storeDerivedAccounts(id, @[path],
@@ -83,28 +109,11 @@ proc storeDerivedAccount(self: StatusObject, id: UUID, keyUid: string,
   if walletPubKeyResult.isErr:
     return WalletAccountResult.err $walletPubKeyResult.error
 
-  var walletName = name
-  if walletName == "":
-    let pathStr {.used.} = $path
-    walletName = fmt"Wallet account {pathStr[pathStr.len - 1]}"
-
   let
-    walletAccount = accounts.Account(
-      address: acct.address.parseAddress,
-      wallet: false.some, # NOTE: this *should* be true, however in status-go,
-      # only the wallet root account is true, and there is a unique db
-      # constraint enforcing only one account to have wallet = true
-      chat: false.some,
-      `type`: some($accountType),
-      storage: string.none,
-      path: path.some,
-      publicKey: walletPubKeyResult.get.some,
-      name: walletName.some,
-      color: "#4360df".some # TODO: pass in colour
-    )
-  self.userDb.createAccount(walletAccount)
+    address = acct.address.parseAddress
+    publicKey = walletPubKeyResult.get
 
-  WalletAccountResult.ok(walletAccount)
+  return self.storeWalletAccount(name, address, publicKey, accountType, path)
 
 proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
   paths: seq[KeyPath], password, dir: string): PublicAccountResult =
@@ -196,31 +205,13 @@ proc storeImportedWalletAccount(self: StatusObject, privateKey: SkSecretKey,
 
     discard ?self.accountsGenerator.storeKeyFile(privateKey, password, dir)
 
-    let keyPath = PATH_DEFAULT_WALLET # NOTE: this is the keypath
-      # given to imported wallet accounts in status-desktop
-    var walletName = name
-    if walletName == "":
-      let walletAccts {.used.} = self.userDb.getWalletAccounts()
-      walletName = fmt"Wallet account {walletAccts.len}"
-
     let
+      path = PATH_DEFAULT_WALLET # NOTE: this is the keypath
+        # given to imported wallet accounts in status-desktop
       publicKey = privateKey.toPublicKey
-      walletAccount = accounts.Account(
-        address: (PublicKey publicKey).toAddress.parseAddress,
-        wallet: false.some, # NOTE: this *should* be true, however in status-go,
-        # only the wallet root account is true, and there is a unique db
-        # constraint enforcing only one account to have wallet = true
-        chat: false.some,
-        `type`: ($accountType).some,
-        storage: string.none,
-        path: keyPath.some,
-        publicKey: publicKey.some,
-        name: walletName.some,
-        color: "#4360df".some # TODO: pass in colour
-      )
-    self.userDb.createAccount(walletAccount)
+      address = privateKey.toAddress
+    return self.storeWalletAccount(name, address, publicKey, accountType, path)
 
-    return WalletAccountResult.ok(walletAccount)
   except Exception as e:
     return WalletAccountResult.err e.msg
 
@@ -243,9 +234,8 @@ proc addWalletAccount*(self: StatusObject, name, password,
       address.get.parseAddress, password, dir)
     newIdx = lastDerivedPathIdx + 1
     path = fmt"{PATH_WALLET_ROOT}/{newIdx}"
-    walletAccount = ?self.storeDerivedAccount(loadedAccount.id,
-      loadedAccount.keyUid, KeyPath path, name, password, dir,
-      AccountType.Generated)
+    walletAccount = ?self.storeDerivedAccount(loadedAccount.id, KeyPath path,
+      name, password, dir, AccountType.Generated)
 
   self.userDb.saveSetting(SettingsCol.LatestDerivedPath, newIdx)
 
@@ -264,6 +254,22 @@ proc addWalletPrivateKey*(self: StatusObject, privateKeyHex: string,
 
     return self.storeImportedWalletAccount(secretKeyResult.get, name, password,
       dir, AccountType.Key)
+
+  except Exception as e:
+    return WalletAccountResult.err e.msg
+
+proc addWalletSeed*(self: StatusObject, mnemonic: Mnemonic, name, password,
+  dir, bip39Passphrase: string): WalletAccountResult =
+
+  try:
+    if not self.validatePassword(password, dir):
+      return WalletAccountResult.err "Invalid password"
+
+    let imported = ?self.accountsGenerator.importMnemonic(mnemonic,
+      bip39Passphrase)
+
+    return self.storeDerivedAccount(imported.id, PATH_DEFAULT_WALLET, name,
+      password, dir, AccountType.Seed)
 
   except Exception as e:
     return WalletAccountResult.err e.msg
@@ -342,7 +348,7 @@ proc createSettings*(self: StatusObject, settings: Settings,
 proc getPublicAccounts*(self: StatusObject): seq[PublicAccount] =
   self.accountsDb.getPublicAccounts()
 
-proc toWalletAccount(account: accounts.Account): WalletAccount =
+proc toWalletAccount(account: accounts.Account): WalletAccount {.used.} =
   let name = if account.name.isNone: "" else: account.name.get
   WalletAccount(address: account.address, name: name)
 

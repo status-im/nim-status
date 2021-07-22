@@ -57,7 +57,7 @@ proc addAccount(self: Generator, acc: Account): AddAccountResult =
   AddAccountResult.ok(uuid)
 
 proc deriveChildAccount(self: Generator, a: Account,
-  path: KeyPath): DeriveChildAccountResult =
+  path: KeyPath): DeriveChildAccountResult {.used.} =
 
   let
     childExtKey = ?a.extendedKey.derive(path)

@@ -138,7 +138,7 @@ proc addWalletAccount*(name: string,
 
   let
     walletAccount = walletAccountResult.get
-    walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
+    walletName = walletAccount.name.get("")
     event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
     eventEnc = event.encode
@@ -181,7 +181,50 @@ proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
 
   let
     walletAccount = walletAccountResult.get
-    walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
+    walletName = walletAccount.name.get("")
+    event = AddWalletAccountEvent(name: walletName,
+      address: walletAccount.address, timestamp: timestamp)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc addWalletSeed*(name: string, mnemonic: string, password: string,
+  bip39Passphrase: string) {.task(kind=no_rts, stoppable=false).} =
+
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
+        "cannot add a new wallet account.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  let
+    dir = status.dataDir / "keystore"
+    walletAccountResult = status.addWalletSeed(Mnemonic mnemonic, name,
+      password, dir, bip39Passphrase) 
+
+  if walletAccountResult.isErr:
+    let
+      event = AddWalletAccountEvent(error: "Error adding wallet account, " &
+        "error: " & walletAccountResult.error, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    walletAccount = walletAccountResult.get
+    walletName = walletAccount.name.get("")
     event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
     eventEnc = event.encode
