@@ -83,7 +83,7 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   # re/set threadvars that don't persist across waku chat2 dis/connect
   resetContext()
 
-proc new(T: type UserMessage, wakuMessage: WakuMessage): T =
+proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
   let topic = wakuMessage.contentTopic
   var
     message: string
@@ -113,7 +113,7 @@ proc addWalletAccount*(name: string,
 
   if statusState != StatusState.loggedin:
     let
-      eventNotLoggedIn = AddWalletAccountResult(error: "Not logged in, " &
+      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
         "cannot create a new wallet account.",
         timestamp: timestamp)
       eventNotLoggedInEnc = eventNotLoggedIn.encode
@@ -131,7 +131,7 @@ proc addWalletAccount*(name: string,
 
   if walletAccountResult.isErr:
     let
-      event = AddWalletAccountResult(error: "Error creating wallet account, " &
+      event = AddWalletAccountEvent(error: "Error creating wallet account, " &
         "error: " & walletAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
@@ -142,7 +142,7 @@ proc addWalletAccount*(name: string,
   let
     walletAccount = walletAccountResult.get
     walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
-    event = AddWalletAccountResult(name: walletName,
+    event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
     eventEnc = event.encode
     task = taskArg.taskName
@@ -155,7 +155,7 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
 
   if statusState != StatusState.loggedout:
     let
-      eventNotLoggedOut = AddWalletAccountResult(error: "You must be logged " &
+      eventNotLoggedOut = AddWalletAccountEvent(error: "You must be logged " &
         "out to create a new account.",
         timestamp: timestamp)
       eventNotLoggedOutEnc = eventNotLoggedOut.encode
@@ -173,7 +173,7 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
 
   if publicAccountResult.isErr:
     let
-      event = CreateAccountResult(error: "Error creating account, error: " &
+      event = CreateAccountEvent(error: "Error creating account, error: " &
         publicAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
@@ -183,7 +183,7 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
 
   let
     account = publicAccountResult.get
-    event = CreateAccountResult(account: account, timestamp: timestamp)
+    event = CreateAccountEvent(account: account, timestamp: timestamp)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -201,7 +201,7 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
 
   if importedResult.isErr:
     let
-      event = events.ImportMnemonicResult(error: "Error importing mnemonic: " &
+      event = ImportMnemonicEvent(error: "Error importing mnemonic: " &
         importedResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
@@ -211,7 +211,7 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
 
   let
     account = importedResult.get
-    event = ImportMnemonicResult(account: account, timestamp: timestamp)
+    event = ImportMnemonicEvent(account: account, timestamp: timestamp)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -226,7 +226,7 @@ proc joinTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
     trace "topic already joined", contentTopic=topic
 
   let
-    event = JoinTopicResult(timestamp: getTime().toUnix(), topic: topic)
+    event = JoinTopicEvent(timestamp: getTime().toUnix(), topic: topic)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -241,7 +241,7 @@ proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
     trace "topic not joined, no need to leave", contentTopic=topic
 
   let
-    event = LeaveTopicResult(timestamp: getTime().toUnix(), topic: topic)
+    event = LeaveTopicEvent(timestamp: getTime().toUnix(), topic: topic)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -251,7 +251,7 @@ proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
 proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
   let
     accounts = status.getPublicAccounts()
-    event = ListAccountsResult(accounts: accounts, timestamp: getTime().toUnix)
+    event = ListAccountsEvent(accounts: accounts, timestamp: getTime().toUnix)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -262,7 +262,7 @@ proc listWalletAccounts*() {.task(kind=no_rts, stoppable=false).} =
   let accounts = status.getWalletAccounts()
   if accounts.isErr:
     let
-      event = ListWalletAccountsResult(error: accounts.error)
+      event = ListWalletAccountsEvent(error: accounts.error)
       eventEnc = event.encode
       task = taskArg.taskName
 
@@ -271,7 +271,7 @@ proc listWalletAccounts*() {.task(kind=no_rts, stoppable=false).} =
     return
 
   let
-    event = ListWalletAccountsResult(accounts: accounts.get,
+    event = ListWalletAccountsEvent(accounts: accounts.get,
       timestamp: getTime().toUnix)
     eventEnc = event.encode
     task = taskArg.taskName
@@ -290,7 +290,7 @@ proc login*(account: int,
   let allAccounts = status.getPublicAccounts()
 
   var
-    event: events.LoginResult
+    event: LoginEvent
     eventEnc: string
     numberedAccount: PublicAccount
     keyUid: string
@@ -298,7 +298,7 @@ proc login*(account: int,
   if account < 1 or account > allAccounts.len:
     statusState = StatusState.loggedout
 
-    event = events.LoginResult(error: "bad account number", loggedin: false)
+    event = LoginEvent(error: "bad account number", loggedin: false)
     eventEnc = event.encode
 
   else:
@@ -309,7 +309,7 @@ proc login*(account: int,
       let loginResult = status.login(keyUid, password)
       if loginResult.isErr:
         statusState = StatusState.loggedout
-        event = events.LoginResult(error: loginResult.error, loggedin: false)
+        event = LoginEvent(error: loginResult.error, loggedin: false)
         eventEnc = event.encode
 
         trace "task sent event to host", event=eventEnc, task
@@ -318,7 +318,7 @@ proc login*(account: int,
 
       statusState = StatusState.loggedin
 
-      event = events.LoginResult(account: loginResult.get, error: "",
+      event = LoginEvent(account: loginResult.get, error: "",
         loggedin: true)
       eventEnc = event.encode
 
@@ -327,7 +327,7 @@ proc login*(account: int,
 
       statusState = StatusState.loggedout
 
-      event = events.LoginResult(
+      event = LoginEvent(
         error: "login failed with database error, maybe wrong password?",
         loggedin: false)
 
@@ -343,14 +343,14 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
   statusState = StatusState.loggingout
 
   var
-    event: events.LogoutResult
+    event: LogoutEvent
     eventEnc: string
 
   try:
     let logoutResult = status.logout()
     if logoutResult.isErr:
       statusState = StatusState.loggedin
-      event = events.LogoutResult(error: logoutResult.error, loggedin: true)
+      event = LogoutEvent(error: logoutResult.error, loggedin: true)
       eventEnc = event.encode
 
       trace "task sent event to host", event=eventEnc, task
@@ -359,7 +359,7 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
 
     statusState = StatusState.loggedout
 
-    event = events.LogoutResult(error: "", loggedin: false)
+    event = LogoutEvent(error: "", loggedin: false)
     eventEnc = event.encode
 
   except SqliteError as e:
@@ -367,7 +367,7 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
 
     statusState = StatusState.loggedin
 
-    event = events.LogoutResult(error: "logout failed with database error.",
+    event = LogoutEvent(error: "logout failed with database error.",
       loggedin: true)
 
     eventEnc = event.encode
@@ -461,7 +461,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
 
         for message in wakuMessages:
           let
-            event = UserMessage.new(message)
+            event = UserMessageEvent.new(message)
             eventEnc = event.encode
 
           trace "task sent event to host", event=eventEnc, task
@@ -486,7 +486,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
       trace "handling filtered message", contentTopic=message.contentTopic
 
       let
-        event = UserMessage.new(message)
+        event = UserMessageEvent.new(message)
         eventEnc = event.encode
 
       trace "task sent event to host", event=eventEnc, task
@@ -517,7 +517,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
 
         else:
           let
-            event = UserMessage.new(message)
+            event = UserMessageEvent.new(message)
             eventEnc = event.encode
 
           trace "task sent event to host", event=eventEnc, task
@@ -536,7 +536,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
   wakuState = WakuState.started
 
   let
-    event = NetworkStatus(online: true)
+    event = NetworkStatusEvent(online: true)
     eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task
@@ -562,7 +562,7 @@ proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
   resetContext()
 
   let
-    event = NetworkStatus(online: false)
+    event = NetworkStatusEvent(online: false)
     eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task

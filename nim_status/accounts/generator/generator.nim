@@ -66,7 +66,7 @@ proc deriveChildAccounts(self: Generator, a: Account,
   for path in paths:
     derived[path] = ?self.deriveChildAccount(a, path)
 
-  ok(derived)
+  DeriveChildAccountsResult.ok(derived)
 
 proc findAccount(self: Generator, accountId: UUID): AccountResult =
   let id = $accountId

@@ -15,69 +15,69 @@ logScope:
 type
   ClientEvent* = ref object of Event
 
-  AddWalletAccountResult* = ref object of ClientEvent
+  AddWalletAccountEvent* = ref object of ClientEvent
     name*: string
     address*: Address
     error*: string
     timestamp*: int64
 
-  CreateAccountResult* = ref object of ClientEvent
+  CreateAccountEvent* = ref object of ClientEvent
     account*: PublicAccount
     error*: string
     timestamp*: int64
 
-  ImportMnemonicResult* = ref object of ClientEvent
+  ImportMnemonicEvent* = ref object of ClientEvent
     error*: string
     account*: PublicAccount
     timestamp*: int64
 
-  JoinTopicResult* = ref object of ClientEvent
+  JoinTopicEvent* = ref object of ClientEvent
     timestamp*: int64
     topic*: string
 
-  LeaveTopicResult* = ref object of ClientEvent
+  LeaveTopicEvent* = ref object of ClientEvent
     timestamp*: int64
     topic*: string
 
-  ListAccountsResult* = ref object of ClientEvent
+  ListAccountsEvent* = ref object of ClientEvent
     accounts*: seq[PublicAccount]
     timestamp*: int64
 
-  ListWalletAccountsResult* = ref object of ClientEvent
+  ListWalletAccountsEvent* = ref object of ClientEvent
     accounts*: seq[WalletAccount]
     error*: string
     timestamp*: int64
 
-  LoginResult* = ref object of ClientEvent
+  LoginEvent* = ref object of ClientEvent
     account*: PublicAccount
     error*: string
     loggedin*: bool
 
-  LogoutResult* = ref object of ClientEvent
+  LogoutEvent* = ref object of ClientEvent
     error*: string
     loggedin*: bool
 
-  NetworkStatus* = ref object of ClientEvent
+  NetworkStatusEvent* = ref object of ClientEvent
     online*: bool
 
-  UserMessage* = ref object of ClientEvent
+  UserMessageEvent* = ref object of ClientEvent
     message*: string
     timestamp*: int64
     topic*: string
     username*: string
 
 const clientEvents* = [
-  "AddWalletAccountResult",
-  "CreateAccountResult",
-  "ImportMnemonicResult",
-  "JoinTopicResult",
-  "LeaveTopicResult",
-  "ListAccountsResult",
-  "ListWalletAccountsResult",
-  "LoginResult",
-  "LogoutResult",
-  "NetworkStatus",
-  "UserMessage"
+  "AddWalletAccountEvent",
+  "CreateAccountEvent",
+  "ImportMnemonicEvent",
+  "JoinTopicEvent",
+  "LeaveTopicEvent",
+  "ListAccountsEvent",
+  "ListWalletAccountsEvent",
+  "LoginEvent",
+  "LogoutEvent",
+  "NetworkStatusEvent",
+  "UserMessageEvent"
 ]
 
 proc listenToStatus(self: ChatClient) {.async.} =
