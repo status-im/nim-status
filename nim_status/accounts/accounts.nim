@@ -74,6 +74,23 @@ proc getAccounts*(db: DbConn): seq[Account] =
                     ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
   result = db.all(Account, query)
 
+proc getChatAccount*(db: DbConn): Account =
+  var tblAccounts: Account
+  let query = fmt"""SELECT    {tblAccounts.address.columnName},
+                              {tblAccounts.wallet.columnName},
+                              {tblAccounts.chat.columnName},
+                              {tblAccounts.`type`.columnName},
+                              {tblAccounts.storage.columnName},
+                              {tblAccounts.path.columnName},
+                              {tblAccounts.publicKey.columnName},
+                              {tblAccounts.name.columnName},
+                              {tblAccounts.color.columnName},
+                              {tblAccounts.createdAt.columnName},
+                              {tblAccounts.updatedAt.columnName}
+                    FROM      {tblAccounts.tableName}
+                    WHERE     {tblAccounts.chat.columnName} = TRUE"""
+  result = db.one(Account, query).get
+
 proc getWalletAccounts*(db: DbConn): seq[Account] =
   # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
   # status-go enforces only one account to have wallet = 1 (using a unique
