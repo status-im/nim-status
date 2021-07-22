@@ -50,6 +50,12 @@ type
     password*: string
     privateKey*: string
 
+  AddWalletSeed* = ref object of Command
+    bip39Passphrase*: string
+    name*: string
+    mnemonic*: string
+    password*: string
+
   Connect* = ref object of Command
 
   CommandParameter* = ref object of RootObj
@@ -111,6 +117,7 @@ const
     DEFAULT_COMMAND: "SendMessage",
     "addwallet": "AddWalletAccount",
     "addwalletpk": "AddWalletPrivateKey",
+    "addwalletseed": "AddWalletSeed",
     "connect": "Connect",
     "createaccount": "CreateAccount",
     "disconnect": "Disconnect",
@@ -130,6 +137,7 @@ const
     "?": "help",
     "add": "addwallet",
     "addpk": "addwalletpk",
+    "addseed": "addwalletseed",
     "create": "createaccount",
     "import": "importmnemonic",
     "join": "jointopic",
@@ -151,6 +159,7 @@ const
     DEFAULT_COMMAND: @["send"],
     "addwallet": @["add"],
     "addwalletpk": @["addpk"],
+    "addwalletseed": @["addseed"],
     "createaccount": @["create"],
     "importmnemonic": @["import"],
     "help": @["?"],

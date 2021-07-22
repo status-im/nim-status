@@ -66,7 +66,7 @@ proc command*(self: ChatTUI, command: AddWalletAccount) {.async, gcsafe,
   except:
     self.wprintFormatError(epochTime().int64, "invalid arguments.")
 
-# AddWalletPrivateKey -----------------------------------------------------------------
+# AddWalletPrivateKey ----------------------------------------------------------
 
 proc help*(T: type AddWalletPrivateKey): HelpText =
   let command = "addwalletpk"
@@ -114,6 +114,72 @@ proc command*(self: ChatTUI, command: AddWalletPrivateKey) {.async, gcsafe,
   else:
     asyncSpawn self.client.addWalletPrivateKey(command.name,
       command.privateKey, command.password)
+
+# AddWalletSeed ------------------------------------------------------------
+
+proc help*(T: type AddWalletSeed): HelpText =
+  let command = "addwalletseed"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "name", description: "(Optional) Display name for " &
+      "the new account."),
+    CommandParameter(name: "mnemonic", description: "The 12-word mnemonic " &
+      "seed phrase of the wallet account to import."),
+    CommandParameter(name: "password", description: "Password of the current " &
+      "account.")
+    ], description: "Imports a wallet account from a mnemonic seed.")
+
+proc new*(T: type AddWalletSeed, args: varargs[string]): T =
+  T(name: args[0], mnemonic: args[1], password: args[2], bip39Passphrase: args[3])
+
+proc split*(T: type AddWalletSeed, argsRaw: string): seq[string] =
+  let args = argsRaw.split(" ")
+  var
+    name: string
+    mnemonic: string
+    # bip39passphrase could be supplied (ie for use in Trezor hardwallets),
+    # however here we are assuming it not being passed in for simplicity in
+    # supplying input parameters to the command. This is in parity with how
+    # status-desktop and status-react are doing it. status-desktop
+    # implementation:
+    # https://github.com/status-im/status-desktop/tree/master/src/status/libstatus/accounts.nim#L244
+    passphrase = ""
+    password: string
+
+  if args.len == 0:
+    name = ""
+    mnemonic = ""
+    password = ""
+  elif args.len < 13:
+    name = ""
+    mnemonic = args[0..^1].join(" ")
+    password = ""
+  elif args.len < 14:
+    name = ""
+    mnemonic = args[0..11].join(" ")
+    password = args[12..^1].join(" ")
+  else:
+    name = args[0]
+    mnemonic = args[1..12].join(" ")
+    password = args[13..^1].join(" ")
+
+  @[name, mnemonic, password, passphrase]
+
+proc command*(self: ChatTUI, command: AddWalletSeed) {.async, gcsafe,
+  nimcall.} =
+
+  if command.mnemonic == "" and command.password == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "mnemonic and password cannot be blank.")
+  elif command.mnemonic == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "mnemonic cannot be blank.")
+  elif command.password == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "password cannot be blank, please provide a password as the last argument.")
+  else:
+    asyncSpawn self.client.addWalletSeed(command.name,
+      command.mnemonic, command.password, command.bip39Passphrase)
+
 # Connect ----------------------------------------------------------------------
 
 proc help*(T: type Connect): HelpText =
@@ -180,10 +246,10 @@ proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
 proc help*(T: type ImportMnemonic): HelpText =
   let command = "importmnemonic"
   HelpText(command: command, aliases: aliased[command], parameters: @[
-    CommandParameter(name: "mnemonic", description: "The mnemonic seed " &
-      "phrase used to import the account."),
-    CommandParameter(name: "passphrase", description: "(Optional) The " &
-      "passphrase used for securing against seed loss/theft."),
+    CommandParameter(name: "mnemonic", description: "The 12-word mnemonic " &
+      "seed phrase of the account to import."),
+    CommandParameter(name: "bip39passphrase", description: "(Optional) The " &
+      "BIP-39 passphrase used for securing against seed loss/theft."),
     CommandParameter(name: "password", description: "The password used to " &
       "encrypt the keystore file.")
     ], description: "Imports a Status account from a mnemoic.")
