@@ -41,6 +41,13 @@ type
   # all fields on types that derive from Command should be of type `string`
   Command* = ref object of RootObj
 
+  AddCustomToken* = ref object of Command
+    address*: string
+    name*: string
+    symbol*: string
+    color*: string
+    decimals*: string
+
   AddWalletAccount* = ref object of Command
     name*: string
     password*: string
@@ -69,7 +76,12 @@ type
   CreateAccount* = ref object of Command
     password*: string
 
+  DeleteCustomToken* = ref object of Command
+    index*: string
+
   Disconnect* = ref object of Command
+
+  GetCustomTokens* = ref object of Command
 
   Help* = ref object of Command
     command*: string
@@ -119,13 +131,16 @@ const
 
   commands* = {
     DEFAULT_COMMAND: "SendMessage",
+    "addcustomtoken": "AddCustomToken",
     "addwallet": "AddWalletAccount",
     "addwalletpk": "AddWalletPrivateKey",
     "addwalletseed": "AddWalletSeed",
     "addwalletwatch": "AddWalletWatchOnly",
     "connect": "Connect",
     "createaccount": "CreateAccount",
+    "deletecustomtoken": "DeleteCustomToken",
     "disconnect": "Disconnect",
+    "getcustomtokens": "GetCustomTokens",
     "help": "Help",
     "importmnemonic": "ImportMnemonic",
     "jointopic": "JoinTopic",
@@ -143,8 +158,11 @@ const
     "add": "addwallet",
     "addpk": "addwalletpk",
     "addseed": "addwalletseed",
+    "addtoken": "addcustomtoken",
     "addwatch": "addwalletwatch",
     "create": "createaccount",
+    "deletetoken": "deletecustomtoken",
+    "gettokens": "getcustomtokens",
     "import": "importmnemonic",
     "join": "jointopic",
     "leave": "leavetopic",
@@ -163,11 +181,14 @@ const
 
   aliased* = {
     DEFAULT_COMMAND: @["send"],
+    "addcustomtoken": @["addtoken"],
     "addwallet": @["add"],
     "addwalletpk": @["addpk"],
     "addwalletseed": @["addseed"],
     "addwalletwatch": @["addwatch"],
     "createaccount": @["create"],
+    "deletecustomtoken": @["deletetoken"],
+    "getcustomtokens": @["gettokens"],
     "importmnemonic": @["import"],
     "help": @["?"],
     "jointopic": @["join", "sub", "subscribe"],

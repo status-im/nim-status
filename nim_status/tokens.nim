@@ -13,6 +13,7 @@ type
   TokenError* = object of CatchableError
 
   TokenType* {.pure.} = enum
+    NetworkId = "networkId",
     Address = "address",
     Name = "name",
     Symbol = "symbol",
@@ -28,6 +29,7 @@ type
     Color = "color"
 
   Token* {.dbTableName("tokens").} = object
+    networkId* {.serializedFieldName($TokenType.NetworkId), dbColumnName($TokenCol.NetworkId).}: uint
     address* {.serializedFieldName($TokenType.Address), dbColumnName($TokenCol.Address).}: Address
     name* {.serializedFieldName($TokenType.Name), dbColumnName($TokenCol.Name).}: string
     symbol* {.serializedFieldName($TokenType.Symbol), dbColumnName($TokenCol.Symbol).}: string
@@ -41,7 +43,7 @@ proc addCustomToken*(db: DbConn, token: Token) =
 
 proc getCustomTokens*(db: DbConn): seq[Token] =
   var token: Token
-  const query = fmt"""SELECT * FROM {token.tableName}"""
+  const query = fmt"""SELECT * FROM {token.tableName} ORDER BY {token.symbol.columnName}, {token.networkId.columnName}"""
   result = db.all(Token, query)
 
 proc deleteCustomToken*(db: DbConn, address: Address) =

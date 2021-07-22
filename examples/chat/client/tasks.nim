@@ -1,5 +1,7 @@
 import # std libs
-  std/[os, strutils, sets, sugar, times]
+  std/[os, strutils, sets, times]
+
+from std/sugar import `=>`, collect
 
 import # nim-status libs
   ../../nim_status/[conversions, client, database],
@@ -729,3 +731,146 @@ proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
           lightpushHandler)
       else:
         asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)
+
+proc getCustomTokens*() {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = GetCustomTokensEvent(error: "Not logged in, " &
+        "cannot get custom tokens.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+
+  let tokens = status.getCustomTokens()
+  if tokens.isErr:
+    let
+      event = GetCustomTokensEvent(error: tokens.error)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    event = GetCustomTokensEvent(tokens: tokens.get,
+      timestamp: getTime().toUnix)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc addCustomToken*(address: Address, name: string, symbol: string, color: string, decimals: uint) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = AddCustomTokenEvent(error: "Not logged in, " &
+        "cannot add a new custom token.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  try:
+    let addResult = status.addCustomToken(address, name, symbol, color, decimals)
+
+    if addResult.isErr:
+      let
+        event = AddCustomTokenEvent(error: addResult.error,
+          timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent errored event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+    else:
+      let
+        token = addResult.get
+        event = AddCustomTokenEvent(address: $token.address,
+          name: token.name, symbol: token.symbol, color: token.color, 
+          decimals: token.decimals, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except CatchableError as e:
+    let
+      event = AddCustomTokenEvent(error: "Error adding a custom token, " &
+        "error: " & e.msg, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+
+proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = DeleteCustomTokenEvent(error: "Not logged in, " &
+        "cannot delete a custom token.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  try:
+    let allTokens = status.getCustomTokens().get
+    if index > allTokens.len:
+      let
+        event = DeleteCustomTokenEvent(error: "bad token number")
+        eventEnc = event.encode
+        task = taskArg.taskName
+      trace "task sent event with error to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+
+    let
+      address = allTokens[index - 1].address
+      deleteResult = status.deleteCustomToken(address) 
+
+    if deleteResult.isErr:
+      let
+        event = DeleteCustomTokenEvent(error: deleteResult.error,
+          timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent errored event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+    else:
+      let
+        event = DeleteCustomTokenEvent(address: $address, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except CatchableError as e:
+    let
+      event = DeleteCustomTokenEvent(error: "Error deleting custom token, " &
+        "error: " & e.msg, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+

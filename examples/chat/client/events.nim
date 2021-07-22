@@ -5,7 +5,7 @@ import # chat libs
   ./common
 
 import # nim-status libs
-  ../../../nim_status/client
+  ../../../nim_status/[client, tokens]
 
 export common
 
@@ -14,6 +14,15 @@ logScope:
 
 type
   ClientEvent* = ref object of Event
+
+  AddCustomTokenEvent* = ref object of ClientEvent
+    address*: string
+    name*: string
+    symbol*: string
+    color*: string
+    decimals*: uint
+    error*: string
+    timestamp*: int64
 
   AddWalletAccountEvent* = ref object of ClientEvent
     name*: string
@@ -26,10 +35,21 @@ type
     error*: string
     timestamp*: int64
 
+  DeleteCustomTokenEvent* = ref object of ClientEvent
+    address*: string
+    error*: string
+    timestamp*: int64
+
+  GetCustomTokensEvent* = ref object of ClientEvent
+    tokens*: seq[Token]
+    error*: string
+    timestamp*: int64
+
   ImportMnemonicEvent* = ref object of ClientEvent
     error*: string
     account*: PublicAccount
     timestamp*: int64
+
 
   JoinTopicEvent* = ref object of ClientEvent
     timestamp*: int64
@@ -67,8 +87,11 @@ type
     username*: string
 
 const clientEvents* = [
+  "AddCustomTokenEvent",
   "AddWalletAccountEvent",
   "CreateAccountEvent",
+  "DeleteCustomTokenEvent",
+  "GetCustomTokensEvent",
   "ImportMnemonicEvent",
   "JoinTopicEvent",
   "LeaveTopicEvent",
