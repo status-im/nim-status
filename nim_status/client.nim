@@ -36,7 +36,7 @@ type
     accountsGenerator*: Generator
     accountsDb: DbConn
     dataDir*: string
-    userDbConn: DbConn 
+    userDbConn: DbConn
       # Do not use self.userDbConn directly in exported procs. Use self.userDb,
       # self.initUserDb, self.closeUserDb, and self.isLoggedIn instead.
 
@@ -111,7 +111,7 @@ proc storeDerivedAccount(self: StatusObject, id: UUID, path: KeyPath, name,
     acct = accountInfos[path]
 
   let walletPubKeyResult = SkPublicKey.fromHex(acct.publicKey)
-  
+
   if walletPubKeyResult.isErr:
     return WalletAccountResult.err $walletPubKeyResult.error
 
@@ -137,14 +137,14 @@ proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
     )
 
   self.accountsDb.saveAccount(pubAccount)
-  
+
   let
     defaultWalletAccountDerived = accountInfos[PATH_DEFAULT_WALLET]
     defaultWalletPubKeyResult =
       SkPublicKey.fromHex(defaultWalletAccountDerived.publicKey)
     whisperAccountPubKeyResult =
       SkPublicKey.fromHex(whisperAcct.publicKey)
-  
+
   if defaultWalletPubKeyResult.isErr:
     return PublicAccountResult.err $defaultWalletPubKeyResult.error
   if whisperAccountPubKeyResult.isErr:
@@ -338,8 +338,8 @@ proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
 
   if uuidResult.isErr:
     return PublicAccountResult.err "Error generating uuid: " & $uuidResult.error
-  
-  let 
+
+  let
     settings = Settings(
       keyUid: account.keyUid,
       mnemonic: (string account.mnemonic).some,
@@ -386,6 +386,12 @@ proc createSettings*(self: StatusObject, settings: Settings,
     return CreateSettingsResult.ok
   except Exception as e:
     return CreateSettingsResult.err e.msg
+
+proc getAccounts*(self: StatusObject): seq[accounts.Account] =
+  self.userDb.getAccounts()
+
+proc getChatAccount*(self: StatusObject): accounts.Account =
+  self.userDb.getChatAccount()
 
 proc getPublicAccounts*(self: StatusObject): seq[PublicAccount] =
   self.accountsDb.getPublicAccounts()
@@ -499,4 +505,3 @@ proc updateAccountTimestamp*(self: StatusObject, timestamp: int64,
   keyUid: string) =
 
   self.accountsDb.updateAccountTimestamp(timestamp, keyUid)
-

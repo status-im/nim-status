@@ -122,3 +122,9 @@
 	path = vendor/nim-ncurses
 	url = https://github.com/status-im/nim-ncurses.git
 	ignore = untracked
+[submodule "vendor/nim-protobuf-serialization"]
+	path = vendor/nim-protobuf-serialization
+	url = https://github.com/status-im/nim-protobuf-serialization.git
+[submodule "vendor/combparser"]
+	path = vendor/combparser
+	url = https://github.com/PMunch/combparser.git

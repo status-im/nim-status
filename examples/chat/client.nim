@@ -1,3 +1,6 @@
+import # std libs
+  std/sugar
+
 import # chat libs
   ./client/tasks
 
@@ -20,7 +23,8 @@ proc new*(T: type ChatClient, chatConfig: ChatConfig): T =
   var topics: OrderedSet[string]
   let topicsStr = chatConfig.contentTopics.strip()
   if topicsStr != "":
-    topics = topicsStr.split(" ").toOrderedSet()
+    topics = topicsStr.split(" ").map(handleTopic).filter(t => t != "")
+      .toOrderedSet()
 
   T(chatConfig: chatConfig, events: newEventChannel(), loggedin: false,
     online: false, running: false, taskRunner: taskRunner, topics: topics)
