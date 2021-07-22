@@ -27,6 +27,62 @@ const hashCharSet = {'#'}
 # `command` proc should implement the appropriate logic to deal with those
 # values
 
+# AddCustomToken ----------------------------------------------------------------
+
+proc help*(T: type AddCustomToken): HelpText =
+  let command = "addcustomtoken"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "address", description: "Address of the " &
+      "custom token."),
+    CommandParameter(name: "name", description: "Name of " &
+      "the custom token."),
+    CommandParameter(name: "symbol", description: "Symbol of the " &
+      "custom token."),
+    CommandParameter(name: "color", description: "(Optional) Color (in hex) for " &
+      "custom token."),
+    CommandParameter(name: "decimals", description: "(Optional) Number of decimals to use for " &
+      "the custom token.")
+    ], description: "Creates a new custom token ")
+
+proc new*(T: type AddCustomToken, args: varargs[string]): T =
+  var
+    address = ""
+    name = ""
+    symbol = ""
+    color = ""
+    decimals = ""
+  if args.len > 2:
+    address = args[0]
+    name = args[1]
+    symbol = args[2]
+  if args.len > 4:
+    color = args[3]
+    decimals = args[4]
+
+  T(address: address, name: name, symbol: symbol, color: color, decimals: decimals)
+
+proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
+  nimcall.} =
+
+  try:
+    if command.address == "":
+      self.wprintFormatError(epochTime().int64,
+        "address cannot be empty, please provide an address.")
+    elif command.name == "":
+      self.wprintFormatError(epochTime().int64,
+        "name cannot be empty, please provide a name.")
+    elif command.symbol == "":
+      self.wprintFormatError(epochTime().int64,
+        "symbol cannot be empty, please provide a symbol.")
+    else:
+      asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
+  except:
+    self.wprintFormatError(epochTime().int64, "invalid arguments.")
+
+
 # AddWalletAccount ----------------------------------------------------------------
 
 proc help*(T: type AddWalletAccount): HelpText =
@@ -264,6 +320,38 @@ proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe,
   else:
     asyncSpawn self.client.createAccount(command.password)
 
+# DeleteCustomToken ----------------------------------------------------------------
+
+proc help*(T: type DeleteCustomToken): HelpText =
+  let command = "deletecustomtoken"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "address", description: "Address of the " &
+      "custom token.")
+    ], description: "Deletes custom token")
+
+proc new*(T: type DeleteCustomToken, args: varargs[string]): T =
+  var
+    address = ""
+  if args.len > 0:
+    address = args[0]
+
+  T(address: address)
+
+proc split*(T: type DeleteCustomToken, argsRaw: string): seq[string] =
+  @[argsRaw]
+
+proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
+  nimcall.} =
+
+  try:
+    if command.address == "":
+      self.wprintFormatError(epochTime().int64,
+        "address cannot be empty, please provide an address.")
+    else:
+      asyncSpawn self.client.deleteCustomToken(command.address)
+  except:
+    self.wprintFormatError(epochTime().int64, "invalid arguments.")
+
 # Disconnect -------------------------------------------------------------------
 
 proc help*(T: type Disconnect): HelpText =
@@ -281,6 +369,23 @@ proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
     asyncSpawn self.client.disconnect()
   else:
     self.wprintFormatError(getTime().toUnix(), "client is not online.")
+
+# GetCustomTokens -----------------------------------------------------------------
+
+proc help*(T: type GetCustomTokens): HelpText =
+  let command = "getcustomtokens"
+  HelpText(command: command, aliases: aliased[command], description: "Lists " &
+    "all existing custom tokens.")
+
+proc new*(T: type GetCustomTokens, args: varargs[string]): T =
+  T()
+
+proc split*(T: type GetCustomTokens, argsRaw: string): seq[string] =
+  @[]
+
+proc command*(self: ChatTUI, command: GetCustomTokens) {.async, gcsafe, nimcall.} =
+  asyncSpawn self.client.getCustomTokens()
+
 
 # ImportMnemonic -----------------------------------------------------------------
 
