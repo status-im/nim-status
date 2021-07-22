@@ -1,8 +1,12 @@
 import # std libs
-  std/[os, strutils, sets, sugar, times]
+  std/[os, sugar]
+
+import # vendor libs
+  stew/byteutils
 
 import # nim-status libs
-  ../../nim_status/[conversions, client, database],
+  ../../nim_status/accounts/[accounts, public_accounts],
+  ../../nim_status/[alias, conversions, client, database, protocol],
   ../../nim_status/extkeys/[paths, types]
 
 import # chat libs
@@ -21,9 +25,13 @@ type
 
   WakuState* = enum stopped, starting, started, stopping
 
-const DefaultTopic = waku_chat2.DefaultTopic
+const
+  DefaultTopic = waku_chat2.DefaultTopic
+  toyChat2App = "toy-chat/2"
+  waku1App = "waku/1"
 
 var
+  chatAccount {.threadvar.}: Account
   conf {.threadvar.}: ChatConfig
   connected {.threadvar.}: bool
   contentTopics {.threadvar.}: OrderedSet[ContentTopic]
@@ -31,10 +39,12 @@ var
   extIp {.threadvar.}: Option[ValidIpAddress]
   extTcpPort {.threadvar.}: Option[Port]
   extUdpPort {.threadvar.}: Option[Port]
+  identity {.threadvar.}: seq[byte]
   natIsSetup {.threadvar.}: bool
   nick {.threadvar.}: string
   nodekey {.threadvar.}: waku_chat2.crypto.PrivateKey
   nodekeyGenerated {.threadvar.}: bool
+  publicAccount {.threadvar.}: PublicAccount
   subscribed {.threadvar.}: bool
   status {.threadvar.}: StatusObject
   statusState {.threadvar.}: StatusState
@@ -58,7 +68,8 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
 
   let contentTopicsStr = conf.contentTopics.strip()
   if contentTopicsStr != "":
-    contentTopics = contentTopicsStr.split(" ").toOrderedSet()
+    contentTopics = contentTopicsStr.split(" ").map(handleTopic)
+      .filter(t => t != "").toOrderedSet()
 
   # threadvar `natIsSetup` is a special case because the values of its
   # counterparts `ext[Ip,TcpPort,UdpPort]` only need to be set once, i.e. they
@@ -81,25 +92,76 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   resetContext()
 
 proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
-  let topic = wakuMessage.contentTopic
+  let
+    topic = wakuMessage.contentTopic
+    topicSplit = topic.split('/')
+
   var
+    fallback = true
     message: string
     timestamp: int64
     username: string
 
-  let protoResult = Chat2Message.init(wakuMessage.payload)
+  # all content topics populated into threadvar `contentTopics` will be
+  # compliant with recommendations in waku v2 specs
+  # (https://rfc.vac.dev/spec/23/#content-topics) and when split on '/' will
+  # have length 5; since our relay handler checks that
+  # `wakuMessage.contentTopic` is in `contentTopics` before invoking this
+  # constructor, and for now assuming that history and filter nodes would never
+  # send us messages for content topics other than those we requested, we can
+  # safely access `topicSplit` indices 0..4
 
-  if protoResult.isOk:
-    let chat2Message = protoResult[]
-    message = string.fromBytes(chat2Message.payload)
-    timestamp = chat2Message.timestamp
-    username = chat2Message.nick
-  else:
-     # could happen if one/more clients on the same network/topic are able to
-     # communicate but are using incompatible encodings for some reason
-     message = string.fromBytes(wakuMessage.payload)
-     timestamp = getTime().toUnix
-     username = "[unknown]"
+  # we know how to properly handle messages for only some content topics:
+  # * `/toy-chat/2/{topic-name}/proto`
+  # * `/waku/1/{topic-name}/proto` -- should end with `/rlp` for real decoding
+  case fmt"{topicSplit[1]}/{topicSplit[2]}":
+    of toyChat2App:
+      if topicSplit[4] == "proto":
+        let protoResult = Chat2Message.init(wakuMessage.payload)
+        if protoResult.isOk:
+          let chat2Message = protoResult[]
+          message = string.fromBytes(chat2Message.payload)
+          timestamp = chat2Message.timestamp
+          username = chat2Message.nick
+
+          fallback = false
+
+        else:
+          error "error decoding toy-chat/2 message", contentTopic=topic,
+            error=protoResult, payload=string.fromBytes(wakuMessage.payload)
+
+    of waku1App:
+      if topicSplit[4] == "proto": # should be `rlp` for real decoding
+        try:
+          let
+            # will first need to RLP decode payload for real decoding
+            protoMsg = protocol.ProtocolMessage.decode(
+              wakuMessage.payload)
+            appMetaMsg = protocol.ApplicationMetadataMessage.decode(
+              protoMsg.public_message)
+            chatMsg = protocol.ChatMessage.decode(appMetaMsg.payload)
+
+          # "placeholder handling" of decoded protobuffer that will be iterated
+          # along with changes to what data we signal from the client to the
+          # TUI and how we display/notify re: that data in the TUI
+          message = chatMsg.text
+          timestamp = chatMsg.timestamp.int64
+          username = generateAlias(
+            "0x" & byteutils.toHex(protoMsg.bundles[0].identity))
+
+          fallback = false
+
+        except CatchableError as e:
+          error "error decoding waku/1 message", contentTopic=topic,
+            error=e.msg, payload=string.fromBytes(wakuMessage.payload)
+
+  if fallback:
+    message = string.fromBytes(wakuMessage.payload)
+    timestamp = getTime().toUnix
+    username = "[unknown]"
+
+    warn "used fallback decoding strategy for unsupported contentTopic",
+      contentTopic=topic
 
   T(message: message, timestamp: timestamp, topic: topic, username: username)
 
@@ -111,8 +173,7 @@ proc addWalletAccount*(name: string,
   if statusState != StatusState.loggedin:
     let
       eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
-        "cannot create a new wallet account.",
-        timestamp: timestamp)
+        "cannot create a new wallet account.", timestamp: timestamp)
       eventNotLoggedInEnc = eventNotLoggedIn.encode
       task = taskArg.taskName
 
@@ -124,7 +185,7 @@ proc addWalletAccount*(name: string,
     dir = status.dataDir / "keystore"
     # Hardcode bip39Passphrase to empty string. Can be enabled in UI later if
     # needed.
-    walletAccountResult = status.addWalletAccount(name, password, dir) 
+    walletAccountResult = status.addWalletAccount(name, password, dir)
 
   if walletAccountResult.isErr:
     let
@@ -167,7 +228,7 @@ proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
   let
     dir = status.dataDir / "keystore"
     walletAccountResult = status.addWalletPrivateKey(privateKey, name, password,
-      dir) 
+      dir)
 
   if walletAccountResult.isErr:
     let
@@ -210,7 +271,7 @@ proc addWalletSeed*(name: string, mnemonic: string, password: string,
   let
     dir = status.dataDir / "keystore"
     walletAccountResult = status.addWalletSeed(Mnemonic mnemonic, name,
-      password, dir, bip39Passphrase) 
+      password, dir, bip39Passphrase)
 
   if walletAccountResult.isErr:
     let
@@ -362,7 +423,7 @@ proc joinTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
     trace "topic already joined", contentTopic=topic
 
   let
-    event = JoinTopicEvent(timestamp: getTime().toUnix(), topic: topic)
+    event = JoinTopicEvent(timestamp: getTime().toUnix, topic: topic)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -377,7 +438,7 @@ proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
     trace "topic not joined, no need to leave", contentTopic=topic
 
   let
-    event = LeaveTopicEvent(timestamp: getTime().toUnix(), topic: topic)
+    event = LeaveTopicEvent(timestamp: getTime().toUnix, topic: topic)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -415,8 +476,8 @@ proc listWalletAccounts*() {.task(kind=no_rts, stoppable=false).} =
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc login*(account: int,
-  password: string) {.task(kind=no_rts, stoppable=false).} =
+proc login*(account: int, password: string) {.
+  task(kind=no_rts, stoppable=false).} =
 
   let task = taskArg.taskName
 
@@ -452,10 +513,13 @@ proc login*(account: int,
         asyncSpawn chanSendToHost.send(eventEnc.safe)
         return
 
+      chatAccount = status.getChatAccount()
+      identity = @(chatAccount.publicKey.get.toRaw)
+      publicAccount = loginResult.get
+
       statusState = StatusState.loggedin
 
-      event = LoginEvent(account: loginResult.get, error: "",
-        loggedin: true)
+      event = LoginEvent(account: publicAccount, error: "", loggedin: true)
       eventEnc = event.encode
 
     except SqliteError as e:
@@ -493,6 +557,9 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
       asyncSpawn chanSendToHost.send(eventEnc.safe)
       return
 
+    chatAccount = Account()
+    identity.setLen(0)
+    publicAccount = PublicAccount()
     statusState = StatusState.loggedout
 
     event = LogoutEvent(error: "", loggedin: false)
@@ -710,22 +777,65 @@ proc lightpushHandler(response: PushResponse) {.gcsafe.} =
 proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.started or not connected: return
 
-  let chat2pb = Chat2Message.init(nick, message).encode()
-
   if contentTopics.len < 1:
     trace "message not published, no topics joined", joined=contentTopics,
-      message, nick
+      message, username=nick
 
   else:
-    trace "published message to all joined topics", joined=contentTopics,
-      message, nick
+    # all content topics populated into threadvar `contentTopics` will be
+    # compliant with recommendations in waku v2 specs
+    # (https://rfc.vac.dev/spec/23/#content-topics) and when split on '/' will
+    # have length 5; so we can safely access `topicSplit` indices 0..4
 
-    for contentTopic in contentTopics:
-      let wakuMessage = WakuMessage(payload: chat2pb.buffer,
-        contentTopic: contentTopic, version: 0)
+    # we know how to properly handle messages for only some content topics:
+    # * `/toy-chat/2/{topic-name}/proto`
+    # * `/waku/1/{topic-name}/proto` -- should end with `/rlp` for real encoding
+    for topic in contentTopics:
+      var
+        payload: seq[byte]
+        unsupported = false
 
-      if not wakuNode.wakuLightPush.isNil():
-        asyncSpawn wakuNode.lightpush(DefaultTopic, wakuMessage,
-          lightpushHandler)
+      let topicSplit = topic.split('/')
+
+      case fmt"{topicSplit[1]}/{topicSplit[2]}":
+        of toyChat2App:
+          if topicSplit[4] == "proto":
+            let chat2pb = Chat2Message.init(nick, message).encode()
+            payload = chat2pb.buffer
+
+        of waku1App:
+          if topicSplit[4] == "proto": # should be `rlp` for real encoding
+            let
+              chatMsg = protocol.ChatMessage(
+                timestamp: getTime().toUnix.uint64, text: message,
+                message_type: protocol.PUBLIC_GROUP,
+                content_type: protocol.TEXT_PLAIN)
+
+              metaMsg = protocol.ApplicationMetadataMessage(
+                payload: chatMsg.encode,
+                `type`: protocol.application_metadata_message.CHAT_MESSAGE)
+
+              protoMsg = protocol.ProtocolMessage(
+                bundles: @[protocol.Bundle(identity: identity)],
+                public_message: metaMsg.encode)
+
+            payload = protoMsg.encode
+            # will finally need to RLP encode payload for real encoding
+
+        else:
+          unsupported = true
+
+      if unsupported:
+        error "cannot publish message for unsupported contentTopic",
+          contentTopic=topic, message
+
       else:
-        asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)
+        let wakuMessage = WakuMessage(payload: payload, contentTopic: topic,
+          version: 0)
+
+        if not wakuNode.wakuLightPush.isNil():
+          asyncSpawn wakuNode.lightpush(DefaultTopic, wakuMessage,
+            lightpushHandler)
+
+        else:
+          asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)

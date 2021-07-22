@@ -65,7 +65,7 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
 
         if command.strip(trailing = false) != "" and
            not aliased[DEFAULT_COMMAND].contains(command.strip()[1..^1]):
-          self.currentInput = ""
+          self.currentInput.setLen(0)
           trace "TUI reset current input", currentInput=self.currentInput
 
           self.clearInput()
@@ -96,7 +96,7 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
     self.printInput(input)
 
-# AddWalletAccountEvent ----------------------------------------------------------
+# AddWalletAccountEvent --------------------------------------------------------
 
 proc action*(self: ChatTUI, event: AddWalletAccountEvent) {.async, gcsafe,
   nimcall.} =
@@ -138,7 +138,7 @@ proc action*(self: ChatTUI, event: CreateAccountEvent) {.async, gcsafe,
     self.printResult("Created account:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
-# ImportMnemonicEvent -----------------------------------------------------------
+# ImportMnemonicEvent ----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
@@ -217,7 +217,7 @@ proc action*(self: ChatTUI, event: ListAccountsEvent) {.async, gcsafe,
         "No accounts. Create an account using `/create <password>`.",
         timestamp)
 
-# ListWalletAccountsEvent -----------------------------------------------------------
+# ListWalletAccountsEvent ------------------------------------------------------
 
 proc action*(self: ChatTUI, event: ListWalletAccountsEvent) {.async, gcsafe,
   nimcall.} =
@@ -286,7 +286,7 @@ proc action*(self: ChatTUI, event: LogoutEvent) {.async, gcsafe, nimcall.} =
   self.client.loggedin = loggedin
   trace "TUI updated client state", loggedin
 
-# NetworkStatusEvent ----------------------------------------------------------------
+# NetworkStatusEvent -----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: NetworkStatusEvent) {.async, gcsafe, nimcall.} =
   let online = event.online
@@ -294,7 +294,7 @@ proc action*(self: ChatTUI, event: NetworkStatusEvent) {.async, gcsafe, nimcall.
   self.client.online = online
   trace "TUI updated client state", online
 
-# UserMessageEvent ------------------------------------------------------------------
+# UserMessageEvent -------------------------------------------------------------
 
 proc action*(self: ChatTUI, event: UserMessageEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
@@ -309,7 +309,7 @@ proc action*(self: ChatTUI, event: UserMessageEvent) {.async, gcsafe, nimcall.} 
 
     # if event.topic is not a properly formatted waku v2 content topic then the
     # whole string will be passed to printMessage
-    if topicSplit.len == 5:
+    if topicSplit.len == 5 and topicSplit[0] == "":
       # for "/toy-chat/2/example/proto", topic would be "example"
       topic = topicSplit[3]
 

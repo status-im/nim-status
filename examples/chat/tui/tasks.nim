@@ -13,12 +13,15 @@ const
   ESCAPE* = "ESCAPE"
   RETURN* = "RETURN"
 
+type ByteArray = array[0..3, byte]
+
 proc readInput*() {.task(kind=no_rts, stoppable=false).} =
   let task = taskArg.taskName
 
   var
-    bytes: seq[byte] = @[]
+    bytes: ByteArray
     expected = 1
+    got = 0
     input = 0
 
   let
@@ -66,14 +69,16 @@ proc readInput*() {.task(kind=no_rts, stoppable=false).} =
           elif input >= 192:
             expected = 2
 
-        bytes.add input.byte
+        bytes[got] = input.byte
+        got = got + 1
 
-        if bytes.len == expected:
-          let event = InputString(str: string.fromBytes(bytes))
+        if got == expected:
+          let event = InputString(
+            str: string.fromBytes(bytes[0..(expected - 1)]))
           eventEnc = event.encode
           shouldSend = true
-          bytes = @[]
           expected = 1
+          got = 0
 
       if shouldSend:
         trace "task sent event to host", event=eventEnc, task

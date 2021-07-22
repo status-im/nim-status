@@ -9,8 +9,6 @@ export common, screen, strutils, tasks
 logScope:
   topics = "chat tui"
 
-const hashCharSet = {'#'}
-
 # Command types are defined in ./common to avoid circular dependency
 
 # `split` procs for command args should only be concerned about splitting the
@@ -350,18 +348,10 @@ proc new*(T: type JoinTopic, args: varargs[string]): T =
   T(topic: args[0])
 
 proc split*(T: type JoinTopic, argsRaw: string): seq[string] =
-  @[argsRaw.strip()]
+  @[argsRaw.strip().split(" ")[0]]
 
 proc command*(self: ChatTUI, command: JoinTopic) {.async, gcsafe, nimcall.} =
-  var topic = command.topic
-  let topicSplit = topic.split('/')
-
-  # if event.topic is a properly formatted waku v2 content topic then the
-  # whole string will be passed to joinTopic
-  if topicSplit.len != 5:
-    # otherwise convert it to a properly formatted content topic
-    topic = topic.strip(true, false, hashCharSet)
-    if topic != "": topic = fmt"/toy-chat/2/{topic}/proto"
+  var topic = handleTopic(command.topic)
 
   if topic == "":
     self.wprintFormatError(getTime().toUnix(),
@@ -384,10 +374,10 @@ proc new*(T: type LeaveTopic, args: varargs[string]): T =
   T(topic: args[0])
 
 proc split*(T: type LeaveTopic, argsRaw: string): seq[string] =
-  @[argsRaw.strip()]
+  @[argsRaw.strip().split(" ")[0]]
 
 proc command*(self: ChatTUI, command: LeaveTopic) {.async, gcsafe, nimcall.} =
-  let topic = command.topic
+  let topic = handleTopic(command.topic)
 
   if topic == "":
     self.wprintFormatError(getTime().toUnix(),
