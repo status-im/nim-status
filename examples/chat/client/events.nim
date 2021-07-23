@@ -87,8 +87,11 @@ type
     username*: string
 
 const clientEvents* = [
+  "AddCustomTokenEvent",
   "AddWalletAccountEvent",
   "CreateAccountEvent",
+  "DeleteCustomTokenEvent",
+  "GetCustomTokensEvent",
   "ImportMnemonicEvent",
   "JoinTopicEvent",
   "LeaveTopicEvent",

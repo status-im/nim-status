@@ -131,13 +131,16 @@ const
 
   commands* = {
     DEFAULT_COMMAND: "SendMessage",
+    "addcustomtoken": "AddCustomToken",
     "addwallet": "AddWalletAccount",
     "addwalletpk": "AddWalletPrivateKey",
     "addwalletseed": "AddWalletSeed",
     "addwalletwatch": "AddWalletWatchOnly",
     "connect": "Connect",
     "createaccount": "CreateAccount",
+    "deletecustomtoken": "DeleteCustomToken",
     "disconnect": "Disconnect",
+    "getcustomtokens": "GetCustomTokens",
     "help": "Help",
     "importmnemonic": "ImportMnemonic",
     "jointopic": "JoinTopic",
