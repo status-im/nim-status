@@ -138,6 +138,26 @@ proc action*(self: ChatTUI, event: CreateAccountEvent) {.async, gcsafe,
     self.printResult("Created account:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
+# GetCustomTokensEvent ----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
+  nimcall.} =
+  discard
+
+# AddCustomTokenEvent ----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: AddCustomTokenEvent) {.async, gcsafe,
+  nimcall.} =
+  discard
+
+# DeleteCustomTokenEvent ----------------------------------------------------------
+
+proc action*(self: ChatTUI, event: DeleteCustomTokenEvent) {.async, gcsafe,
+  nimcall.} =
+  discard
+
+
+
 # ImportMnemonicEvent -----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
