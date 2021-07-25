@@ -62,6 +62,9 @@ proc addWalletSeed*(self: ChatClient, name, mnemonic, password,
   asyncSpawn addWalletSeed(self.taskRunner, status, name, mnemonic,
     password, bip39passphrase)
 
+proc addWalletWatchOnly*(self: ChatClient, address, name: string) {.async.} =
+  asyncSpawn addWalletWatchOnly(self.taskRunner, status, address, name)
+
 proc connect*(self: ChatClient, username: string) {.async.} =
   asyncSpawn startWakuChat2(self.taskRunner, status, username)
 

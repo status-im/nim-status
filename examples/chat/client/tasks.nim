@@ -233,6 +233,59 @@ proc addWalletSeed*(name: string, mnemonic: string, password: string,
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
+proc addWalletWatchOnly*(address: string,
+  name: string) {.task(kind=no_rts, stoppable=false).} =
+
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
+        "cannot add a new wallet account.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  var addressParsed: Address
+  try:
+    addressParsed = address.parseAddress
+  except Exception as e:
+    let
+      event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
+        "account: " & e.msg, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let walletAccountResult = status.addWalletWatchOnly(addressParsed, name)
+
+  if walletAccountResult.isErr:
+    let
+      event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
+        "account: " & walletAccountResult.error, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    walletAccount = walletAccountResult.get
+    walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
+    event = AddWalletAccountEvent(name: walletName,
+      address: walletAccount.address, timestamp: timestamp)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
 proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   let timestamp = getTime().toUnix
 

@@ -180,6 +180,47 @@ proc command*(self: ChatTUI, command: AddWalletSeed) {.async, gcsafe,
     asyncSpawn self.client.addWalletSeed(command.name,
       command.mnemonic, command.password, command.bip39Passphrase)
 
+# AddWalletWatchOnly ------------------------------------------------------------
+
+proc help*(T: type AddWalletWatchOnly): HelpText =
+  let command = "addwalletseed"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "name", description: "(Optional) Display name for " &
+      "the new account."),
+    CommandParameter(name: "address", description: "The address of the " &
+      "account to watch.")
+    ], description: "Watches the transactions in a wallet account, without " &
+      "the ability to interact with the wallet (ie sign transactions).")
+
+proc new*(T: type AddWalletWatchOnly, args: varargs[string]): T =
+  T(name: args[0], address: args[1])
+
+proc split*(T: type AddWalletWatchOnly, argsRaw: string): seq[string] =
+  var args = argsRaw.split(" ")
+  args.keepIf(arg => arg != "")
+
+  var
+    name = ""
+    address= ""
+
+  if args.len == 1:
+    name = ""
+    address = args[0]
+  elif args.len > 1:
+    name = args[0]
+    address = args[1]
+
+  @[name, address]
+
+proc command*(self: ChatTUI, command: AddWalletWatchOnly) {.async, gcsafe,
+  nimcall.} =
+
+  if command.address == "":
+    self.wprintFormatError(getTime().toUnix(),
+      "address cannot be blank.")
+  else:
+    asyncSpawn self.client.addWalletWatchOnly(command.address, command.name)
+
 # Connect ----------------------------------------------------------------------
 
 proc help*(T: type Connect): HelpText =
