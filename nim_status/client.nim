@@ -70,7 +70,7 @@ proc initUserDb(self: StatusObject, keyUid, password: string) =
   self.userDbConn = initializeDB(self.dataDir / keyUid & ".db", password)
 
 proc storeWalletAccount(self: StatusObject, name: string, address: Address,
-  publicKey: SkPublicKey, accountType: AccountType,
+  publicKey: Option[SkPublicKey], accountType: AccountType,
   path: KeyPath): WalletAccountResult =
 
   var walletName = name
@@ -88,7 +88,7 @@ proc storeWalletAccount(self: StatusObject, name: string, address: Address,
       `type`: ($accountType).some,
       storage: string.none,
       path: path.some,
-      publicKey: publicKey.some,
+      publicKey: publicKey,
       name: walletName.some,
       color: "#4360df".some # TODO: pass in colour
     )
@@ -111,7 +111,7 @@ proc storeDerivedAccount(self: StatusObject, id: UUID, path: KeyPath, name,
 
   let
     address = acct.address.parseAddress
-    publicKey = walletPubKeyResult.get
+    publicKey = walletPubKeyResult.get.some
 
   return self.storeWalletAccount(name, address, publicKey, accountType, path)
 
@@ -208,7 +208,7 @@ proc storeImportedWalletAccount(self: StatusObject, privateKey: SkSecretKey,
     let
       path = PATH_DEFAULT_WALLET # NOTE: this is the keypath
         # given to imported wallet accounts in status-desktop
-      publicKey = privateKey.toPublicKey
+      publicKey = privateKey.toPublicKey.some
       address = privateKey.toAddress
     return self.storeWalletAccount(name, address, publicKey, accountType, path)
 
@@ -270,6 +270,16 @@ proc addWalletSeed*(self: StatusObject, mnemonic: Mnemonic, name, password,
 
     return self.storeDerivedAccount(imported.id, PATH_DEFAULT_WALLET, name,
       password, dir, AccountType.Seed)
+
+  except Exception as e:
+    return WalletAccountResult.err e.msg
+
+proc addWalletWatchOnly*(self: StatusObject, address: Address,
+  name: string): WalletAccountResult =
+
+  try:
+    return self.storeWalletAccount(name, address, SkPublicKey.none,
+      AccountType.Watch, PATH_DEFAULT_WALLET)
 
   except Exception as e:
     return WalletAccountResult.err e.msg

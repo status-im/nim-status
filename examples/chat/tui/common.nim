@@ -56,6 +56,10 @@ type
     mnemonic*: string
     password*: string
 
+  AddWalletWatchOnly* = ref object of Command
+    name*: string
+    address*: string
+
   Connect* = ref object of Command
 
   CommandParameter* = ref object of RootObj
@@ -118,6 +122,7 @@ const
     "addwallet": "AddWalletAccount",
     "addwalletpk": "AddWalletPrivateKey",
     "addwalletseed": "AddWalletSeed",
+    "addwalletwatch": "AddWalletWatchOnly",
     "connect": "Connect",
     "createaccount": "CreateAccount",
     "disconnect": "Disconnect",
@@ -138,6 +143,7 @@ const
     "add": "addwallet",
     "addpk": "addwalletpk",
     "addseed": "addwalletseed",
+    "addwatch": "addwalletwatch",
     "create": "createaccount",
     "import": "importmnemonic",
     "join": "jointopic",
@@ -160,6 +166,7 @@ const
     "addwallet": @["add"],
     "addwalletpk": @["addpk"],
     "addwalletseed": @["addseed"],
+    "addwalletwatch": @["addwatch"],
     "createaccount": @["create"],
     "importmnemonic": @["import"],
     "help": @["?"],
