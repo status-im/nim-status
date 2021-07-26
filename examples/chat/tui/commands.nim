@@ -42,7 +42,7 @@ proc help*(T: type AddCustomToken): HelpText =
       "custom token."),
     CommandParameter(name: "decimals", description: "(Optional) Number of decimals to use for " &
       "the custom token.")
-    ], description: "Creates a new custom token ")
+    ], description: "Creates a new custom token.")
 
 proc new*(T: type AddCustomToken, args: varargs[string]): T =
   var
