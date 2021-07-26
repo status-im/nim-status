@@ -68,13 +68,13 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
   nimcall.} =
 
   if command.address == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix,
       "address cannot be empty, please provide an address.")
   elif command.name == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix,
       "name cannot be empty, please provide a name.")
   elif command.symbol == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix,
       "symbol cannot be empty, please provide a symbol.")
   else:
     asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
@@ -112,12 +112,12 @@ proc command*(self: ChatTUI, command: AddWalletAccount) {.async, gcsafe,
 
   try:
     if command.password == "":
-      self.wprintFormatError(epochTime().int64,
+      self.wprintFormatError(getTime().toUnix,
         "password cannot be blank, please provide a password.")
     else:
       asyncSpawn self.client.addWalletAccount(command.name, command.password)
   except:
-    self.wprintFormatError(epochTime().int64, "invalid arguments.")
+    self.wprintFormatError(getTime().toUnix, "invalid arguments.")
 
 # AddWalletPrivateKey ----------------------------------------------------------
 
@@ -156,13 +156,13 @@ proc command*(self: ChatTUI, command: AddWalletPrivateKey) {.async, gcsafe,
   nimcall.} =
 
   if command.privateKey == "" and command.password == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "private key and password cannot be blank.")
   elif command.privateKey == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "private key cannot be blank.")
   elif command.password == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "password cannot be blank, please provide a password as the last argument.")
   else:
     asyncSpawn self.client.addWalletPrivateKey(command.name,
@@ -221,13 +221,13 @@ proc command*(self: ChatTUI, command: AddWalletSeed) {.async, gcsafe,
   nimcall.} =
 
   if command.mnemonic == "" and command.password == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "mnemonic and password cannot be blank.")
   elif command.mnemonic == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "mnemonic cannot be blank.")
   elif command.password == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "password cannot be blank, please provide a password as the last argument.")
   else:
     asyncSpawn self.client.addWalletSeed(command.name,
@@ -269,7 +269,7 @@ proc command*(self: ChatTUI, command: AddWalletWatchOnly) {.async, gcsafe,
   nimcall.} =
 
   if command.address == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "address cannot be blank.")
   else:
     asyncSpawn self.client.addWalletWatchOnly(command.address, command.name)
@@ -290,7 +290,7 @@ proc command*(self: ChatTUI, command: Connect) {.async, gcsafe, nimcall.} =
   if self.client.loggedin:
     asyncSpawn self.client.connect(self.client.account.name)
   else:
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "client is not logged in, cannot connect.")
 
 # CreateAccount ----------------------------------------------------------------
@@ -312,7 +312,7 @@ proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe,
   nimcall.} =
 
   if command.password == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "password cannot be blank, please provide a password as the first argument.")
   else:
     asyncSpawn self.client.createAccount(command.password)
@@ -341,7 +341,7 @@ proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
   nimcall.} =
 
   if command.address == "":
-    self.wprintFormatError(epochTime().int64,
+    self.wprintFormatError(getTime().toUnix,
       "address cannot be empty, please provide an address.")
   else:
     asyncSpawn self.client.deleteCustomToken(command.address)
@@ -362,7 +362,7 @@ proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
   if self.client.online:
     asyncSpawn self.client.disconnect()
   else:
-    self.wprintFormatError(getTime().toUnix(), "client is not online.")
+    self.wprintFormatError(getTime().toUnix, "client is not online.")
 
 # GetCustomTokens -----------------------------------------------------------------
 
@@ -424,13 +424,13 @@ proc split*(T: type ImportMnemonic, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
   if command.mnemonic == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "mnemonic cannot be blank, please provide a mnemonic as the first argument.")
   elif command.mnemonic.split(" ").len != 12:
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "mnemonic phrase must consist of 12 words separated by single spaces.")
   elif command.password == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "password cannot be blank, please provide a password as the last argument.")
   else:
     asyncSpawn self.client.importMnemonic(command.mnemonic, command.passphrase,
@@ -463,10 +463,10 @@ proc command*(self: ChatTUI, command: JoinTopic) {.async, gcsafe, nimcall.} =
     if topic != "": topic = fmt"/toy-chat/2/{topic}/proto"
 
   if topic == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "topic cannot be blank, please provide a topic as the first argument.")
   elif self.client.topics.contains(topic):
-    self.printResult(fmt"Topic already joined: {topic}", getTime().toUnix())
+    self.printResult(fmt"Topic already joined: {topic}", getTime().toUnix)
   else:
     asyncSpawn self.client.joinTopic(topic)
 
@@ -489,11 +489,11 @@ proc command*(self: ChatTUI, command: LeaveTopic) {.async, gcsafe, nimcall.} =
   let topic = command.topic
 
   if topic == "":
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "topic cannot be blank, please provide a topic as the first argument.")
   elif not self.client.topics.contains(topic):
     self.printResult(fmt"Topic not joined, no need to leave: {topic}",
-      getTime().toUnix())
+      getTime().toUnix)
   else:
     asyncSpawn self.client.leaveTopic(topic)
 
@@ -528,7 +528,7 @@ proc split*(T: type ListTopics, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: ListTopics) {.async, gcsafe, nimcall.} =
   let
-    timestamp = getTime().toUnix()
+    timestamp = getTime().toUnix
     topics = self.client.topics
 
   if topics.len > 0:
@@ -598,7 +598,7 @@ proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
 
     asyncSpawn self.client.login(account, password)
   except:
-    self.wprintFormatError(getTime().toUnix(), "invalid login arguments.")
+    self.wprintFormatError(getTime().toUnix, "invalid login arguments.")
 
 # Logout -----------------------------------------------------------------------
 
@@ -651,7 +651,7 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
 
 proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
   if not self.client.online:
-    self.wprintFormatError(getTime().toUnix(),
+    self.wprintFormatError(getTime().toUnix,
       "client is not online, cannot send message.")
   else:
     asyncSpawn self.client.sendMessage(command.message)
@@ -688,7 +688,7 @@ proc split*(T: type Help, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
   let
     command = command.command
-    timestamp = getTime().toUnix()
+    timestamp = getTime().toUnix
 
   trace "executing help", command
 
