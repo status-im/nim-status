@@ -107,5 +107,5 @@ proc getCustomTokens*(self: ChatClient) {.async.} =
 proc addCustomToken*(self: ChatClient, address, name, symbol, color, decimals: string) {.async.} =
   asyncSpawn addCustomToken(self.taskRunner, status, address, name, symbol, color, decimals)
 
-proc deleteCustomToken*(self: ChatClient, address: string) {.async.} =
-  asyncSpawn deleteCustomToken(self.taskRunner, status, address)
+proc deleteCustomToken*(self: ChatClient, index: string) {.async.} =
+  asyncSpawn deleteCustomToken(self.taskRunner, status, index)

@@ -811,7 +811,7 @@ proc addCustomToken*(address: string, name: string, symbol: string, color: strin
     asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 
-proc deleteCustomToken*(address: string) {.task(kind=no_rts, stoppable=false).} =
+proc deleteCustomToken*(indexStr: string) {.task(kind=no_rts, stoppable=false).} =
   let timestamp = getTime().toUnix
 
   if statusState != StatusState.loggedin:
@@ -827,14 +827,27 @@ proc deleteCustomToken*(address: string) {.task(kind=no_rts, stoppable=false).} 
     return
 
   try:
+    let 
+      index = indexStr.parseInt
+      allTokens = status.getCustomTokens().get
+    if index < 1 or index > allTokens.len:
+      let
+        event = DeleteCustomTokenEvent(error: "bad token number")
+        eventEnc = event.encode
+        task = taskArg.taskName
+      trace "task sent event with error to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+
     let
-      deleteResult = status.deleteCustomToken(address.parseAddress) 
+      address = allTokens[index - 1].address
+      deleteResult = status.deleteCustomToken(address) 
 
     if deleteResult.isErr:
       raise newException(Exception, deleteResult.error)
 
     let
-      event = DeleteCustomTokenEvent(address: address, timestamp: timestamp)
+      event = DeleteCustomTokenEvent(address: $address, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
 
@@ -842,7 +855,7 @@ proc deleteCustomToken*(address: string) {.task(kind=no_rts, stoppable=false).} 
     asyncSpawn chanSendToHost.send(eventEnc.safe)
   except Exception as e:
     let
-      event = DeleteCustomTokenEvent(error: "Error deleting a custom token, " &
+      event = DeleteCustomTokenEvent(error: "Error deleting custom token, " &
         "error: " & e.msg, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
