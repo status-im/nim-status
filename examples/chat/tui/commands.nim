@@ -67,20 +67,17 @@ proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
   nimcall.} =
 
-  try:
-    if command.address == "":
-      self.wprintFormatError(epochTime().int64,
-        "address cannot be empty, please provide an address.")
-    elif command.name == "":
-      self.wprintFormatError(epochTime().int64,
-        "name cannot be empty, please provide a name.")
-    elif command.symbol == "":
-      self.wprintFormatError(epochTime().int64,
-        "symbol cannot be empty, please provide a symbol.")
-    else:
-      asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
-  except Exception as e:
-    self.wprintFormatError(epochTime().int64, "Error adding custom token: " & e.msg)
+  if command.address == "":
+    self.wprintFormatError(epochTime().int64,
+      "address cannot be empty, please provide an address.")
+  elif command.name == "":
+    self.wprintFormatError(epochTime().int64,
+      "name cannot be empty, please provide a name.")
+  elif command.symbol == "":
+    self.wprintFormatError(epochTime().int64,
+      "symbol cannot be empty, please provide a symbol.")
+  else:
+    asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
 
 
 # AddWalletAccount ----------------------------------------------------------------
@@ -343,14 +340,11 @@ proc split*(T: type DeleteCustomToken, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
   nimcall.} =
 
-  try:
-    if command.address == "":
-      self.wprintFormatError(epochTime().int64,
-        "address cannot be empty, please provide an address.")
-    else:
-      asyncSpawn self.client.deleteCustomToken(command.address)
-  except Exception as e:
-    self.wprintFormatError(epochTime().int64, "Error deleting custom token: " & e.msg)
+  if command.address == "":
+    self.wprintFormatError(epochTime().int64,
+      "address cannot be empty, please provide an address.")
+  else:
+    asyncSpawn self.client.deleteCustomToken(command.address)
 
 # Disconnect -------------------------------------------------------------------
 
