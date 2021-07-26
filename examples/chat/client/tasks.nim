@@ -782,8 +782,11 @@ proc addCustomToken*(address: string, name: string, symbol: string, color: strin
     return
 
   try:
-    let
-      addResult = status.addCustomToken(address.parseAddress, name, symbol, color, decimals.parseUInt)
+    var uintDecimals: uint
+    if decimals != "":
+      uintDecimals = decimals.parseUInt
+
+    let addResult = status.addCustomToken(address.parseAddress, name, symbol, color, uintDecimals)
 
     if addResult.isErr:
       raise newException(Exception, addResult.error)
