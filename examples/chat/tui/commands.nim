@@ -74,6 +74,14 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
       "Could not parse address, please provide an address in proper format.")
     return
 
+  if command.color != "":
+    try:
+      discard command.decimals.parseHexInt
+    except:
+      self.wprintFormatError(getTime().toUnix,
+       "Could not parse color, please provide color encoded as a hexadecimal string.")
+      return
+ 
   if command.decimals != "":
     try:
       discard command.decimals.parseUInt
