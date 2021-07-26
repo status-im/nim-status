@@ -167,7 +167,7 @@ proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
         i = i + 1
     else:
       self.printResult(
-        "No custom tokens added. Add a custom token using `/addcustomtoken <address> <name> <symbol>`.",
+        "No custom tokens added.",
         timestamp)
 
 
