@@ -731,6 +731,21 @@ proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
         asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)
 
 proc getCustomTokens*() {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = GetCustomTokensEvent(error: "Not logged in, " &
+        "cannot get custom tokens.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+
   let tokens = status.getCustomTokens()
   if tokens.isErr:
     let
@@ -766,29 +781,32 @@ proc addCustomToken*(address: string, name: string, symbol: string, color: strin
     asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
     return
 
-  let
-    addResult = status.addCustomToken(address, name, symbol, color, decimals) 
+  try:
+    let
+      addResult = status.addCustomToken(address.parseAddress, name, symbol, color, decimals.parseUInt)
 
-  if addResult.isErr:
+    if addResult.isErr:
+      raise newException(Exception, addResult.error)
+
+    let
+      token = addResult.get
+      event = AddCustomTokenEvent(address: $token.address,
+        name: token.name, symbol: token.symbol, color: token.color, 
+        decimals: token.decimals, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except Exception as e:
     let
       event = AddCustomTokenEvent(error: "Error adding a custom token, " &
-        "error: " & addResult.error, timestamp: timestamp)
+        "error: " & e.msg, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
-    return
 
-  let
-    token = addResult.get
-    event = AddCustomTokenEvent(address: $token.address,
-      name: token.name, symbol: token.symbol, color: token.color, 
-      decimals: token.decimals, timestamp: timestamp)
-    eventEnc = event.encode
-    task = taskArg.taskName
-
-  trace "task sent event to host", event=eventEnc, task
-  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc deleteCustomToken*(address: string) {.task(kind=no_rts, stoppable=false).} =
   let timestamp = getTime().toUnix
@@ -805,23 +823,26 @@ proc deleteCustomToken*(address: string) {.task(kind=no_rts, stoppable=false).} 
     asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
     return
 
-  let
-    deleteResult = status.deleteCustomToken(address) 
+  try:
+    let
+      deleteResult = status.deleteCustomToken(address.parseAddress) 
 
-  if deleteResult.isErr:
+    if deleteResult.isErr:
+      raise newException(Exception, deleteResult.error)
+
+    let
+      event = DeleteCustomTokenEvent(address: address, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except Exception as e:
     let
       event = DeleteCustomTokenEvent(error: "Error deleting a custom token, " &
-        "error: " & deleteResult.error, timestamp: timestamp)
+        "error: " & e.msg, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
-    return
 
-  let
-    event = DeleteCustomTokenEvent(address: address, timestamp: timestamp)
-    eventEnc = event.encode
-    task = taskArg.taskName
-
-  trace "task sent event to host", event=eventEnc, task
-  asyncSpawn chanSendToHost.send(eventEnc.safe)

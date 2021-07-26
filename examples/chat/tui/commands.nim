@@ -79,8 +79,8 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
         "symbol cannot be empty, please provide a symbol.")
     else:
       asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
-  except:
-    self.wprintFormatError(epochTime().int64, "invalid arguments.")
+  except Exception as e:
+    self.wprintFormatError(epochTime().int64, "Error adding custom token: " & e.msg)
 
 
 # AddWalletAccount ----------------------------------------------------------------
@@ -349,8 +349,8 @@ proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
         "address cannot be empty, please provide an address.")
     else:
       asyncSpawn self.client.deleteCustomToken(command.address)
-  except:
-    self.wprintFormatError(epochTime().int64, "invalid arguments.")
+  except Exception as e:
+    self.wprintFormatError(epochTime().int64, "Error deleting custom token: " & e.msg)
 
 # Disconnect -------------------------------------------------------------------
 
