@@ -67,10 +67,22 @@ proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
   nimcall.} =
 
-  if command.address == "":
+  try:
+    discard command.address.parseAddress
+  except:
     self.wprintFormatError(getTime().toUnix,
-      "address cannot be empty, please provide an address.")
-  elif command.name == "":
+      "Could not parse address, please provide an address in proper format.")
+    return
+
+  if command.decimals != "":
+    try:
+      discard command.decimals.parseUInt
+    except:
+      self.wprintFormatError(getTime().toUnix,
+       "Could not parse address, please provide an address in proper format.")
+      return
+
+  if command.name == "":
     self.wprintFormatError(getTime().toUnix,
       "name cannot be empty, please provide a name.")
   elif command.symbol == "":
@@ -78,7 +90,6 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
       "symbol cannot be empty, please provide a symbol.")
   else:
     asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
-
 
 # AddWalletAccount ----------------------------------------------------------------
 
