@@ -144,19 +144,72 @@ proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
   nimcall.} =
   discard
 
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let tokens = event.tokens
+    let timestamp = event.timestamp
+    trace "TUI showing tokens from nim-status", tokens=(%tokens)
+
+    if tokens.len > 0:
+      var i = 1
+      self.printResult("Existing tokens:", timestamp)
+      for token in tokens:
+        let
+          name = token.name
+          symbol = token.symbol
+          address = token.address
+
+        self.printResult(fmt"{2.indent()}{name} ({symbol}): {address}", timestamp)
+        i = i + 1
+    else:
+      self.printResult(
+        "No custom tokens added. Add a custom token using `/addcustomtoken <address> <name> <symbol>`.",
+        timestamp)
+
+
+
 # AddCustomTokenEvent ----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: AddCustomTokenEvent) {.async, gcsafe,
   nimcall.} =
-  discard
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      name = event.name
+      symbol = event.symbol
+      address = event.address
+      timestamp = event.timestamp
+
+    self.printResult("Added a token:", timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({symbol}): {address}", timestamp)
+
 
 # DeleteCustomTokenEvent ----------------------------------------------------------
 
 proc action*(self: ChatTUI, event: DeleteCustomTokenEvent) {.async, gcsafe,
   nimcall.} =
-  discard
 
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
 
+    let
+      address = event.address
+      timestamp = event.timestamp
+
+    self.printResult("Deleted a token:", timestamp)
+    self.printResult(fmt"{2.indent()}{address}", timestamp)
 
 # ImportMnemonicEvent -----------------------------------------------------------
 
