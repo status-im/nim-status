@@ -221,16 +221,12 @@ proc storeImportedWalletAccount(self: StatusObject, privateKey: SkSecretKey,
   except Exception as e:
     return WalletAccountResult.err e.msg
 
-proc addCustomToken*(self: StatusObject, address, name, symbol, color, decimals: string): AddCustomTokenResult =
+proc addCustomToken*(self: StatusObject, address: Address, name, symbol, color: string, decimals: uint): AddCustomTokenResult =
   if not self.isLoggedIn:
     return AddCustomTokenResult.err "Not logged in. You must be logged in to " &
       "add a new custom token."
 
-  var uintDecimals: uint
-  if decimals != "":
-    uintDecimals = parseUInt(decimals)
-  # TODO
-  let token = Token(address: cast[Address](address), name: name, symbol: symbol, color: color, decimals: uintDecimals)
+  let token = Token(address: address, name: name, symbol: symbol, color: color, decimals: decimals)
   try:
     self.userDb.addCustomToken(token)
   except Exception as e:
@@ -238,17 +234,17 @@ proc addCustomToken*(self: StatusObject, address, name, symbol, color, decimals:
 
   AddCustomTokenResult.ok(token)
 
-proc deleteCustomToken*(self: StatusObject, address: string): DeleteCustomTokenResult =
+proc deleteCustomToken*(self: StatusObject, address: Address): DeleteCustomTokenResult =
   if not self.isLoggedIn:
     return DeleteCustomTokenResult.err "Not logged in. You must be logged in to " &
       "delete a custom token."
 
   try:
-    self.userDb.deleteCustomToken(cast[Address](address))
+    self.userDb.deleteCustomToken(address)
   except Exception as e:
     return DeleteCustomTokenResult.err "Error deleting a custom token: " & e.msg
 
-  DeleteCustomTokenResult.ok cast[Address](address)
+  DeleteCustomTokenResult.ok address
 
 
 proc addWalletAccount*(self: StatusObject, name, password,
