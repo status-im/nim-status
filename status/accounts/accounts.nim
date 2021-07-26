@@ -28,6 +28,8 @@ type
     Seed      = "seed",
     Watch     = "watch"
 
+const STORAGE_ON_DEVICE* = "This device"
+
 proc createAccount*(db: DbConn, account: Account) =
   var tblAccounts: Account
   let query = fmt"""
@@ -56,6 +58,41 @@ proc deleteAccount*(db: DbConn, address: Address) =
                     WHERE       {tblAccounts.address.columnName} = ?"""
 
   db.exec(query, address)
+
+proc getWalletAccount*(db: DbConn, address: Address): Option[Account] =
+  # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
+  # status-go enforces only one account to have wallet = 1 (using a unique
+  # constraint in the db)
+  var tblAccounts: Account
+  let query = fmt"""SELECT    {tblAccounts.address.columnName},
+                              {tblAccounts.wallet.columnName},
+                              {tblAccounts.chat.columnName},
+                              {tblAccounts.`type`.columnName},
+                              {tblAccounts.storage.columnName},
+                              {tblAccounts.path.columnName},
+                              {tblAccounts.publicKey.columnName},
+                              {tblAccounts.name.columnName},
+                              {tblAccounts.color.columnName},
+                              {tblAccounts.createdAt.columnName},
+                              {tblAccounts.updatedAt.columnName}
+                    FROM      {tblAccounts.tableName}
+                    WHERE     {tblAccounts.address.columnName} = '{address}'
+                              AND wallet = 0"""
+  db.one(Account, query)
+
+proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account] =
+  var tblAccounts: Account
+  let account = db.getWalletAccount(address)
+  if account.isSome:
+    let query = fmt"""DELETE FROM {tblAccounts.tableName}
+                      WHERE       {tblAccounts.address.columnName} = ?
+                                  AND wallet = 0"""
+    # NOTE: Prevent deletion of the default created account.
+    # We're relying on the default wallet account being the only account
+    # that has wallet = 1. There is a unique DB constraint that enforces this.
+
+    db.exec(query, address)
+  return account
 
 proc getAccounts*(db: DbConn): seq[Account] =
   var tblAccounts: Account

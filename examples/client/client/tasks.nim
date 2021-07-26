@@ -389,6 +389,63 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
+proc deleteWalletAccount*(index: int, password: string) {.task(kind=no_rts,
+  stoppable=false).} =
+
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = DeleteWalletAccountEvent(error: "Not logged in, " &
+        "cannot delete a wallet account.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event with error to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  var
+    event: DeleteWalletAccountEvent
+    numberedAccount: WalletAccount
+    address: Address
+
+  let allAccounts = status.getWalletAccounts()
+  if allAccounts.isErr:
+    event = DeleteWalletAccountEvent(error: "error getting wallet accounts: " &
+      allAccounts.error)
+
+  elif index < 1 or index > allAccounts.get.len:
+    event = DeleteWalletAccountEvent(error: "bad account index number")
+
+  else:
+    numberedAccount = allAccounts.get[index - 1]
+    address = numberedAccount.address
+
+    try:
+      let
+        dir = status.dataDir / "keystore"
+        walletResult = status.deleteWalletAccount(address, password,dir)
+
+      if walletResult.isOk:
+        let wallet = walletResult.get
+        event = DeleteWalletAccountEvent(name: wallet.name.get("(unnamed)"),
+          address: $wallet.address, timestamp: timestamp)
+      else:
+        event = DeleteWalletAccountEvent(error: "Error deleting wallet " &
+          "account: " & walletResult.error, timestamp: timestamp)
+
+    except Exception as e:
+      event = DeleteWalletAccountEvent(error: "Error deleting wallet " &
+        "account, error: " & e.msg, timestamp: timestamp)
+
+  let eventEnc = event.encode
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
 proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
   password: string) {.task(kind=no_rts, stoppable=false).} =
 

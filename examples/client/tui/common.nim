@@ -79,6 +79,10 @@ type
   DeleteCustomToken* = ref object of Command
     index*: string
 
+  DeleteWalletAccount* = ref object of Command
+    accountIndex*: string
+    password*: string
+
   Disconnect* = ref object of Command
 
   GetCustomTokens* = ref object of Command
@@ -139,6 +143,7 @@ const
     "connect": "Connect",
     "createaccount": "CreateAccount",
     "deletecustomtoken": "DeleteCustomToken",
+    "deletewalletaccount": "DeleteWalletAccount",
     "disconnect": "Disconnect",
     "getcustomtokens": "GetCustomTokens",
     "help": "Help",
@@ -161,6 +166,7 @@ const
     "addtoken": "addcustomtoken",
     "addwatch": "addwalletwatch",
     "create": "createaccount",
+    "delete": "deletewalletaccount",
     "deletetoken": "deletecustomtoken",
     "gettokens": "getcustomtokens",
     "import": "importmnemonic",
@@ -188,6 +194,7 @@ const
     "addwalletwatch": @["addwatch"],
     "createaccount": @["create"],
     "deletecustomtoken": @["deletetoken"],
+    "deletewalletaccount": @["delete"],
     "getcustomtokens": @["gettokens"],
     "importmnemonic": @["import"],
     "help": @["?"],

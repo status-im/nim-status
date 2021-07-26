@@ -26,7 +26,7 @@ procSuite "accounts":
   asyncTest "createAccount":
     let
       password = "qwerty"
-      path = currentSourcePath.parentDir() & "/build/my.db"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
     let db = initializeDB(path, password)
@@ -57,7 +57,7 @@ procSuite "accounts":
   asyncTest "updateAccount":
     let
       password = "qwerty"
-      path = currentSourcePath.parentDir() & "/build/my.db"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
     let db = initializeDB(path, password)
@@ -115,7 +115,7 @@ procSuite "accounts":
   asyncTest "deleteAccount":
     let
       password = "qwerty"
-      path = currentSourcePath.parentDir() & "/build/my.db"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
     let db = initializeDB(path, password)
@@ -133,6 +133,108 @@ procSuite "accounts":
     db.deleteAccount(accountFromDb.address)
 
     accountList = db.getAccounts()
+
+    check:
+      accountList.len == 0
+
+    db.close()
+    removeFile(path)
+
+  asyncTest "getWalletAccount":
+    let
+      password = "qwerty"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
+    removeFile(path)
+
+    let db = initializeDB(path, password)
+
+    account.wallet = false.some
+    db.createAccount(account)
+
+    # check that the values saved correctly
+    let accountFromDbOpt = db.getWalletAccount(account.address)
+
+    check:
+      accountFromDbOpt.isSome
+
+    let accountFromDb = accountFromDbOpt.get
+    check:
+      accountFromDb.wallet.get == account.wallet.get
+      accountFromDb.chat.get == account.chat.get
+      accountFromDb.`type`.get == account.`type`.get
+      accountFromDb.storage.get == account.storage.get
+      accountFromDb.path.get.string == account.path.get.string
+      accountFromDb.publicKey.get == account.publicKey.get
+      accountFromDb.name.get == account.name.get
+      accountFromDb.color.get == account.color.get
+      accountFromDb.createdAt == accountFromDb.updatedAt
+
+    db.close()
+    removeFile(path)
+
+  asyncTest "getWalletAccounts":
+    let
+      password = "qwerty"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
+    removeFile(path)
+
+    let db = initializeDB(path, password)
+
+    account.wallet = false.some
+    db.createAccount(account)
+
+    # check that the values saved correctly
+    let
+      accountList = db.getWalletAccounts()
+      accountFromDb = accountList[0]
+
+    check:
+      accountList.len == 1
+      accountFromDb.address == account.address
+      accountFromDb.wallet.get == account.wallet.get
+      accountFromDb.chat.get == account.chat.get
+      accountFromDb.`type`.get == account.`type`.get
+      accountFromDb.storage.get == account.storage.get
+      accountFromDb.path.get.string == account.path.get.string
+      accountFromDb.publicKey.get == account.publicKey.get
+      accountFromDb.name.get == account.name.get
+      accountFromDb.color.get == account.color.get
+      accountFromDb.createdAt == accountFromDb.updatedAt
+
+    db.close()
+    removeFile(path)
+
+  asyncTest "deleteWalletAccount":
+    let
+      password = "qwerty"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
+    removeFile(path)
+
+    let db = initializeDB(path, password)
+
+    account.wallet = false.some
+    db.createAccount(account)
+
+    # check that the values saved correctly
+    let accountFromDbOpt = db.deleteWalletAccount(account.address)
+
+    check:
+      accountFromDbOpt.isSome
+
+    let accountFromDb = accountFromDbOpt.get
+    check:
+      accountFromDb.wallet.get == account.wallet.get
+      accountFromDb.chat.get == account.chat.get
+      accountFromDb.`type`.get == account.`type`.get
+      accountFromDb.storage.get == account.storage.get
+      accountFromDb.path.get.string == account.path.get.string
+      accountFromDb.publicKey.get == account.publicKey.get
+      accountFromDb.name.get == account.name.get
+      accountFromDb.color.get == account.color.get
+      accountFromDb.createdAt == accountFromDb.updatedAt
+
+    let
+      accountList = db.getWalletAccounts()
 
     check:
       accountList.len == 0

@@ -72,6 +72,11 @@ proc addWalletWatchOnly*(self: Client, address, name: string) {.async.} =
 proc connect*(self: Client, username: string) {.async.} =
   asyncSpawn startWakuChat(self.taskRunner, status, username)
 
+proc deleteWalletAccount*(self: Client, index: int,
+  password: string) {.async.} =
+
+  asyncSpawn deleteWalletAccount(self.taskRunner, status, index, password)
+
 proc disconnect*(self: Client) {.async.} =
   asyncSpawn stopWakuChat(self.taskRunner, status)
 
