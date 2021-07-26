@@ -341,17 +341,17 @@ proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe,
 proc help*(T: type DeleteCustomToken): HelpText =
   let command = "deletecustomtoken"
   HelpText(command: command, aliases: aliased[command], parameters: @[
-    CommandParameter(name: "address", description: "Address of the " &
+    CommandParameter(name: "index", description: "Index of the " &
       "custom token.")
     ], description: "Deletes custom token")
 
 proc new*(T: type DeleteCustomToken, args: varargs[string]): T =
   var
-    address = ""
+    index = ""
   if args.len > 0:
-    address = args[0]
+    index = args[0]
 
-  T(address: address)
+  T(index: index)
 
 proc split*(T: type DeleteCustomToken, argsRaw: string): seq[string] =
   @[argsRaw]
@@ -359,11 +359,11 @@ proc split*(T: type DeleteCustomToken, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
   nimcall.} =
 
-  if command.address == "":
+  if command.index == "":
     self.wprintFormatError(getTime().toUnix,
-      "address cannot be empty, please provide an address.")
+      "please provide an index of the token to delete.")
   else:
-    asyncSpawn self.client.deleteCustomToken(command.address)
+    asyncSpawn self.client.deleteCustomToken(command.index)
 
 # Disconnect -------------------------------------------------------------------
 

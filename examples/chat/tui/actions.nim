@@ -163,7 +163,7 @@ proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
           symbol = token.symbol
           address = token.address
 
-        self.printResult(fmt"{2.indent()}{name} ({symbol}): {address}", timestamp)
+        self.printResult(fmt"{2.indent()}{i}. {name} ({symbol}): {address}", timestamp)
         i = i + 1
     else:
       self.printResult(

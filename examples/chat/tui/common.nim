@@ -77,7 +77,7 @@ type
     password*: string
 
   DeleteCustomToken* = ref object of Command
-    address*: string
+    index*: string
 
   Disconnect* = ref object of Command
 
