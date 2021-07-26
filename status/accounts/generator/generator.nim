@@ -21,13 +21,15 @@ type
 
   AddAccountResult = Result[UUID, string]
 
+  DeleteKeyFileResult = Result[void, string]
+
   DeriveAddressesResult = Result[Table[KeyPath, AccountInfo], string]
 
   DeriveChildAccountResult = Result[Account, string]
 
   DeriveChildAccountsResult = Result[Table[KeyPath, Account], string]
 
-  FindKeyFileResult = Result[seq[(PathComponent, string)], string]
+  FindKeyFileResult = Result[string, string]
 
   GenerateAndDeriveAddressesResult* = Result[
     seq[GeneratedAndDerivedAccountInfo], string]
@@ -173,19 +175,45 @@ proc findKeyFile(self: Generator, address: Address,
     return FindKeyFileResult.err "Found more than one key file for address " &
       strAddress
 
-  FindKeyFileResult.ok found
+  let (_, path) = found[0]
+  FindKeyFileResult.ok path
+
+proc deleteKeyFile*(self: Generator, address: Address, password: string,
+  dir: string): DeleteKeyFileResult =
+
+  let findKeyFileResult = self.findKeyFile(address, dir)
+
+  if findKeyFileResult.isErr:
+    return DeleteKeyFileResult.err fmt"Key file for address {address} not " &
+      "found"
+
+  let
+    path = findKeyFileResult.get
+    json = parseFile(path)
+    privateKeyResult = decodeKeyFileJson(json, password)
+
+  if privateKeyResult.isErr:
+    return DeleteKeyFileResult.err fmt"Error decoding key file for {address}. " &
+      "Wrong password?"
+
+  try:
+    path.removeFile()
+  except OSError as e:
+    return DeleteKeyFileResult.err "Error deleting key file: " & e.msg
+
+  DeleteKeyFileResult.ok
 
 proc loadAccount*(self: Generator, address: Address, password: string,
   dir: string = ""): LoadAccountResult =
 
   let
-    found = ?self.findKeyFile(address, dir)
-    (kind, path) = found[0]
+    path = ?self.findKeyFile(address, dir)
     json = parseFile(path)
     privateKeyResult = decodeKeyFileJson(json, password)
 
   if privateKeyResult.isErr:
-    return LoadAccountResult.err fmt"Error decoding private key from file. Wrong password?"
+    return LoadAccountResult.err fmt"Error decoding key file for {address}. " &
+      "Wrong password?"
 
   # TODO: Add ValidateKeystoreExtendedKey
   # https://github.com/status-im/status-go/blob/e0eb96a992fea9d52d16ae9413b1198827360278/accounts/generator/generator.go#L213-L215

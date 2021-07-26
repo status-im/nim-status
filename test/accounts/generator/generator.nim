@@ -18,6 +18,7 @@ procSuite "generator":
       bip44Address0: string
       bip44Address1: string
       bip44Key0: string
+      bip44KeyUid0: string
       bip44PubKey0: string
       encryptionPassword: string
       extendedMasterKey: string
@@ -29,6 +30,7 @@ procSuite "generator":
     bip44Key0:          "0x62f1d86b246c81bdd8f6c166d56896a4a5e1eddbcaebe06480e5c0bc74c28224",
     bip44PubKey0:       "0x04986dee3b8afe24cb8ccb2ac23dac3f8c43d22850d14b809b26d6b8aa5a1f47784152cd2c7d9edd0ab20392a837464b5a750b2a7f3f06e6a5756b5211b6a6ed05",
     bip44Address0:      "0x9c32F71D4DB8Fb9e1A58B0a80dF79935e7256FA6",
+    bip44KeyUid0:       "0x06d6639c5b0fb5465d80e97efe9288b0b046223fc33b054c1083946a21f49315",
     bip44Address1:      "0x7AF7283bd1462C3b957e8FAc28Dc19cBbF2FAdfe",
     encryptionPassword: "TEST_PASSWORD",
     extendedMasterKey:  "xprv9s21ZrQH143K3h3fDYiay8mocZ3afhfULfb5GX8kCBdno77K4HiA15Tg23wpbeF1pLfs1c5SPmYHrEpTuuRhxMwvKDwqdKiGJS9XFKzUsAF",
@@ -148,7 +150,7 @@ procSuite "generator":
 
     let
       secretKey = secretKeyResult.get
-      dir = "build/test"
+      dir = currentSourcePath.parentDir().parentDir().parentDir() & "/build/keystore"
 
     var storeKeyFileResult = gntr.storeKeyFile(secretKey,
         testAccount.encryptionPassword, dir)
@@ -170,6 +172,16 @@ procSuite "generator":
     assert storeKeyFileResult.isErr, "Shouldn't be able to store the same " &
       "key file more than once"
 
+  test "load account":
+    let
+      gntr = Generator.new()
+      secretKey = SkSecretKey.fromHex(testAccount.bip44Key0).get
+      dir = currentSourcePath.parentDir().parentDir().parentDir() & "/build/keystore"
+
+    let storedKeyFilePath = gntr.storeKeyFile(secretKey,
+      testAccount.encryptionPassword, dir).get
+    defer: removeFile storedKeyFilePath
+
     let
       address = secretKey.toAddress
       loadAcctResult = gntr.loadAccount(address,
@@ -189,7 +201,32 @@ procSuite "generator":
       "key is incorrect"
     assert loadedAcct.address == testAccount.bip44Address0, "loaded address " &
       "is incorrect"
+    assert loadedAcct.keyUid == testAccount.bip44KeyUid0, "loaded keyUid " &
+      "is incorrect"
     assert gntr.accounts.len == 1, "should have loaded 1 account"
+
+  test "delete key file":
+    let gntr = Generator.new()
+    assert gntr.accounts.len == 0, "should start with 0 accounts"
+
+    let secretKeyResult = SkSecretKey.fromHex(testAccount.bip44Key0)
+    assert secretKeyResult.isOk, "failed to parse secret key"
+
+    let
+      secretKey = secretKeyResult.get
+      dir = currentSourcePath.parentDir().parentDir().parentDir() & "/build/keystore"
+
+    var storedKeyFilePath = gntr.storeKeyFile(secretKey,
+        testAccount.encryptionPassword, dir).get
+    defer: removeFile storedKeyFilePath
+
+    let deleteResult = gntr.deleteKeyFile(testAccount.bip44Address0.parseAddress,
+      testAccount.encryptionPassword, dir)
+
+    assert deleteResult.isOk, "delete key file failed with error: " &
+      deleteResult.error
+    assert not storedKeyFilePath.fileExists, "stored key file should have " &
+      "been deleted"
 
 
 

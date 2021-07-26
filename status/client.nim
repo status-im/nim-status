@@ -92,7 +92,7 @@ proc storeWalletAccount(self: StatusObject, name: string, address: Address,
       # constraint enforcing only one account to have wallet = true
       chat: false.some,
       `type`: ($accountType).some,
-      storage: string.none,
+      storage: STORAGE_ON_DEVICE.some,
       path: path.some,
       publicKey: publicKey,
       name: walletName.some,
@@ -122,7 +122,8 @@ proc storeDerivedAccount(self: StatusObject, id: UUID, path: KeyPath, name,
   return self.storeWalletAccount(name, address, publicKey, accountType, path)
 
 proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
-  paths: seq[KeyPath], password, dir: string): PublicAccountResult =
+  paths: seq[KeyPath], password, dir: string,
+  accountType: AccountType): PublicAccountResult =
 
   let
     accountInfos = ?self.accountsGenerator.storeDerivedAccounts(id, paths,
@@ -155,8 +156,8 @@ proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
       address: defaultWalletAccountDerived.address.parseAddress,
       wallet: true.some,
       chat: false.some,
-      `type`: some($AccountType.Seed),
-      storage: string.none,
+      `type`: some($accountType),
+      storage: STORAGE_ON_DEVICE.some,
       path: PATH_DEFAULT_WALLET.some,
       publicKey: defaultWalletPubKeyResult.get.some,
       name: "Status account".some,
@@ -166,8 +167,8 @@ proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
       address: whisperAcct.address.parseAddress,
       wallet: false.some,
       chat: true.some,
-      `type`: some($AccountType.Seed),
-      storage: string.none,
+      `type`: some($accountType),
+      storage: STORAGE_ON_DEVICE.some,
       path: PATH_WHISPER.some,
       publicKey: whisperAccountPubKeyResult.get.some,
       name: pubAccount.name.some,
@@ -316,6 +317,26 @@ proc addWalletWatchOnly*(self: StatusObject, address: Address,
   except Exception as e:
     return WalletAccountResult.err e.msg
 
+proc deleteWalletAccount*(self: StatusObject, address: Address,
+  password, dir: string): WalletAccountResult =
+
+  try:
+    if not self.validatePassword(password, dir):
+      return WalletAccountResult.err "Invalid password"
+
+    let deleted = self.userDb.deleteWalletAccount(address)
+    if deleted.isNone:
+      return WalletAccountResult.err fmt"No wallet exists for {address}, " &
+        "or you are attempting to delete the default Status wallet for this " &
+        "account."
+
+    ?self.accountsGenerator.deleteKeyFile(address, password, dir)
+
+    return WalletAccountResult.ok deleted.get
+
+  except Exception as e:
+    return WalletAccountResult.err e.msg
+
 proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
   bip39Passphrase, password: string, dir: string): PublicAccountResult =
 
@@ -333,7 +354,7 @@ proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
   self.initUserDb(account.keyUid, password)
   let
     pubAccount = ?self.storeDerivedAccounts(account.id, account.keyUid, paths,
-      password, dir)
+      password, dir, AccountType.Generated)
     uuidResult = uuidGenerate()
 
   if uuidResult.isErr:
@@ -468,7 +489,7 @@ proc importMnemonic*(self: StatusObject, mnemonic: Mnemonic,
       paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER,
         PATH_DEFAULT_WALLET]
       pubAccount = ?self.storeDerivedAccounts(imported.id, imported.keyUid,
-        paths, password, dir)
+        paths, password, dir, AccountType.Seed)
     PublicAccountResult.ok(pubAccount)
   except Exception as e:
     return PublicAccountResult.err e.msg

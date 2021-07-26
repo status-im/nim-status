@@ -45,11 +45,16 @@ type
     error*: string
     timestamp*: int64
 
+  DeleteWalletAccountEvent* = ref object of ClientEvent
+    name*: string
+    address*: string
+    error*: string
+    timestamp*: int64
+
   ImportMnemonicEvent* = ref object of ClientEvent
     error*: string
     account*: PublicAccount
     timestamp*: int64
-
 
   JoinTopicEvent* = ref object of ClientEvent
     timestamp*: int64
@@ -91,6 +96,7 @@ const clientEvents* = [
   "AddWalletAccountEvent",
   "CreateAccountEvent",
   "DeleteCustomTokenEvent",
+  "DeleteWalletAccountEvent",
   "GetCustomTokensEvent",
   "ImportMnemonicEvent",
   "JoinTopicEvent",

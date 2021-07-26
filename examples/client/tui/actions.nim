@@ -116,7 +116,7 @@ proc action*(self: Tui, event: AddWalletAccountEvent) {.async, gcsafe,
     self.printResult("Added wallet account:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
-# CreateAccountEvent ----------------------------------------------------------
+# CreateAccountEvent -----------------------------------------------------------
 
 proc action*(self: Tui, event: CreateAccountEvent) {.async, gcsafe,
   nimcall.} =
@@ -138,7 +138,25 @@ proc action*(self: Tui, event: CreateAccountEvent) {.async, gcsafe,
     self.printResult("Created account:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
-# GetCustomTokensEvent ----------------------------------------------------------
+# DeleteWalletAccountEvent -----------------------------------------------------
+
+proc action*(self: Tui, event: DeleteWalletAccountEvent) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      address = event.address
+      timestamp = event.timestamp
+
+    self.printResult("Deleted wallet account:", timestamp)
+    self.printResult(fmt"{2.indent()}{address}", timestamp)
+
+# GetCustomTokensEvent ---------------------------------------------------------
 
 proc action*(self: Tui, event: GetCustomTokensEvent) {.async, gcsafe,
   nimcall.} =
@@ -170,8 +188,6 @@ proc action*(self: Tui, event: GetCustomTokensEvent) {.async, gcsafe,
         "No custom tokens added.",
         timestamp)
 
-
-
 # AddCustomTokenEvent ----------------------------------------------------------
 
 proc action*(self: Tui, event: AddCustomTokenEvent) {.async, gcsafe,
@@ -192,8 +208,7 @@ proc action*(self: Tui, event: AddCustomTokenEvent) {.async, gcsafe,
     self.printResult("Added a token:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({symbol}): {address}", timestamp)
 
-
-# DeleteCustomTokenEvent ----------------------------------------------------------
+# DeleteCustomTokenEvent -------------------------------------------------------
 
 proc action*(self: Tui, event: DeleteCustomTokenEvent) {.async, gcsafe,
   nimcall.} =

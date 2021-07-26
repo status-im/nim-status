@@ -336,7 +336,7 @@ proc command*(self: Tui, command: CreateAccount) {.async, gcsafe,
   else:
     asyncSpawn self.client.createAccount(command.password)
 
-# DeleteCustomToken ----------------------------------------------------------------
+# DeleteCustomToken ------------------------------------------------------------
 
 proc help*(T: type DeleteCustomToken): HelpText =
   let command = "deletecustomtoken"
@@ -372,6 +372,53 @@ proc command*(self: Tui, command: DeleteCustomToken) {.async, gcsafe,
       "please provide an positive integer index of the token to delete.")
   else:
     asyncSpawn self.client.deleteCustomToken(index)
+
+# DeleteWalletAccount ----------------------------------------------------------
+
+proc help*(T: type DeleteWalletAccount): HelpText =
+  let command = "deletewalletaccount"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "index", description: "Index of existing account, " &
+      "which can be retrieved using the `/listwalletaccounts` command."),
+    CommandParameter(name: "password", description: "Currently logged in " &
+      "account password.")
+    ], description: "Deletes the wallet account. NOTE: this is an " &
+      "irreversible operation. Please ensure your keystore directory is " &
+      "backed up prior to execution, if access to the account is needed " &
+      "after deletion.")
+
+proc new*(T: type DeleteWalletAccount, args: varargs[string]): T {.raises: [].} =
+  T(accountIndex: args[0], password: args[1])
+
+proc split*(T: type DeleteWalletAccount, argsRaw: string): seq[string] =
+  let firstSpace = argsRaw.find(" ")
+
+  var
+    index: string
+    password: string
+
+  if firstSpace != -1:
+    index = argsRaw[0..(firstSpace - 1)]
+    if argsRaw.len > firstSpace + 1:
+      password = argsRaw[(firstSpace + 1)..^1]
+    else:
+      password = ""
+  else:
+    index = ""
+    password = ""
+
+  @[index, password]
+
+proc command*(self: Tui, command: DeleteWalletAccount) {.async, gcsafe, nimcall.} =
+  try:
+    let
+      index = parseInt(command.accountIndex)
+      password = command.password
+
+    asyncSpawn self.client.deleteWalletAccount(index, password)
+  except:
+    self.wprintFormatError(getTime().toUnix(), "invalid arguments to " &
+      "delete a wallet account.")
 
 # Disconnect -------------------------------------------------------------------
 
