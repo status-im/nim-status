@@ -43,7 +43,7 @@ proc addCustomToken*(db: DbConn, token: Token) =
 
 proc getCustomTokens*(db: DbConn): seq[Token] =
   var token: Token
-  const query = fmt"""SELECT * FROM {token.tableName} ORDER BY {token.address.columnName}, {token.networkId.columnName}"""
+  const query = fmt"""SELECT * FROM {token.tableName} ORDER BY {token.symbol.columnName}, {token.networkId.columnName}"""
   result = db.all(Token, query)
 
 proc deleteCustomToken*(db: DbConn, address: Address) =
