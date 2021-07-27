@@ -67,8 +67,9 @@ proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
   nimcall.} =
 
+  var parsedAddr: Address
   try:
-    discard command.address.parseAddress
+    parsedAddr = command.address.parseAddress
   except:
     self.wprintFormatError(getTime().toUnix,
       "Could not parse address, please provide an address in proper format.")
@@ -82,9 +83,10 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
        "Could not parse color, please provide color encoded as a hexadecimal string.")
       return
  
+  var parsedDecimals: uint
   if command.decimals != "":
     try:
-      discard command.decimals.parseUInt
+      parsedDecimals = command.decimals.parseUInt
     except:
       self.wprintFormatError(getTime().toUnix,
        "Could not parse address, please provide an address in proper format.")
@@ -97,7 +99,7 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
     self.wprintFormatError(getTime().toUnix,
       "symbol cannot be empty, please provide a symbol.")
   else:
-    asyncSpawn self.client.addCustomToken(command.address, command.name, command.symbol, command.color, command.decimals)
+    asyncSpawn self.client.addCustomToken(parsedAddr, command.name, command.symbol, command.color, parsedDecimals)
 
 # AddWalletAccount ----------------------------------------------------------------
 
@@ -359,11 +361,19 @@ proc split*(T: type DeleteCustomToken, argsRaw: string): seq[string] =
 proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
   nimcall.} =
 
-  if command.index == "":
+  var index: int
+  try:
+    index = command.index.parseInt
+  except:
     self.wprintFormatError(getTime().toUnix,
-      "please provide an index of the token to delete.")
+      "could not parse token index.")
+    return
+
+  if index < 1:
+    self.wprintFormatError(getTime().toUnix,
+      "please provide an positive integer index of the token to delete.")
   else:
-    asyncSpawn self.client.deleteCustomToken(command.index)
+    asyncSpawn self.client.deleteCustomToken(index)
 
 # Disconnect -------------------------------------------------------------------
 

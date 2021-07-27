@@ -1,5 +1,7 @@
 import # std libs
-  std/[os, strutils, sets, sugar, times]
+  std/[os, strutils, sets, times]
+
+from std/sugar import `=>`, collect
 
 import # nim-status libs
   ../../nim_status/[conversions, client, database],
@@ -766,7 +768,7 @@ proc getCustomTokens*() {.task(kind=no_rts, stoppable=false).} =
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc addCustomToken*(address: string, name: string, symbol: string, color: string, decimals: string) {.task(kind=no_rts, stoppable=false).} =
+proc addCustomToken*(address: Address, name: string, symbol: string, color: string, decimals: uint) {.task(kind=no_rts, stoppable=false).} =
   let timestamp = getTime().toUnix
 
   if statusState != StatusState.loggedin:
@@ -782,11 +784,7 @@ proc addCustomToken*(address: string, name: string, symbol: string, color: strin
     return
 
   try:
-    var uintDecimals: uint
-    if decimals != "":
-      uintDecimals = decimals.parseUInt
-
-    let addResult = status.addCustomToken(address.parseAddress, name, symbol, color, uintDecimals)
+    let addResult = status.addCustomToken(address, name, symbol, color, decimals)
 
     if addResult.isErr:
       raise newException(Exception, addResult.error)
@@ -811,7 +809,7 @@ proc addCustomToken*(address: string, name: string, symbol: string, color: strin
     asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 
-proc deleteCustomToken*(indexStr: string) {.task(kind=no_rts, stoppable=false).} =
+proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
   let timestamp = getTime().toUnix
 
   if statusState != StatusState.loggedin:
@@ -827,10 +825,8 @@ proc deleteCustomToken*(indexStr: string) {.task(kind=no_rts, stoppable=false).}
     return
 
   try:
-    let 
-      index = indexStr.parseInt
-      allTokens = status.getCustomTokens().get
-    if index < 1 or index > allTokens.len:
+    let allTokens = status.getCustomTokens().get
+    if index > allTokens.len:
       let
         event = DeleteCustomTokenEvent(error: "bad token number")
         eventEnc = event.encode
