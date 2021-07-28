@@ -4,7 +4,7 @@ import # nim libs
 import # vendor libs
   json_serialization, sqlcipher
 
-import # nim-status libs
+import # status libs
   ./conversions, ./settings/types
 
 export types, options

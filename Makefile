@@ -70,8 +70,8 @@ clean-build-dirs:
 
 clean-migration-files:
 	rm -f \
-		nim_status/migrations/sql_scripts_accounts.nim \
-		nim_status/migrations/sql_scripts_app.nim
+		status/migrations/sql_scripts_accounts.nim \
+		status/migrations/sql_scripts_app.nim
 
 clean-sqlcipher:
 	cd vendor/nim-sqlcipher && $(MAKE) clean-build-dirs
@@ -169,12 +169,12 @@ endif
 
 rlnlib-sub: $(RLN_LIB)
 
-MIGRATIONS ?= nim_status/migrations/sql_scripts_app.nim
+MIGRATIONS ?= status/migrations/sql_scripts_app.nim
 
 $(MIGRATIONS): | deps
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --verbosity:0 nim_status/migrations/sql_generate.nim
-	nim_status/migrations/sql_generate nim_status/migrations/accounts > nim_status/migrations/sql_scripts_accounts.nim
-	nim_status/migrations/sql_generate nim_status/migrations/app > nim_status/migrations/sql_scripts_app.nim
+	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --verbosity:0 status/migrations/sql_generate.nim
+	status/migrations/sql_generate status/migrations/accounts > status/migrations/sql_scripts_accounts.nim
+	status/migrations/sql_generate status/migrations/app > status/migrations/sql_scripts_app.nim
 
 migrations: clean-migration-files $(MIGRATIONS)
 

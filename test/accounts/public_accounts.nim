@@ -4,9 +4,9 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # nim-status libs
-  ../../nim_status/[database, conversions],
-  ../../nim_status/accounts/public_accounts, ../test_helpers
+import # status libs
+  ../../status/[database, conversions],
+  ../../status/accounts/public_accounts, ../test_helpers
 
 procSuite "public accounts":
   asyncTest "saveAccount, updateAccountTimestamp, deleteAccount":
@@ -35,7 +35,7 @@ procSuite "public accounts":
       accountList[0].keycardPairing == account.keycardPairing
       accountList[0].keyUid == account.keyUid
       accountList[0].loginTimestamp.isSome == false
-    
+
     let acctByKeyUid = db.getPublicAccount(account.keyUid)
     check:
       acctByKeyUid.isSome

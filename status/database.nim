@@ -4,7 +4,7 @@ import # std libs
 import # vendor libs
   nimcrypto/keccak, results, sqlcipher
 
-import # nim-status libs
+import # status libs
   ./migration,
   ./migrations/sql_scripts_accounts as acc_migration,
   ./migrations/sql_scripts_app as app_migration

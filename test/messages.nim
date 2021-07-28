@@ -4,9 +4,9 @@ import # nim libs
 import # vendor libs
   json_serialization, sqlcipher, stew/byteutils
 
-import # nim-status libs
-  ../nim_status/[conversions, chats, database, messages],
-  ../nim_status/migrations/sql_scripts_app,
+import # status libs
+  ../status/[conversions, chats, database, messages],
+  ../status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "messages":

@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, json_serialization/[reader, writer, lexer],
   secp256k1, sqlcipher
 
-import # nim-status libs
+import # status libs
   ../conversions, ../database, ../extkeys/types, ../settings
 
 type

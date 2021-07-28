@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos, eth/keys, secp256k1, stew/[results]
 
-import # nim-status libs
-  ../nim_status/extkeys/[hdkey, mnemonic, types],
+import # status libs
+  ../status/extkeys/[hdkey, mnemonic, types],
   ./test_helpers
 
 procSuite "bip32":

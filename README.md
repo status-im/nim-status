@@ -22,7 +22,7 @@ Use 4 CPU cores with `make -j4 ...`.
 ## Usage
 
 ```nim
-import nim_status
+import status
 ```
 
 ## License

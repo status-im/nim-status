@@ -6,13 +6,13 @@ import # vendor libs
   json_serialization/std/options as json_options, secp256k1, stew/byteutils,
   sqlcipher, web3/[conversions, ethtypes]
 
-import # nim_status libs
+import # status libs
   ./extkeys/types as key_types
 
 from ./tx_history/types as tx_history_types import TxType
 
 # needed because nim-sqlcipher calls toDbValue/fromDbValue which does not have
-# json_serialization/std/options imported 
+# json_serialization/std/options imported
 export conversions, ethtypes, json_options
 
 const dtFormat = "yyyy-MM-dd HH:mm:ss fffffffff"
@@ -45,7 +45,7 @@ proc fromDbValue*[T: seq[auto]](val: DbValue, _: typedesc[T]): T =
   Json.decode(val.strVal, T, allowUnknownFields = true)
 
 # Strips leading zeroes and appends 0x prefix
-proc intToHex*(n: int): string = 
+proc intToHex*(n: int): string =
   if n == 0:
     return "0x0"
   var s = n.toHex

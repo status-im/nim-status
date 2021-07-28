@@ -5,7 +5,7 @@ import # vendor libs
   sqlcipher, json_serialization, stew/byteutils
 from stew/shims/macros as stew_macros import hasCustomPragmaFixed, getCustomPragmaFixed
 
-import # nim-status libs
+import # status libs
   conversions
 
 type Dapp* {.dbTableName("dapps").} = object

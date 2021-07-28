@@ -5,7 +5,7 @@ import # vendor libs
   json_serialization, json_serialization/[reader, writer, lexer], sqlcipher,
   web3/ethtypes
 
-import # nim-status libs
+import # status libs
   ./conversions
 
 type
@@ -60,7 +60,7 @@ type
   # that we added or added us, that's based on SystemTags.
   Contact* {.dbTableName("contacts").} = object
     # ID of the contact. It's a hex-encoded public key (prefixed with 0x).
-    id* {.serializedFieldName($ContactType.Id), dbColumnName($ContactsCol.Id).}: string 
+    id* {.serializedFieldName($ContactType.Id), dbColumnName($ContactsCol.Id).}: string
     # Ethereum address of the contact
     address* {.serializedFieldName($ContactType.Address), dbColumnName($ContactsCol.Address).}: Option[Address]
     # ENS name of contact
@@ -76,7 +76,7 @@ type
     # Generated username name of the contact
     alias* {.serializedFieldName($ContactType.Alias), dbColumnName($ContactsCol.Alias).}: Option[string]
     # Identicon generated from public key
-    identicon* {.serializedFieldName($ContactType.Identicon), dbColumnName($ContactsCol.Identicon).}: string 
+    identicon* {.serializedFieldName($ContactType.Identicon), dbColumnName($ContactsCol.Identicon).}: string
     # base64 encoded photo
     photo* {.serializedFieldName($ContactType.Photo), dbColumnName($ContactsCol.Photo).}: Option[string]
     # last time we received an update from the contact. Updates should be discarded if last updated is less than the one stored
@@ -105,7 +105,7 @@ proc saveContact*(db: DbConn, contact: Contact) =
                       {$ContactsCol.LocalNickname},
                       {$ContactsCol.LastEnsClockValue})
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
-  
+
   db.exec(query,
           contact.id,
           contact.address,

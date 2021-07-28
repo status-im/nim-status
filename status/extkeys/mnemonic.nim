@@ -4,7 +4,7 @@ import # std libs
 import # vendor libs
   nimcrypto/[pbkdf2, sha2, sysrand], normalize
 
-import # nim-status libs
+import # status libs
   ./types
 
 export types

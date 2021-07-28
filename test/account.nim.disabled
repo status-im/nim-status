@@ -4,8 +4,8 @@ import # nim libs
 import # vednor libs
   chronos, eth/[keys, p2p]
 
-import # nim-status libs
-  ../nim_status/account,
+import # status libs
+  ../status/account,
   ./test_helpers, ./test_utils
 
 procSuite "account":

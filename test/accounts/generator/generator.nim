@@ -4,10 +4,10 @@ import # nim libs
 import # vednor libs
   chronos, eth/keys, eth/keyfile/uuid
 
-import # nim-status libs
-  ../../../nim_status/conversions,
-  ../../../nim_status/accounts/generator/generator,
-  ../../../nim_status/extkeys/types, ../../test_helpers
+import # status libs
+  ../../../status/conversions,
+  ../../../status/accounts/generator/generator,
+  ../../../status/extkeys/types, ../../test_helpers
 
 
 procSuite "generator":
@@ -23,7 +23,7 @@ procSuite "generator":
       extendedMasterKey: string
       extendedSecretKey: string
       mnemonic: string
-  
+
   let testAccount = TestAccount(
     bip39Passphrase:    "TREZOR",
     bip44Key0:          "0x62f1d86b246c81bdd8f6c166d56896a4a5e1eddbcaebe06480e5c0bc74c28224",
@@ -44,7 +44,7 @@ procSuite "generator":
 
     assert generateResult.isOk, "error generating accounts: " &
       generateResult.error
-    
+
     echo "Generated Accounts [uuid: pubkey]"
     for uuid, acct in gntr.accounts.pairs:
       echo $uuid & ": " & $ acct.secretKey.toPublicKey
@@ -106,7 +106,7 @@ procSuite "generator":
       derivedResult.error
 
     let derived = derivedResult.get
-    
+
     echo "Imported Accounts [path: address]"
     var i = 0
     for accountInfo in derived.values:
@@ -228,6 +228,6 @@ procSuite "generator":
   #     let
   #       derived = derivedResult.get
   #       expectedAddress = PublicKey(randomKey.toPublicKey).toChecksumAddress
-      
+
   #     assert expectedAddress == derived[0].address, "addresses should match, " &
   #       fmt"expectedAddress: {expectedAddress}, actualAddress: {derived[0].address}"
