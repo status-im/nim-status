@@ -1,7 +1,7 @@
 import # vendor libs
   eth/keys, secp256k1, stew/[results, byteutils], nimcrypto/hmac
 
-import # nim-status libs
+import # status libs
   ./types
 
 proc splitHMAC*(seed: string, salt: string): ExtendedPrivKeyResult =

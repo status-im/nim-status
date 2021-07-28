@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions
 
-import # nim-status libs
-  ../nim_status/[database, tokens],
+import # status libs
+  ../status/[database, tokens],
   ./test_helpers
 
 procSuite "tokens":

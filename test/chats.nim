@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher, stew/byteutils
 
-import # nim-status libs
-  ../nim_status/[chats, contacts, conversions, database, messages],
+import # status libs
+  ../status/[chats, contacts, conversions, database, messages],
   ./test_helpers
 
 procSuite "chats":

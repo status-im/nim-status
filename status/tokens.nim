@@ -6,10 +6,10 @@ import # vendor libs
   sqlcipher, json_serialization,
   json_serialization/[reader, writer, lexer]
 
-import # nim-status libs
+import # status libs
   conversions
 
-type 
+type
   TokenError* = object of CatchableError
 
   TokenType* {.pure.} = enum
@@ -19,7 +19,7 @@ type
     Symbol = "symbol",
     Color = "color",
     Decimals = "decimals"
-  
+
   TokenCol* {.pure.} = enum
     NetworkId = "network_id",
     Address = "address",
@@ -50,4 +50,3 @@ proc deleteCustomToken*(db: DbConn, address: Address) =
   var token: Token
   const query = fmt"""DELETE FROM {token.tableName} WHERE {$TokenCol.Address} = ?"""
   db.exec(query, $address)
-

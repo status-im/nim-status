@@ -4,10 +4,10 @@ import # nim libs
 import # vendor libs
   sqlcipher, json_serialization
 
-import # nim-status libs
-  ../../nim_status/[conversions, callrpc, database, settings, tx_history/types]
+import # status libs
+  ../../status/[conversions, callrpc, database, settings, tx_history/types]
 
-from ../../nim_status/tx_history import nil
+from ../../status/tx_history import nil
 
 
 # Initialize db
@@ -55,7 +55,7 @@ let address = "0x4977E0B5ab94ff8A3c7625099cF3070775B92698"
 # echo "getLastBlockNumber: ", lastBlockNumber
 
 # let lowestBlockNumber = tx_history.findLowestBlockNumber(address, [0, lastBlockNumber], RemoteMethod.eth_getBalance, balance)
-# echo "lowestBlockNumber with balance ", balance, " : ", lowestBlockNumber  
+# echo "lowestBlockNumber with balance ", balance, " : ", lowestBlockNumber
 
 # let blockRange = tx_history.txBinarySearch(address, lastBlockNumber)
 # echo "blockRange: ", blockRange

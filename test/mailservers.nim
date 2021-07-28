@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # nim-status libs
-  ../nim_status/[database, mailservers],
+import # status libs
+  ../status/[database, mailservers],
   ./test_helpers
 
 procSuite "mailservers":

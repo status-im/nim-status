@@ -4,7 +4,7 @@ import # nim libs
 import # vendor libs
   sqlcipher, json_serialization, json_serialization/[reader, writer, lexer]
 
-import # nim-status libs
+import # status libs
   conversions
 
 type
@@ -90,7 +90,7 @@ type
     Mentions = "mentions",
     ImagePayload = "image_payload",
     ImageType = "image_type",
-    ImageBase64 = "image_base64" 
+    ImageBase64 = "image_base64"
 
   Message* = object
     id* {.serializedFieldName($MessageType.Id), dbColumnName($MessageCol.Id).}: string
@@ -135,12 +135,12 @@ type
     imageBase64* {.serializedFieldName($MessageType.ImageBase64), dbColumnName($MessageCol.ImageBase64).}: string
 
 
-proc getMessageById*(db: DbConn, id: string): Option[Message] = 
+proc getMessageById*(db: DbConn, id: string): Option[Message] =
   let query = """SELECT * from user_messages where id = ?"""
 
   result = db.one(Message, query, id)
 
-proc saveMessage*(db: DbConn, message: Message) = 
+proc saveMessage*(db: DbConn, message: Message) =
   let query = fmt"""INSERT INTO user_messages(
     {$MessageCol.Id},
     {$MessageCol.WhisperTimestamp},
@@ -182,9 +182,9 @@ proc saveMessage*(db: DbConn, message: Message) =
     {$MessageCol.ImagePayload},
     {$MessageCol.ImageType},
     {$MessageCol.ImageBase64})
-    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   """
-  db.exec(query, 
+  db.exec(query,
     message.id,
     message.whisperTimestamp,
     message.source,
@@ -232,7 +232,7 @@ proc deleteMessage*(db: DbConn, message: Message) =
 
   db.exec(query, message.id)
 
-proc markAllRead*(db: DbConn, chatId: string) = 
+proc markAllRead*(db: DbConn, chatId: string) =
   let query = fmt"""
      UPDATE user_messages SET seen = 1 WHERE local_chat_id = ? AND seen != 1"""
   db.exec(query, chatId)
@@ -242,7 +242,7 @@ proc markAllRead*(db: DbConn, chatId: string) =
 
   db.exec(chatQuery, chatId)
 
-proc markMessagesSeen*(db: DbConn, chatId: string, messageIds: seq[string]) = 
+proc markMessagesSeen*(db: DbConn, chatId: string, messageIds: seq[string]) =
   let quotedIds = sequtils.map(messageIds, proc(s:string):string = "'" & s & "'")
   let inVector = strutils.join(quotedIds, ",")
   let query = fmt"UPDATE user_messages SET seen = 1 WHERE id IN (" & inVector & ")"

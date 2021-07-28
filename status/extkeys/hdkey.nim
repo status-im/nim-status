@@ -4,7 +4,7 @@ import # std libs
 import # vendor libs
   eth/keys, nimcrypto/hmac, secp256k1, stew/[results, byteutils]
 
-import # nim-status libs
+import # status libs
   ./utils, ./paths, ./types
 
 const

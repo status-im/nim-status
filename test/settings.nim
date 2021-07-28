@@ -5,9 +5,9 @@ import # vendor libs
   chronos, json_serialization, json_serialization/std/options as json_options,
   sqlcipher
 
-import # nim-status libs
-  ../nim_status/[conversions, database, settings],
-  ../nim_status/migrations/sql_scripts_app,
+import # status libs
+  ../status/[conversions, database, settings],
+  ../status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "settings":

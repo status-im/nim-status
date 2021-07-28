@@ -4,8 +4,8 @@ import # nim libs
 import # vednor libs
   chronos, eth/[keys, p2p], stew/byteutils
 
-import # nim-status libs
-  ../nim_status/[accounts/generator/generator, conversions, extkeys/paths],
+import # status libs
+  ../status/[accounts/generator/generator, conversions, extkeys/paths],
   ./test_helpers
 
 
@@ -14,7 +14,7 @@ procSuite "multiaccount":
   test "entropy strength":
     let entropyStrength = mnemonicPhraseLengthToEntropyStrength(12)
     assert entropyStrength.int == 128
-  
+
   test "generate and derive accounts, store derived accounts":
     let
       gntr = Generator.new()
@@ -34,11 +34,11 @@ procSuite "multiaccount":
 
     let
       gndImportedAccInfoResult = gntr.importMnemonic(gndAccountInfo.mnemonic, passphrase)
-    
+
     assert gndImportedAccInfoResult.isOk
 
     let gndImportedAccInfo = gndImportedAccInfoResult.get
-      
+
     assert gndImportedAccInfo.mnemonic.string.toBytes ==
       gndAccountInfo.mnemonic.string.toBytes
 

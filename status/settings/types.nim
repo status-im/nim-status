@@ -1,4 +1,3 @@
-
 import # nim libs
   std/[json, options, os, sequtils, sugar]
 
@@ -6,7 +5,7 @@ import # vendor libs
   json_serialization, json_serialization/[reader, writer, lexer],
   json_serialization/std/options as json_options, sqlcipher
 
-import # nim-status libs
+import # status libs
   ../conversions, ../networks
 
 export networks
@@ -64,7 +63,7 @@ type
     WakuEnabled = "waku-enabled"
     WakuBloomFilterMode = "waku-bloom-filter-mode",
     WebviewAllowPermissionRequests = "webview-allow-permission-requests?"
-  
+
   SettingsCol* {.pure.} = enum
     Address = "address",
     ChaosMode = "chaos_mode",

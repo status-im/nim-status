@@ -6,7 +6,7 @@ import # vendor libs
   confutils, eth/[keyfile/uuid, keys], json_serialization, secp256k1, sqlcipher,
   stew/results, web3/ethtypes
 
-import # nim-status libs
+import # status libs
   ./accounts/[accounts, public_accounts],
   ./accounts/generator/[generator, utils],
   ./accounts/generator/account as generator_account, ./alias, ./chats,

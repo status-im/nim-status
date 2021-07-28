@@ -5,7 +5,7 @@ import # vendor libs
   chronicles, eth/keys, eth/keyfile/uuid, nimcrypto/sha2, secp256k1,
   stew/byteutils
 
-import # nim-status libs
+import # status libs
   ../../extkeys/types
 
 type
@@ -23,7 +23,7 @@ type
 
   GeneratedAccountInfo* = ref object of IdentifiedAccountInfo
     mnemonic*: Mnemonic
-  
+
   GeneratedAndDerivedAccountInfo* = ref object of GeneratedAccountInfo
     derived*: Table[KeyPath, AccountInfo]
 
@@ -31,7 +31,7 @@ proc toAccountInfo*(a: Account): AccountInfo =
   let
     publicKey = a.secretKey.toPublicKey()
     address = PublicKey(publicKey).toChecksumAddress()
-  
+
   AccountInfo(publicKey: "0x" & $publicKey, address: address)
 
 proc toIdentifiedAccountInfo*(a: Account, id: UUID): IdentifiedAccountInfo =

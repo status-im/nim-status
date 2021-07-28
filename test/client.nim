@@ -4,9 +4,9 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # nim-status libs
-  ../nim_status/[client, conversions, database, settings],
-  ../nim_status/accounts/public_accounts, ./test_helpers
+import # status libs
+  ../status/[client, conversions, database, settings],
+  ../status/accounts/public_accounts, ./test_helpers
 
 procSuite "client":
   asyncTest "client":
@@ -77,7 +77,7 @@ procSuite "client":
     check:
       # should not be able to get settings when logged out
       getSettingsResult.isErr
-    
+
     let loginResult = statusObj.login(account.keyUid, password)
     check:
       loginResult.isOk

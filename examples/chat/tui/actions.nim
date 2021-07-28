@@ -152,7 +152,7 @@ proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
 
     let tokens = event.tokens
     let timestamp = event.timestamp
-    trace "TUI showing tokens from nim-status", tokens=(%tokens)
+    trace "TUI showing tokens", tokens=(%tokens)
 
     if tokens.len > 0:
       var i = 1
@@ -271,7 +271,7 @@ proc action*(self: ChatTUI, event: ListAccountsEvent) {.async, gcsafe,
       accounts = event.accounts
       timestamp = event.timestamp
 
-    trace "TUI showing accounts from nim-status", accounts=(%accounts)
+    trace "TUI showing accounts", accounts=(%accounts)
 
     if accounts.len > 0:
       var i = 1
@@ -305,7 +305,7 @@ proc action*(self: ChatTUI, event: ListWalletAccountsEvent) {.async, gcsafe,
       accounts = event.accounts
       timestamp = event.timestamp
 
-    trace "TUI showing wallet accounts from nim-status", accounts=(%accounts)
+    trace "TUI showing wallet accounts", accounts=(%accounts)
 
     if accounts.len > 0:
       var i = 1

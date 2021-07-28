@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # nim-status libs
-  ../nim_status/[database, permissions],
+import # status libs
+  ../status/[database, permissions],
   ./test_helpers
 
 procSuite "permissions":

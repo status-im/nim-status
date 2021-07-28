@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos
 
-import # nim-status libs
-  ../nim_status/extkeys/mnemonic, ./test_helpers
+import # status libs
+  ../status/extkeys/mnemonic, ./test_helpers
 
 procSuite "mnemonic":
   test "mnemonic":

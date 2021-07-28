@@ -5,9 +5,9 @@ import # vendor libs
   chronos, json_serialization, json_serialization/std/options as json_options,
   options, sqlcipher, web3/conversions
 
-import # nim-status libs
-  ../nim_status/[callrpc, database, settings],
-  ../nim_status/migrations/sql_scripts_app,
+import # status libs
+  ../status/[callrpc, database, settings],
+  ../status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "callrpc":
