@@ -4,9 +4,9 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, secp256k1, sqlcipher, web3/ethtypes
 
-import # nim-status libs
-  ../../nim_status/[database, conversions],
-  ../../nim_status/accounts/accounts, ../../nim_status/extkeys/types,
+import # status libs
+  ../../status/[database, conversions],
+  ../../status/accounts/accounts, ../../status/extkeys/types,
   ../test_helpers
 
 procSuite "accounts":
@@ -80,7 +80,7 @@ procSuite "accounts":
       publicKey_updated = some(SkPublicKey.fromHex("0x03ddb90a4f67a81adf534bc19ed06d1546a3cad16a3b2995e18e3d7af823fe5c9a").get)
       name_updated = "name_updated".some
       color_updated = "#1360df".some
-    
+
     accountFromDb.address = address_updated
     accountFromDb.wallet = wallet_updated
     accountFromDb.chat = chat_updated
@@ -111,7 +111,7 @@ procSuite "accounts":
 
     db.close()
     removeFile(path)
-  
+
   asyncTest "deleteAccount":
     let
       password = "qwerty"

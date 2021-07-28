@@ -8,8 +8,8 @@ import # vendor libs
 import # chat libs
   ../config
 
-import # nim-status libs
-  ../../../nim_status/accounts/public_accounts
+import # status libs
+  ../../../status/accounts/public_accounts
 
 export config, public_accounts, sets, strformat, strutils, task_runner, times
 

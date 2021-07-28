@@ -4,8 +4,8 @@ import # vendor libs
 import # chat libs
   ./common
 
-import # nim-status libs
-  ../../../nim_status/[client, tokens]
+import # status libs
+  ../../../status/[client, tokens]
 
 export common
 

@@ -12,7 +12,7 @@ import # vendor libs
 
 import tx_history/types
 
-#import # nim-status libs
+#import # status libs
   #../[settings, database, conversions, tx_history, callrpc]
   #
   #

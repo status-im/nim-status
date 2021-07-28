@@ -4,8 +4,8 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # nim-status libs
-  ../nim_status/[conversions, database, pendingtxs], ./test_helpers
+import # status libs
+  ../status/[conversions, database, pendingtxs], ./test_helpers
 
 procSuite "pendingtxs":
   asyncTest "pendingtxs":

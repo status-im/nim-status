@@ -4,8 +4,8 @@
 /.update.timestamp
 /build
 /data
-/nim_status.nims
 /nimcache
+/status.nims
 /test/build
 /vendor/.nimble
 TODO

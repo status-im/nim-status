@@ -3,7 +3,7 @@ import # vendor libs
 
 export protobuf_serialization
 
-# nim-status protobuf spec
+# status protobuf spec
 # automatically exports `type ChatMessage`
 import_proto3 "protobuf/chat_message.proto"
 

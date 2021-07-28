@@ -5,7 +5,7 @@ import # vendor libs
   eth/keys, eth/keyfile/[keyfile, uuid], json_serialization, secp256k1,
   stew/results, web3/ethtypes
 
-import # nim-status libs
+import # status libs
   ./account, ../../conversions, ../../extkeys/[hdkey, mnemonic, types],
   ../public_accounts, ./utils
 
@@ -51,7 +51,7 @@ proc addAccount(self: Generator, acc: Account): AddAccountResult =
   let uuidResult = uuidGenerate()
   if uuidResult.isErr:
     return AddAccountResult.err "Error generating uuid: " & $uuidResult.error
-  
+
   let uuid = uuidResult.get
   self.accounts[$uuid] = acc
   AddAccountResult.ok(uuid)
@@ -84,7 +84,7 @@ proc findAccount(self: Generator, accountId: UUID): AccountResult =
 
 proc deriveAddresses*(self: Generator, accountId: UUID,
   paths: seq[KeyPath]): DeriveAddressesResult =
-  
+
   let
     acc = ?self.findAccount(accountId)
     children = ?self.deriveChildAccounts(acc, paths)
@@ -153,7 +153,7 @@ proc generateAndDeriveAddresses*(self: Generator, mnemonicPhraseLength: int,
       derived = ?self.deriveAddresses(generatedAccountInfo.id, paths)
 
     generatedAndDerived.add generatedAccountInfo.toGeneratedAndDerived(derived)
-  
+
   GenerateAndDeriveAddressesResult.ok(generatedAndDerived)
 
 proc findKeyFile(self: Generator, address: Address,

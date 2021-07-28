@@ -5,8 +5,8 @@ import # vendor libs
   chronicles, chronos, confutils, stew/[byteutils, results],
   waku/v2/node/[config, wakunode2], waku/v2/protocol/waku_message
 
-import # nim-status libs
-  ../nim_status/waku,
+import # status libs
+  ../status/waku,
   ./test_helpers
 
 # This test suite is essentially a "smoke test" for using nim-waku v2 from

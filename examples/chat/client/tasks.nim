@@ -6,10 +6,10 @@ from std/sugar import `=>`, collect
 import # vendor libs
   stew/byteutils
 
-import # nim-status libs
-  ../../nim_status/accounts/[accounts, public_accounts],
-  ../../nim_status/[alias, conversions, client, database, protocol],
-  ../../nim_status/extkeys/[paths, types]
+import # status libs
+  ../../status/accounts/[accounts, public_accounts],
+  ../../status/[alias, conversions, client, database, protocol],
+  ../../status/extkeys/[paths, types]
 
 import # chat libs
   ./events, ./waku_chat2

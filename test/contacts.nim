@@ -4,9 +4,9 @@ import # nim libs
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # nim-status libs
-  ../nim_status/[contacts, conversions, database],
-  ../nim_status/migrations/sql_scripts_app,
+import # status libs
+  ../status/[contacts, conversions, database],
+  ../status/migrations/sql_scripts_app,
   ./test_helpers
 
 procSuite "contacts":
