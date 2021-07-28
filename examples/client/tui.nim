@@ -1,10 +1,10 @@
-import # chat libs
+import # client libs
   ./tui/events
 
 export events
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 # TUI: https://en.wikipedia.org/wiki/Text-based_user_interface
 
@@ -13,22 +13,22 @@ logScope:
 
 const input = "input"
 
-# `type ChatTUI` and `proc stop(self: ChatTUI)` are defined in ./common to
-# avoid circular dependency
+# `type Tui` and `proc stop(self: Tui)` are defined in ./common to avoid
+# circular dependency
 
-proc new*(T: type ChatTUI, chatConfig: ChatConfig): T =
+proc new*(T: type Tui, clientConfig: ClientConfig): T =
   let
     (locale, mainWin, mouse) = initScreen()
-    client = ChatClient.new(chatConfig)
+    client = Client.new(clientConfig)
 
   var taskRunner = TaskRunner.new()
   taskRunner.createWorker(thread, input)
 
-  T(chatConfig: chatConfig, client: client, currentInput: "",
+  T(clientConfig: clientConfig, client: client, currentInput: "",
     events: newEventChannel(), inputReady: false, locale: locale,
     mainWin: mainWin, mouse: mouse, running: false, taskRunner: taskRunner)
 
-proc start*(self: ChatTUI) {.async.} =
+proc start*(self: Tui) {.async.} =
   debug "TUI starting"
 
   self.events.open()

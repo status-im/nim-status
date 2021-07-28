@@ -1,18 +1,18 @@
 import # std libs
   std/[strformat, strutils]
 
-import # chat libs
+import # client libs
   ./common
 
 export common
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 # CREDIT: the structure of this module was inspired by TBDChat
 # https://github.com/mgeitz/tbdchat
 
-proc asciiSplash*(self: ChatTUI) =
+proc asciiSplash*(self: Tui) =
   # TODO
   # there are tools online for making decent looking "ASCII banners", e.g.
   # * https://patorjk.com/software/taag/#p=display&f=Graffiti&t=status
@@ -20,7 +20,7 @@ proc asciiSplash*(self: ChatTUI) =
   discard
 
 # replace `clearInput` with adaptations of ncurses calls in TBDChat
-proc clearInput*(self: ChatTUI) =
+proc clearInput*(self: Tui) =
   var x, y: cint
   wmove(self.inputWin, 0, 0)
   wclear(self.inputWin)
@@ -44,30 +44,30 @@ proc colors() =
   init_pair(7, COLOR_GREEN, -1)
   init_pair(8, COLOR_WHITE, COLOR_RED)
 
-proc drawChatWin*(self: ChatTUI) =
-  # create subwindow for chat box
-  self.chatWinBox = subwin(self.mainWin, (LINES.float64 * 0.8).cint, COLS, 0, 0)
-  box(self.chatWinBox, 0, 0)
+proc drawOutputWin*(self: Tui) =
+  # create subwindow for output box
+  self.outputWinBox = subwin(self.mainWin, (LINES.float64 * 0.8).cint, COLS, 0, 0)
+  box(self.outputWinBox, 0, 0)
 
   # add title to subwindow
-  mvwaddch(self.chatWinBox, 0, ((COLS.float64 * 0.5).int - 9).cint, ACS_RTEE)
-  wattron(self.chatWinBox, COLOR_PAIR(3).cint)
-  mvwaddstr(self.chatWinBox, 0, ((COLS.float64 * 0.5).int - 8).cint,
-    " nim-status chat ")
-  wattroff(self.chatWinBox, COLOR_PAIR(3).cint)
-  mvwaddch(self.chatWinBox, 0, ((COLS.float64 * 0.5).int + 9).cint, ACS_LTEE)
+  mvwaddch(self.outputWinBox, 0, ((COLS.float64 * 0.5).int - 9).cint, ACS_RTEE)
+  wattron(self.outputWinBox, COLOR_PAIR(3).cint)
+  mvwaddstr(self.outputWinBox, 0, ((COLS.float64 * 0.5).int - 8).cint,
+    " nim-status client ")
+  wattroff(self.outputWinBox, COLOR_PAIR(3).cint)
+  mvwaddch(self.outputWinBox, 0, ((COLS.float64 * 0.5).int + 9).cint, ACS_LTEE)
 
   # draw subwindow
-  wrefresh(self.chatWinBox)
+  wrefresh(self.outputWinBox)
 
   # create sub-subwindow to hold text
-  self.chatWin = subwin(self.chatWinBox, ((LINES.float64 * 0.8).int - 2).cint,
+  self.outputWin = subwin(self.outputWinBox, ((LINES.float64 * 0.8).int - 2).cint,
     COLS - 2, 1, 1)
 
   # enable text scrolling
-  scrollok(self.chatWin, true)
+  scrollok(self.outputWin, true)
 
-proc drawInfoLines*(self: ChatTUI) =
+proc drawInfoLines*(self: Tui) =
   # create info line above input window
   self.infoLine = subwin(self.mainWin, 1, COLS, (LINES.float64 * 0.8).cint, 0)
 
@@ -79,7 +79,7 @@ proc drawInfoLines*(self: ChatTUI) =
   # create lower info line
   self.infoLineBottom = subwin(self.mainWin, 1, COLS, LINES - 1, 0)
 
-proc drawInputWin*(self: ChatTUI) =
+proc drawInputWin*(self: Tui) =
   # create subwindow for the input box
   self.inputWinBox = subwin(self.mainWin, ((LINES.float64 * 0.2).int - 1).cint,
     COLS, ((LINES.float64 * 0.8).int + 1).cint, 0)
@@ -92,7 +92,7 @@ proc drawInputWin*(self: ChatTUI) =
   self.inputWin = subwin(self.inputWinBox, ((LINES.float64 * 0.2).int - 3).cint,
     COLS - 2, ((LINES.float64 * 0.8).int + 2).cint, 1)
 
-proc drawTermTooSmall*(self: ChatTUI) =
+proc drawTermTooSmall*(self: Tui) =
   wbkgd(self.mainWin, COLOR_PAIR(8).chtype)
   wattron(self.mainWin, A_BOLD.cint)
   mvwaddstr(self.mainWin, ((LINES.float64 * 0.5).int - 1).cint,
@@ -103,18 +103,18 @@ proc drawTermTooSmall*(self: ChatTUI) =
   wrefresh(self.mainWin)
   wbkgd(self.mainWin, COLOR_PAIR(1).chtype)
 
-proc drawScreen*(self: ChatTUI, redraw = false) =
+proc drawScreen*(self: Tui, redraw = false) =
   if LINES < 24 or COLS < 76:
     self.drawTermTooSmall()
   else:
-    self.drawChatWin()
+    self.drawOutputWin()
     self.drawInputWin()
     self.drawInfoLines()
     self.asciiSplash()
 
     # move cursor to input window and refresh
     wcursyncup(self.inputWin)
-    wrefresh(self.chatWin)
+    wrefresh(self.outputWin)
     wrefresh(self.inputWin)
 
   if redraw:
@@ -155,13 +155,13 @@ proc initScreen*(): (string, PWindow, bool) =
   (locale, mainWin, mouse)
 
 # replace `printInput` with adaptations of ncurses calls in TBDChat
-proc printInput*(self: ChatTUI, input: string) =
+proc printInput*(self: Tui, input: string) =
   wprintw(self.inputWin, input)
   wrefresh(self.inputWin)
 
   trace "TUI printed in input window"
 
-proc resizeScreen*(self: ChatTUI) =
+proc resizeScreen*(self: Tui) =
   # end current windows
   endwin()
   refresh()
@@ -170,27 +170,27 @@ proc resizeScreen*(self: ChatTUI) =
   # redraw the screen
   self.drawScreen(true)
 
-proc wprintFormat(self: ChatTUI, win: PWindow, timestamp: int64, origin: string, text: string,
+proc wprintFormat(self: Tui, win: PWindow, timestamp: int64, origin: string, text: string,
   originColor: int) =
 
   discard
 
-proc wprintFormatMessage(self: ChatTUI, win: PWindow, timestamp: int64, origin: string,
+proc wprintFormatMessage(self: Tui, win: PWindow, timestamp: int64, origin: string,
   text: string, originColor: int) =
 
   discard
 
-proc wprintFormatmotd(self: ChatTUI, win: PWindow, timestamp: int64, motd: string) =
+proc wprintFormatmotd(self: Tui, win: PWindow, timestamp: int64, motd: string) =
   discard
 
-proc wprintWhoseLineIsItAnyways(self: ChatTUI, win: PWindow, timestamp: int64, user: string,
+proc wprintWhoseLineIsItAnyways(self: Tui, win: PWindow, timestamp: int64, user: string,
   realname: string, realnameColor: int) =
 
   discard
 
-proc wprintFormatTime*(self: ChatTUI, timestamp: int64) =
+proc wprintFormatTime*(self: Tui, timestamp: int64) =
   let
-    win = self.chatWin
+    win = self.outputWin
 
     localdatetime = inZone(fromUnix(timestamp), local())
     lhour = localdatetime.hour
@@ -221,93 +221,93 @@ proc wprintFormatTime*(self: ChatTUI, timestamp: int64) =
   wprintw(win, " ")
   wattroff(win, COLOR_PAIR(7).cint)
 
-proc wprintFormatError*(self: ChatTUI, timestamp: int64, error: string) =
+proc wprintFormatError*(self: Tui, timestamp: int64, error: string) =
   let
-    chatWin = self.chatWin
+    outputWin = self.outputWin
     inputWin = self.inputWin
 
   # print formatted time
   self.wprintFormatTime(timestamp)
 
   # error message formatting
-  wattron(chatWin, A_BOLD.cint)
-  wprintw(chatWin, " ")
-  waddch(chatWin, ACS_HLINE)
-  waddch(chatWin, ACS_HLINE)
-  waddch(chatWin, ACS_HLINE)
-  wprintw(chatWin, " ")
-  wattron(chatWin, COLOR_PAIR(8).cint)
-  wprintw(chatWin, "Error")
-  wattroff(chatWin, COLOR_PAIR(8).cint)
-  wattroff(chatWin, A_BOLD.cint)
+  wattron(outputWin, A_BOLD.cint)
+  wprintw(outputWin, " ")
+  waddch(outputWin, ACS_HLINE)
+  waddch(outputWin, ACS_HLINE)
+  waddch(outputWin, ACS_HLINE)
+  wprintw(outputWin, " ")
+  wattron(outputWin, COLOR_PAIR(8).cint)
+  wprintw(outputWin, "Error")
+  wattroff(outputWin, COLOR_PAIR(8).cint)
+  wattroff(outputWin, A_BOLD.cint)
 
   # print error message
-  wattron(chatWin, COLOR_PAIR(1).cint)
-  wprintw(chatWin, fmt(" {error}\n"))
-  wattroff(chatWin, COLOR_PAIR(1).cint)
+  wattron(outputWin, COLOR_PAIR(1).cint)
+  wprintw(outputWin, fmt(" {error}\n"))
+  wattroff(outputWin, COLOR_PAIR(1).cint)
 
   # move cursor to input window and refresh
   wcursyncup(inputWin)
-  wrefresh(chatWin)
+  wrefresh(outputWin)
   wrefresh(inputWin)
 
   warn "TUI printed error message", message=error
 
-proc printMessage*(self: ChatTUI, message: string, timestamp: int64,
+proc printMessage*(self: Tui, message: string, timestamp: int64,
   username: string, topic: string) =
 
   let
-    chatWin = self.chatWin
+    outputWin = self.outputWin
     inputWin = self.inputWin
 
   # print formatted time
   self.wprintFormatTime(timestamp)
 
   # print result
-  wattron(chatWin, COLOR_PAIR(3).cint)
-  wprintw(chatWin, fmt("[{topic}]"))
-  wattroff(chatWin, COLOR_PAIR(3).cint)
-  wattron(chatWin, COLOR_PAIR(2).cint)
-  wprintw(chatWin, fmt(" {username}"))
-  wattroff(chatWin, COLOR_PAIR(2).cint)
-  wattron(chatWin, COLOR_PAIR(1).cint)
-  wprintw(chatWin, fmt(": {message}\n"))
-  wattroff(chatWin, COLOR_PAIR(1).cint)
+  wattron(outputWin, COLOR_PAIR(3).cint)
+  wprintw(outputWin, fmt("[{topic}]"))
+  wattroff(outputWin, COLOR_PAIR(3).cint)
+  wattron(outputWin, COLOR_PAIR(2).cint)
+  wprintw(outputWin, fmt(" {username}"))
+  wattroff(outputWin, COLOR_PAIR(2).cint)
+  wattron(outputWin, COLOR_PAIR(1).cint)
+  wprintw(outputWin, fmt(": {message}\n"))
+  wattroff(outputWin, COLOR_PAIR(1).cint)
 
   # move cursor to input window and refresh
   wcursyncup(inputWin)
-  wrefresh(chatWin)
+  wrefresh(outputWin)
   wrefresh(inputWin)
 
   trace "TUI printed in message window", message
 
-proc printResult*(self: ChatTUI, message: string, timestamp: int64) =
+proc printResult*(self: Tui, message: string, timestamp: int64) =
   let
-    chatWin = self.chatWin
+    outputWin = self.outputWin
     inputWin = self.inputWin
 
   # print formatted time
   self.wprintFormatTime(timestamp)
 
   # print result
-  wattron(chatWin, COLOR_PAIR(1).cint)
-  wprintw(chatWin, fmt("{message}\n"))
-  wattroff(chatWin, COLOR_PAIR(1).cint)
+  wattron(outputWin, COLOR_PAIR(1).cint)
+  wprintw(outputWin, fmt("{message}\n"))
+  wattroff(outputWin, COLOR_PAIR(1).cint)
 
   # move cursor to input window and refresh
   wcursyncup(inputWin)
-  wrefresh(chatWin)
+  wrefresh(outputWin)
   wrefresh(inputWin)
 
   trace "TUI printed in message window", message
 
-proc wprintFormatNotice(self: ChatTUI, win: PWindow, timestamp: int64, notice: string) =
+proc wprintFormatNotice(self: Tui, win: PWindow, timestamp: int64, notice: string) =
   discard
 
-proc wprintSeperatorTitle(self: ChatTUI, win: PWindow, title: string, color: int,
+proc wprintSeperatorTitle(self: Tui, win: PWindow, title: string, color: int,
   titleColor: int) =
 
   discard
 
-proc wprintSeperator(self: ChatTUI, win: PWindow, color: int) =
+proc wprintSeperator(self: Tui, win: PWindow, color: int) =
   discard

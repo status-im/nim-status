@@ -82,16 +82,16 @@ proc buildAndRun(name: string,
   if getEnv("RUN_AFTER_BUILD").strip != "false":
     exec outDir & name
 
-task chat, "Build and run the example chat client":
+task client, "Build and run the example client":
   buildAndRun(
-    "chat", "examples/", "build/",
+    "client", "examples/", "build/",
     "-d:chronicles_runtime_filtering" &
     " -d:chronicles_sinks=textlines[file]" &
     (if getEnv("NCURSES_STATIC").strip != "false": " --dynlibOverride:ncursesw" else: "") &
     (if getEnv("NCURSES_LDFLAGS").strip != "": " --passL:\"" & getEnv("NCURSES_LDFLAGS") & "\"" else: ""))
 
 task waku_chat2, "Build and run the example waku_chat2 client":
-  buildAndRun "waku_chat2", "examples/", "build/"
+  buildAndRun "chat2", "examples/waku/", "build/"
 
 task tests, "Build and run all tests":
   rmDir "test/build/"

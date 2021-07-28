@@ -1,13 +1,13 @@
 import # vendor libs
   stew/byteutils
 
-import # chat libs
+import # client libs
   ./common
 
 export common
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 const
   ESCAPE* = "ESCAPE"
@@ -32,8 +32,8 @@ proc readInput*() {.task(kind=no_rts, stoppable=false).} =
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
   # assume terminal uses UTF-8 encoding; which encoding is actually used by the
-  # terminal/env/OS that launched the chat program should probably be detected
-  # early in ../../chat and if it's not UTF-8 then the chat program should
+  # terminal/env/OS that launched the client program should probably be detected
+  # early in ../../client and if it's not UTF-8 then the client program should
   # maybe exit immediately with an error/explanation; it could be possible to
   # support other terminal/environment/OS encodings, but for now this is a
   # simplifying assumption for the sake of implementing `readInput`

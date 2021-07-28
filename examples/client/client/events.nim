@@ -1,7 +1,7 @@
 import # vendor libs
   web3/ethtypes
 
-import # chat libs
+import # client libs
   ./common
 
 import # status libs
@@ -10,7 +10,7 @@ import # status libs
 export common
 
 logScope:
-  topics = "chat client"
+  topics = "client"
 
 type
   ClientEvent* = ref object of Event
@@ -103,11 +103,11 @@ const clientEvents* = [
   "UserMessageEvent"
 ]
 
-proc listenToStatus(self: ChatClient) {.async.} =
+proc listenToStatus(self: Client) {.async.} =
   let worker = self.taskRunner.workers["status"].worker
   while self.running and self.taskRunner.running.load():
     let event = await worker.chanRecvFromWorker.recv()
     asyncSpawn self.events.send(event)
 
-proc listen*(self: ChatClient) {.async.} =
+proc listen*(self: Client) {.async.} =
   asyncSpawn self.listenToStatus()

@@ -19,7 +19,7 @@ export
   waku_filter, waku_lightpush, waku_message, waku_store, wakunode2
 
 logScope:
-  topics = "chat client"
+  topics = "client"
 
 type
   Chat2Message* = object
