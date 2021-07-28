@@ -787,19 +787,27 @@ proc addCustomToken*(address: Address, name: string, symbol: string, color: stri
     let addResult = status.addCustomToken(address, name, symbol, color, decimals)
 
     if addResult.isErr:
-      raise newException(Exception, addResult.error)
+      let
+        event = AddCustomTokenEvent(error: addResult.error,
+          timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
 
-    let
-      token = addResult.get
-      event = AddCustomTokenEvent(address: $token.address,
-        name: token.name, symbol: token.symbol, color: token.color, 
-        decimals: token.decimals, timestamp: timestamp)
-      eventEnc = event.encode
-      task = taskArg.taskName
+      trace "task sent errored event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+    else:
+      let
+        token = addResult.get
+        event = AddCustomTokenEvent(address: $token.address,
+          name: token.name, symbol: token.symbol, color: token.color, 
+          decimals: token.decimals, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
 
-    trace "task sent event to host", event=eventEnc, task
-    asyncSpawn chanSendToHost.send(eventEnc.safe)
-  except Exception as e:
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except CatchableError as e:
     let
       event = AddCustomTokenEvent(error: "Error adding a custom token, " &
         "error: " & e.msg, timestamp: timestamp)
@@ -840,15 +848,23 @@ proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
       deleteResult = status.deleteCustomToken(address) 
 
     if deleteResult.isErr:
-      raise newException(Exception, deleteResult.error)
+      let
+        event = DeleteCustomTokenEvent(error: deleteResult.error,
+          timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
 
-    let
-      event = DeleteCustomTokenEvent(address: $address, timestamp: timestamp)
-      eventEnc = event.encode
-      task = taskArg.taskName
+      trace "task sent errored event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+    else:
+      let
+        event = DeleteCustomTokenEvent(address: $address, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
 
-    trace "task sent event to host", event=eventEnc, task
-    asyncSpawn chanSendToHost.send(eventEnc.safe)
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
   except Exception as e:
     let
       event = DeleteCustomTokenEvent(error: "Error deleting custom token, " &
