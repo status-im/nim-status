@@ -1,17 +1,15 @@
-import # chat libs
+import # client libs
   ../client, ./ncurses_helpers
 
 export client, ncurses_helpers
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 type
-  ChatTUI* = ref object
-    chatConfig*: ChatConfig
-    chatWin*: PWindow
-    chatWinBox*: PWindow
-    client*: ChatClient
+  Tui* = ref object
+    client*: Client
+    clientConfig*: ClientConfig
     currentInput*: string
     events*: EventChannel
     infoLine*: PWindow
@@ -23,19 +21,21 @@ type
     mainWin*: PWindow
     mouse*: bool
     outputReady*: bool
+    outputWin*: PWindow
+    outputWinBox*: PWindow
     running*: bool
     taskRunner*: TaskRunner
 
-  TUIEvent* = ref object of Event
+  TuiEvent* = ref object of Event
 
-  InputKey* = ref object of TUIEvent
+  InputKey* = ref object of TuiEvent
     key*: int
     name*: string
 
-  InputReady* = ref object of TUIEvent
+  InputReady* = ref object of TuiEvent
     ready*: bool
 
-  InputString* = ref object of TUIEvent
+  InputString* = ref object of TuiEvent
     str*: string
 
   # all fields on types that derive from Command should be of type `string`
@@ -121,7 +121,7 @@ type
     message*: string
 
 const
-  TUIEvents* = [
+  TuiEvents* = [
     "InputKey",
     "InputReady",
     "InputString"
@@ -198,7 +198,7 @@ const
     "listwalletaccounts": @["listwallets", "wallets"]
   }.toTable
 
-proc stop*(self: ChatTUI) {.async.} =
+proc stop*(self: Tui) {.async.} =
   debug "TUI stopping"
 
   var stopping: seq[Future[void]] = @[]
@@ -208,13 +208,13 @@ proc stop*(self: ChatTUI) {.async.} =
   self.events.close()
 
   # calling `endwin` here isn't working as expected, i.e. if the terminal is
-  # resized while the chat program is running then the terminal's state is
-  # often "corrupted" when the chat program exits; calling `endwin` before
+  # resized while the client program is running then the terminal's state is
+  # often "corrupted" when the client program exits; calling `endwin` before
   # program exit is supposed to prevent it from being corrupted
   endwin()
   trace "TUI restored the terminal"
 
   debug "TUI stopped"
   # set `self.running = true` as the the last step to facilitate clean program
-  # exit (see ../chat)
+  # exit (see ../../client.nim)
   self.running = false

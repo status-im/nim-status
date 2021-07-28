@@ -11,17 +11,17 @@ import # status libs
   ../../status/[alias, conversions, client, database, protocol],
   ../../status/extkeys/[paths, types]
 
-import # chat libs
+import # client libs
   ./events, ./waku_chat2
 
 export conversions, events
 
 logScope:
-  topics = "chat client"
+  topics = "client"
 
 type
   StatusArg* = ref object of ContextArg
-    chatConfig*: ChatConfig
+    clientConfig*: ClientConfig
 
   StatusState* = enum loggedout, loggingin, loggedin, loggingout
 
@@ -34,7 +34,7 @@ const
 
 var
   chatAccount {.threadvar.}: Account
-  conf {.threadvar.}: ChatConfig
+  conf {.threadvar.}: ClientConfig
   connected {.threadvar.}: bool
   contentTopics {.threadvar.}: OrderedSet[ContentTopic]
   contextArg {.threadvar.}: StatusArg
@@ -64,9 +64,9 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   raises: [Defect].} =
 
   # set threadvar values that are never reset, i.e. persist across
-  # waku chat2 dis/connect
+  # waku dis/connect
   contextArg = cast[StatusArg](arg)
-  conf = contextArg.chatConfig
+  conf = contextArg.clientConfig
 
   let contentTopicsStr = conf.contentTopics.strip()
   if contentTopicsStr != "":
@@ -75,9 +75,9 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
 
   # threadvar `natIsSetup` is a special case because the values of its
   # counterparts `ext[Ip,TcpPort,UdpPort]` only need to be set once, i.e. they
-  # also persists across waku chat2 dis/connect; but note that
+  # also persists across waku dis/connect; but note that
   # `ext[Ip,TcpPort,UdpPort]` themselves are set for the first time in task
-  # `startWakuChat2` as a program startup optimization
+  # `startWakuChat` as a program startup optimization
   natIsSetup = false
 
   # threadvar `nodekeyGenerated` is a special case like `natIsSetup`, see
@@ -87,10 +87,10 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   status = StatusObject.new(conf.dataDir)
   # threadvar `statusState` is currently out of scope re: "resetting the
   # context"; the relevant code/logic can be reconsidered in the future, was
-  # originally implemented in context of `startWakuChat2` and `stopWakuChat2`
+  # originally implemented in context of `startWakuChat` and `stopWakuChat`
   statusState = StatusState.loggedout
 
-  # re/set threadvars that don't persist across waku chat2 dis/connect
+  # re/set threadvars that don't persist across waku dis/connect
   resetContext()
 
 proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
@@ -580,7 +580,7 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
+proc startWakuChat*(username: string) {.task(kind=no_rts, stoppable=false).} =
   let task = taskArg.taskName
 
   if wakuState != WakuState.stopped: return
@@ -747,7 +747,7 @@ proc startWakuChat2*(username: string) {.task(kind=no_rts, stoppable=false).} =
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
+proc stopWakuChat*() {.task(kind=no_rts, stoppable=false).} =
   let task = taskArg.taskName
 
   if wakuState != WakuState.started: return
@@ -776,7 +776,7 @@ proc stopWakuChat2*() {.task(kind=no_rts, stoppable=false).} =
 proc lightpushHandler(response: PushResponse) {.gcsafe.} =
   trace "received lightpush response", response
 
-proc publishWakuChat2*(message: string) {.task(kind=no_rts, stoppable=false).} =
+proc publishWakuChat*(message: string) {.task(kind=no_rts, stoppable=false).} =
   if wakuState != WakuState.started or not connected: return
 
   if contentTopics.len < 1:

@@ -4,13 +4,13 @@ import # std libs
 import # vendor libs
   chronicles, confutils, confutils/std/net
 
-import # chat libs
+import # client libs
   ./client/waku_chat2
 
 export confutils, net.ValidIpAddress, net.init
 
 logScope:
-  topics = "chat config"
+  topics = "client config"
 
 type
   LLevel* = distinct string
@@ -25,7 +25,7 @@ const
   defDataDir = "data"
   defDataDirComp = "./" & defDataDir
   defListenAddress = VIP("0.0.0.0")
-  defLogFile = "chat.log"
+  defLogFile = "client.log"
   defLogFileComp = "./" & defDataDir & "/" & defLogFile
   defLogLevel = when defined(release): LLevel("info") else: LLevel("debug")
   defLogLevelChron = when defined(release): INFO else: DEBUG
@@ -54,7 +54,7 @@ proc `$`*(input: VIP): string =
 
 macro config(): untyped =
   var
-    chatConfigId = ident("ChatConfig")
+    clientConfigId = ident("ClientConfig")
     dataDirLit = newStrLitNode(defDataDirComp)
     filterId = ident("filter")
     swapId = ident("swap")
@@ -67,7 +67,7 @@ macro config(): untyped =
 
   result = quote do:
     type
-      `chatConfigId` = object
+      `clientConfigId` = object
         dataDir* {.
           defaultValue: "[placeholder]"
           desc: "Data directory. Relative path will be resolved from ${PWD}"
@@ -77,7 +77,7 @@ macro config(): untyped =
         logFile* {.
           defaultValue: "[placeholder]"
           desc: "Log file. Relative path will be resolved from ${PWD}. If " &
-                "not specified then chat.log will be written to --data-dir"
+                "not specified then client.log will be written to --data-dir"
           name: "log-file"
         .}: string
 
@@ -291,7 +291,7 @@ macro config(): untyped =
           name: "waku-metrics-logging"
         .}: bool
 
-        # Chat2 configuration
+        # Chat config
 
         fleet* {.
           defaultValue: prod
@@ -300,14 +300,21 @@ macro config(): untyped =
           name: "waku-fleet"
         .}: WakuFleet
 
+        # in the help text for --waku-content-topics the formatting-indicator
+        # should end with /rlp for real decoding; and when topic sha256 hashing
+        # is implemented for /waku/1 chats should change {topic} to
+        # {topic-digest}
+
         contentTopics* {.
-          defaultValue: "/toy-chat/2/huilong/proto"
+          defaultValue: "#test"
           desc: "Default content topics for chat messages " &
-                "(space separated list)",
+                "(space separated list). Topic names that do not conform to " &
+                "23/WAKU2-TOPICS will formatted as /waku/1/{topic}/proto " &
+                "with leading # removed",
           name: "waku-content-topics"
         .}: string
 
-    export `chatConfigId`
+    export `clientConfigId`
 
   var
     dataDirColonExpr = result[0][0][2][2][0][0][1][0]
@@ -366,7 +373,7 @@ proc parseCmdArg*(T: type Port, p: TaintedString): T =
 proc completeCmdArg*(T: type Port, val: TaintedString): seq[string] =
   return @[]
 
-proc handleConfig*(config: ChatConfig): ChatConfig =
+proc handleConfig*(config: ClientConfig): ClientConfig =
   let
     dataDir = absolutePath(expandTilde(config.dataDir))
     logFile =

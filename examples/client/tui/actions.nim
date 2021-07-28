@@ -4,13 +4,13 @@ import # std libs
 import # vendor libs
   web3/conversions
 
-import # chat libs
+import # client libs
   ./parser
 
 export parser
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 # `action` and `command` (see ./commands) procs are `{.async.}` for the
 # convenience of e.g. interaction with channels and tasks. However, they should
@@ -30,7 +30,7 @@ const
   KEY_MOUSE = "KEY_MOUSE"
   KEY_RESIZE = "KEY_RESIZE"
 
-proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
+proc dispatch*(self: Tui, command: string) {.gcsafe, nimcall.} =
   let (commandType, args, isCommand) = parse(command)
 
   if isCommand: commandCases()
@@ -40,7 +40,7 @@ proc dispatch*(self: ChatTUI, command: string) {.gcsafe, nimcall.} =
 
 # InputKey ---------------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: InputKey) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for input then ignore it
   if self.inputReady:
     # handle mouse events and special keys e.g. arrow keys, ESCAPE, RETURN, etc.
@@ -76,7 +76,7 @@ proc action*(self: ChatTUI, event: InputKey) {.async, gcsafe, nimcall.} =
 
 # InputReady -------------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: InputReady) {.async, gcsafe, nimcall.} =
   let
     ready = event.ready
 
@@ -87,7 +87,7 @@ proc action*(self: ChatTUI, event: InputReady) {.async, gcsafe, nimcall.} =
 
 # InputString ------------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: InputString) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for input then ignore it
   if self.inputReady:
     let input = event.str
@@ -98,7 +98,7 @@ proc action*(self: ChatTUI, event: InputString) {.async, gcsafe, nimcall.} =
 
 # AddWalletAccountEvent --------------------------------------------------------
 
-proc action*(self: ChatTUI, event: AddWalletAccountEvent) {.async, gcsafe,
+proc action*(self: Tui, event: AddWalletAccountEvent) {.async, gcsafe,
   nimcall.} =
 
   # if TUI is not ready for output then ignore it
@@ -118,7 +118,7 @@ proc action*(self: ChatTUI, event: AddWalletAccountEvent) {.async, gcsafe,
 
 # CreateAccountEvent ----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: CreateAccountEvent) {.async, gcsafe,
+proc action*(self: Tui, event: CreateAccountEvent) {.async, gcsafe,
   nimcall.} =
 
   # if TUI is not ready for output then ignore it
@@ -140,7 +140,7 @@ proc action*(self: ChatTUI, event: CreateAccountEvent) {.async, gcsafe,
 
 # GetCustomTokensEvent ----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
+proc action*(self: Tui, event: GetCustomTokensEvent) {.async, gcsafe,
   nimcall.} =
   discard
 
@@ -174,7 +174,7 @@ proc action*(self: ChatTUI, event: GetCustomTokensEvent) {.async, gcsafe,
 
 # AddCustomTokenEvent ----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: AddCustomTokenEvent) {.async, gcsafe,
+proc action*(self: Tui, event: AddCustomTokenEvent) {.async, gcsafe,
   nimcall.} =
 
   # if TUI is not ready for output then ignore it
@@ -195,7 +195,7 @@ proc action*(self: ChatTUI, event: AddCustomTokenEvent) {.async, gcsafe,
 
 # DeleteCustomTokenEvent ----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: DeleteCustomTokenEvent) {.async, gcsafe,
+proc action*(self: Tui, event: DeleteCustomTokenEvent) {.async, gcsafe,
   nimcall.} =
 
   # if TUI is not ready for output then ignore it
@@ -213,7 +213,7 @@ proc action*(self: ChatTUI, event: DeleteCustomTokenEvent) {.async, gcsafe,
 
 # ImportMnemonicEvent ----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
   if self.outputReady:
     if event.error != "":
@@ -234,7 +234,7 @@ proc action*(self: ChatTUI, event: ImportMnemonicEvent) {.async, gcsafe, nimcall
 
 # JoinTopicEvent --------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
   let
     timestamp = event.timestamp
     topic = event.topic
@@ -247,7 +247,7 @@ proc action*(self: ChatTUI, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
 
 # LeaveTopicEvent -------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: LeaveTopicEvent) {.async, gcsafe,
+proc action*(self: Tui, event: LeaveTopicEvent) {.async, gcsafe,
   nimcall.} =
   let
     timestamp = event.timestamp
@@ -262,7 +262,7 @@ proc action*(self: ChatTUI, event: LeaveTopicEvent) {.async, gcsafe,
 
 # ListAccountsEvent -----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: ListAccountsEvent) {.async, gcsafe,
+proc action*(self: Tui, event: ListAccountsEvent) {.async, gcsafe,
   nimcall.} =
 
   # if TUI is not ready for output then ignore it
@@ -292,7 +292,7 @@ proc action*(self: ChatTUI, event: ListAccountsEvent) {.async, gcsafe,
 
 # ListWalletAccountsEvent ------------------------------------------------------
 
-proc action*(self: ChatTUI, event: ListWalletAccountsEvent) {.async, gcsafe,
+proc action*(self: Tui, event: ListWalletAccountsEvent) {.async, gcsafe,
   nimcall.} =
 
   # if TUI is not ready for output then ignore it
@@ -325,7 +325,7 @@ proc action*(self: ChatTUI, event: ListWalletAccountsEvent) {.async, gcsafe,
 
 # LoginEvent ------------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: LoginEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: LoginEvent) {.async, gcsafe, nimcall.} =
   let
     error = event.error
     loggedin = event.loggedin
@@ -343,7 +343,7 @@ proc action*(self: ChatTUI, event: LoginEvent) {.async, gcsafe, nimcall.} =
 
 # LogoutEvent -----------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: LogoutEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: LogoutEvent) {.async, gcsafe, nimcall.} =
   let
     error = event.error
     loggedin = event.loggedin
@@ -361,7 +361,7 @@ proc action*(self: ChatTUI, event: LogoutEvent) {.async, gcsafe, nimcall.} =
 
 # NetworkStatusEvent -----------------------------------------------------------
 
-proc action*(self: ChatTUI, event: NetworkStatusEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: NetworkStatusEvent) {.async, gcsafe, nimcall.} =
   let online = event.online
 
   self.client.online = online
@@ -369,7 +369,7 @@ proc action*(self: ChatTUI, event: NetworkStatusEvent) {.async, gcsafe, nimcall.
 
 # UserMessageEvent -------------------------------------------------------------
 
-proc action*(self: ChatTUI, event: UserMessageEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: UserMessageEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
   if self.outputReady:
     let

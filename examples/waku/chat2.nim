@@ -28,7 +28,7 @@ import   waku/v2/node/[wakunode2, waku_payload],
          waku/v2/protocol/waku_lightpush/waku_lightpush,
          waku/v2/utils/peers,
          waku/common/utils/nat,
-         ./waku_chat2_config
+         ./chat2_config
 
 const Help = """
   Commands: /[?|help|connect|nick|exit]

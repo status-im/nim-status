@@ -19,11 +19,11 @@ export LINK_PCRE := 0
 
 .PHONY: \
 	all \
-	chat \
 	clean \
 	clean-build-dirs \
 	clean-migration-files \
 	clean-sqlcipher \
+	client \
 	deps \
 	migrations \
 	nat-libs-sub \
@@ -106,7 +106,7 @@ ifndef SHARED_LIB_EXT
  endif
 endif
 
-# For release builds of e.g. `examples/chat.nim`, it would be good to support
+# For release builds of e.g. `examples/client.nim`, it would be good to support
 # older versions of macOS (older relative to the machine that's used to build
 # the executable); for that to work, linking must be done against builds of
 # OpenSSL, PCRE, RLN, etc. that are properly built to support the same older
@@ -453,8 +453,8 @@ else ifneq ($(detected_OS),macOS)
  NIMBLE_ENV += LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)"
 endif
 
-chat: $(SQLCIPHER) $(MIGRATIONS)
-	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble chat
+client: $(SQLCIPHER) $(MIGRATIONS)
+	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble client
 
 waku_chat2: $(SQLCIPHER) $(MIGRATIONS)
 	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble waku_chat2

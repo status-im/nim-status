@@ -1,10 +1,10 @@
-import # chat libs
+import # client libs
   ./commands as cmd, ./macros
 
 export cmd, macros
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 proc parse*(commandRaw: string): (string, seq[string], bool) =
   var

@@ -1,13 +1,13 @@
 import # std libs
   std/[sequtils, strformat, strutils, sugar]
 
-import # chat libs
+import # client libs
   ./common, ./macros, ./screen, ./tasks
 
 export common, screen, strutils, tasks
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 # Command types are defined in ./common to avoid circular dependency
 
@@ -62,7 +62,7 @@ proc new*(T: type AddCustomToken, args: varargs[string]): T =
 proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
   argsRaw.split(" ")
 
-proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
+proc command*(self: Tui, command: AddCustomToken) {.async, gcsafe,
   nimcall.} =
 
   var parsedAddr: Address
@@ -80,7 +80,7 @@ proc command*(self: ChatTUI, command: AddCustomToken) {.async, gcsafe,
       self.wprintFormatError(getTime().toUnix,
        "Could not parse color, please provide color encoded as a hexadecimal string.")
       return
- 
+
   var parsedDecimals: uint
   if command.decimals != "":
     try:
@@ -126,7 +126,7 @@ proc new*(T: type AddWalletAccount, args: varargs[string]): T =
 proc split*(T: type AddWalletAccount, argsRaw: string): seq[string] =
   argsRaw.split(" ")
 
-proc command*(self: ChatTUI, command: AddWalletAccount) {.async, gcsafe,
+proc command*(self: Tui, command: AddWalletAccount) {.async, gcsafe,
   nimcall.} =
 
   try:
@@ -171,7 +171,7 @@ proc new*(T: type AddWalletPrivateKey, args: varargs[string]): T =
 proc split*(T: type AddWalletPrivateKey, argsRaw: string): seq[string] =
   argsRaw.split(" ")
 
-proc command*(self: ChatTUI, command: AddWalletPrivateKey) {.async, gcsafe,
+proc command*(self: Tui, command: AddWalletPrivateKey) {.async, gcsafe,
   nimcall.} =
 
   if command.privateKey == "" and command.password == "":
@@ -236,7 +236,7 @@ proc split*(T: type AddWalletSeed, argsRaw: string): seq[string] =
 
   @[name, mnemonic, password, passphrase]
 
-proc command*(self: ChatTUI, command: AddWalletSeed) {.async, gcsafe,
+proc command*(self: Tui, command: AddWalletSeed) {.async, gcsafe,
   nimcall.} =
 
   if command.mnemonic == "" and command.password == "":
@@ -284,7 +284,7 @@ proc split*(T: type AddWalletWatchOnly, argsRaw: string): seq[string] =
 
   @[name, address]
 
-proc command*(self: ChatTUI, command: AddWalletWatchOnly) {.async, gcsafe,
+proc command*(self: Tui, command: AddWalletWatchOnly) {.async, gcsafe,
   nimcall.} =
 
   if command.address == "":
@@ -305,7 +305,7 @@ proc new*(T: type Connect, args: varargs[string]): T {.raises: [].} =
 proc split*(T: type Connect, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: Connect) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: Connect) {.async, gcsafe, nimcall.} =
   if self.client.loggedin:
     asyncSpawn self.client.connect(self.client.account.name)
   else:
@@ -327,7 +327,7 @@ proc new*(T: type CreateAccount, args: varargs[string]): T =
 proc split*(T: type CreateAccount, argsRaw: string): seq[string] =
   @[argsRaw]
 
-proc command*(self: ChatTUI, command: CreateAccount) {.async, gcsafe,
+proc command*(self: Tui, command: CreateAccount) {.async, gcsafe,
   nimcall.} =
 
   if command.password == "":
@@ -356,7 +356,7 @@ proc new*(T: type DeleteCustomToken, args: varargs[string]): T =
 proc split*(T: type DeleteCustomToken, argsRaw: string): seq[string] =
   @[argsRaw]
 
-proc command*(self: ChatTUI, command: DeleteCustomToken) {.async, gcsafe,
+proc command*(self: Tui, command: DeleteCustomToken) {.async, gcsafe,
   nimcall.} =
 
   var index: int
@@ -385,7 +385,7 @@ proc new*(T: type Disconnect, args: varargs[string]): T =
 proc split*(T: type Disconnect, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: Disconnect) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: Disconnect) {.async, gcsafe, nimcall.} =
   if self.client.online:
     asyncSpawn self.client.disconnect()
   else:
@@ -404,7 +404,7 @@ proc new*(T: type GetCustomTokens, args: varargs[string]): T =
 proc split*(T: type GetCustomTokens, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: GetCustomTokens) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: GetCustomTokens) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.getCustomTokens()
 
 
@@ -449,7 +449,7 @@ proc split*(T: type ImportMnemonic, argsRaw: string): seq[string] =
 
   @[mnemonic, passphrase, password]
 
-proc command*(self: ChatTUI, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
   if command.mnemonic == "":
     self.wprintFormatError(getTime().toUnix,
       "mnemonic cannot be blank, please provide a mnemonic as the first argument.")
@@ -478,7 +478,7 @@ proc new*(T: type JoinTopic, args: varargs[string]): T =
 proc split*(T: type JoinTopic, argsRaw: string): seq[string] =
   @[argsRaw.strip().split(" ")[0]]
 
-proc command*(self: ChatTUI, command: JoinTopic) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: JoinTopic) {.async, gcsafe, nimcall.} =
   var topic = handleTopic(command.topic)
 
   if topic == "":
@@ -504,7 +504,7 @@ proc new*(T: type LeaveTopic, args: varargs[string]): T =
 proc split*(T: type LeaveTopic, argsRaw: string): seq[string] =
   @[argsRaw.strip().split(" ")[0]]
 
-proc command*(self: ChatTUI, command: LeaveTopic) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: LeaveTopic) {.async, gcsafe, nimcall.} =
   let topic = handleTopic(command.topic)
 
   if topic == "":
@@ -529,7 +529,7 @@ proc new*(T: type ListAccounts, args: varargs[string]): T =
 proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: ListAccounts) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: ListAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listAccounts()
 
 # ListTopics -----------------------------------------------------------------
@@ -545,7 +545,7 @@ proc new*(T: type ListTopics, args: varargs[string]): T =
 proc split*(T: type ListTopics, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: ListTopics) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: ListTopics) {.async, gcsafe, nimcall.} =
   let
     timestamp = getTime().toUnix
     topics = self.client.topics
@@ -574,7 +574,7 @@ proc new*(T: type ListWalletAccounts, args: varargs[string]): T =
 proc split*(T: type ListWalletAccounts, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: ListWalletAccounts) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: ListWalletAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listWalletAccounts()
 
 # Login ------------------------------------------------------------------------
@@ -609,7 +609,7 @@ proc split*(T: type Login, argsRaw: string): seq[string] =
 
   @[account, password]
 
-proc command*(self: ChatTUI, command: Login) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: Login) {.async, gcsafe, nimcall.} =
   try:
     let
       account = parseInt(command.account)
@@ -632,14 +632,14 @@ proc new*(T: type Logout, args: varargs[string]): T =
 proc split*(T: type Logout, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: Logout) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: Logout) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.logout()
 
 # Quit -------------------------------------------------------------------------
 
 proc help*(T: type Quit): HelpText =
   let command = "quit"
-  HelpText(command: command, description: "Quits the chat client.")
+  HelpText(command: command, description: "Quits the client.")
 
 proc new*(T: type Quit, args: varargs[string]): T =
   T()
@@ -647,7 +647,7 @@ proc new*(T: type Quit, args: varargs[string]): T =
 proc split*(T: type Quit, argsRaw: string): seq[string] =
   @[]
 
-proc command*(self: ChatTUI, command: Quit) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: Quit) {.async, gcsafe, nimcall.} =
   await self.stop()
 
 # SendMessage ------------------------------------------------------------------
@@ -668,7 +668,7 @@ proc new*(T: type SendMessage, args: varargs[string]): T =
 proc split*(T: type SendMessage, argsRaw: string): seq[string] =
   @[argsRaw]
 
-proc command*(self: ChatTUI, command: SendMessage) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: SendMessage) {.async, gcsafe, nimcall.} =
   if not self.client.online:
     self.wprintFormatError(getTime().toUnix,
       "client is not online, cannot send message.")
@@ -704,7 +704,7 @@ proc split*(T: type Help, argsRaw: string): seq[string] =
       leading = true, trailing = false)
     result.add command
 
-proc command*(self: ChatTUI, command: Help) {.async, gcsafe, nimcall.} =
+proc command*(self: Tui, command: Help) {.async, gcsafe, nimcall.} =
   let
     command = command.command
     timestamp = getTime().toUnix

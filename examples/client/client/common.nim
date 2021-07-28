@@ -5,7 +5,7 @@ import # vendor libs
   # nimcrypto,
   task_runner
 
-import # chat libs
+import # client libs
   ../config
 
 import # status libs
@@ -14,18 +14,18 @@ import # status libs
 export config, public_accounts, sets, strformat, strutils, task_runner, times
 
 logScope:
-  topics = "chat client"
+  topics = "client"
 
 type
   Event* = ref object of RootObj
 
   EventChannel* = AsyncChannel[ThreadSafeString]
 
-  # TODO: alphabetise ChatClient above HelpText -- didn't want to interfere
-  # with ongoing work
-  ChatClient* = ref object
+  # TODO: alphabetise Client above HelpText -- didn't want to interfere with
+  # ongoing work
+  Client* = ref object
     account*: PublicAccount
-    chatConfig*: ChatConfig
+    clientConfig*: ClientConfig
     events*: EventChannel
     loggedin*: bool
     online*: bool

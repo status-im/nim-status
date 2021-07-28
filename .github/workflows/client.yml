@@ -1,4 +1,4 @@
-name: Chat client
+name: Example client
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - master
 
 jobs:
-  chat_build:
+  client_build:
     env:
       NPROC: 2
     strategy:
@@ -108,7 +108,7 @@ jobs:
             V=1 \
             deps
 
-      - name: Build the example chat client
+      - name: Build the example client
         # using `llvm-ar` instead of `ar` on macOS is a workaround for:
         # https://github.com/nim-lang/Nim/issues/15589
         run: |
@@ -127,5 +127,5 @@ jobs:
             SQLCIPHER_STATIC=${{ matrix.sqlcipher }} \
             SSL_STATIC=${{ matrix.ssl }} \
             V=1 \
-            chat
-          ls -ladh build/chat
+            client
+          ls -ladh build/client

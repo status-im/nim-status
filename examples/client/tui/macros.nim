@@ -1,13 +1,10 @@
 import # std libs
   std/macros
 
-import # chat libs
+import # client libs
   ./common, ../client/common as client_common
 
 export common
-
-logScope:
-  topics = "chat tui"
 
 # Events -----------------------------------------------------------------------
 
@@ -21,7 +18,7 @@ macro `&`[T; A, B: static int](a: array[A, T], b: array[B, T]): untyped =
   for val in a: result.add val
   for val in b: result.add val
 
-const events = clientEvents & TUIEvents
+const events = clientEvents & TuiEvents
 
 macro eventCases*(): untyped =
   result = newStmtList()
@@ -116,5 +113,5 @@ macro buildCommandHelp*(): untyped =
       commandType = ident(command)
     result.add(quote do: `helpId`.add(`commandType`.help()))
 
-  result.add quote do: 
+  result.add quote do:
     `helpId`

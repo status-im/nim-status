@@ -7,7 +7,7 @@ import # vendor libs
 export ncurses
 
 logScope:
-  topics = "chat tui"
+  topics = "tui"
 
 # NOTE: depending on OS, terminal emulator, font, and related software, there
 # can be problems re: how ncurses displays some emojis and other characters,
