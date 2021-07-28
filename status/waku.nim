@@ -16,6 +16,6 @@ proc initNode*(config: WakuNodeConf = WakuNodeConf.load()): WakuNode =
     (extIp, extTcpPort, extUdpPort) = setupNat(config.nat, clientId,
       Port(uint16(config.tcpPort) + config.portsShift),
       Port(uint16(config.udpPort) + config.portsShift))
-    node = WakuNode.init(config.nodeKey, config.listenAddress,
+
+  result = WakuNode.new(config.nodeKey, config.listenAddress,
       Port(uint16(config.tcpPort) + config.portsShift), extIp, extTcpPort)
-  result = node
