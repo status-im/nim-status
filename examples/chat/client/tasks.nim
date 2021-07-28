@@ -865,7 +865,7 @@ proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
 
       trace "task sent event to host", event=eventEnc, task
       asyncSpawn chanSendToHost.send(eventEnc.safe)
-  except Exception as e:
+  except CatchableError as e:
     let
       event = DeleteCustomTokenEvent(error: "Error deleting custom token, " &
         "error: " & e.msg, timestamp: timestamp)
