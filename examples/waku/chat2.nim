@@ -1,4 +1,4 @@
-## waku_chat2 is an example of usage of Waku v2.
+## chat2 is an example of usage of Waku v2.
 ## Adapted from (with only minor changes):
 ## https://github.com/status-im/nim-waku/blob/master/examples/v2/chat2.nim
 ## For suggested usage options, please see the dingpu tutorial in:
@@ -7,9 +7,11 @@
 when not(compileOption("threads")):
   {.fatal: "Please, compile this program with the --threads:on option!".}
 
+{.push raises: [Defect].}
+
 import std/[tables, strformat, strutils, times, httpclient, json, sequtils, random, options]
 import confutils, chronicles, chronos, stew/shims/net as stewNet,
-       eth/keys, bearssl, stew/[byteutils, endians2],
+       eth/keys, bearssl, stew/[byteutils, endians2, results],
        nimcrypto/pbkdf2
 import libp2p/[switch,                   # manage transports, a single entry point for dialing and listening
                crypto/crypto,            # cryptographic functions
@@ -22,13 +24,9 @@ import libp2p/[switch,                   # manage transports, a single entry poi
                protocols/secure/secio,   # define the protocol of secure input / output, allows encrypted communication that uses public keys to validate signed messages instead of a certificate authority like in TLS
                muxers/muxer]             # define an interface for stream multiplexing, allowing peers to offer many protocols over a single connection
 import   waku/v2/node/[wakunode2, waku_payload],
-         waku/v2/protocol/waku_message,
-         waku/v2/protocol/waku_store/waku_store,
-         waku/v2/protocol/waku_filter/waku_filter,
-         waku/v2/protocol/waku_lightpush/waku_lightpush,
          waku/v2/utils/peers,
          waku/common/utils/nat,
-         ./chat2_config
+         ./config_chat2
 
 const Help = """
   Commands: /[?|help|connect|nick|exit]
@@ -64,10 +62,13 @@ type
 ## chat2 protobufs ##
 #####################
 
-type Chat2Message* = object
-  timestamp*: int64
-  nick*: string
-  payload*: seq[byte]
+type
+  SelectResult*[T] = Result[T, string]
+
+  Chat2Message* = object
+    timestamp*: int64
+    nick*: string
+    payload*: seq[byte]
 
 proc init*(T: type Chat2Message, buffer: seq[byte]): ProtoResult[T] =
   var msg = Chat2Message()
@@ -115,9 +116,12 @@ proc connectToNodes(c: Chat, nodes: seq[string]) {.async.} =
 
 proc showChatPrompt(c: Chat) =
   if not c.prompt:
-    stdout.write(">> ")
-    stdout.flushFile()
-    c.prompt = true
+    try:
+      stdout.write(">> ")
+      stdout.flushFile()
+      c.prompt = true
+    except IOError:
+      discard
 
 proc printReceivedMessage(c: Chat, msg: WakuMessage) =
   when PayloadV1:
@@ -145,22 +149,40 @@ proc printReceivedMessage(c: Chat, msg: WakuMessage) =
       pb = Chat2Message.init(msg.payload)
       chatLine = if pb.isOk: pb[].toString()
                 else: string.fromBytes(msg.payload)
-    echo &"{chatLine}"
+    try:
+      echo &"{chatLine}"
+    except ValueError:
+      # Formatting fail. Print chat line in any case.
+      echo chatLine
+
     c.prompt = false
     showChatPrompt(c)
     trace "Printing message", topic=DefaultTopic, chatLine,
       contentTopic = msg.contentTopic
 
-proc selectRandomNode(fleetStr: string): string =
+proc selectRandomNode(fleetStr: string): SelectResult[string] =
   randomize()
-  let
+  var
+    fleet: string
+    nodes: seq[tuple[key: string, val: JsonNode]]
+    randNode: string
+  try:
     # Get latest fleet addresses
     fleet = newHttpClient().getContent("https://fleets.status.im")
+
     # Select the JSONObject corresponding to the selected wakuv2 fleet and convert to seq of key-val pairs
     nodes = toSeq(fleet.parseJson(){"fleets", "wakuv2." & fleetStr, "waku"}.pairs())
 
-  # Select a random node from the selected fleet, convert to string and return
-  return nodes[rand(nodes.len - 1)].val.getStr()
+    if nodes.len < 1:
+      return err("Empty fleet nodes list")
+
+    # Select a random node from the selected fleet, convert to string and return
+    randNode = nodes[rand(nodes.len - 1)].val.getStr()
+
+  except Exception: # @TODO: HttpClient raises generic Exception
+    return err("Failed to select random node")
+
+  ok(randNode)
 
 proc readNick(transp: StreamTransport): Future[string] {.async.} =
   # Chat prompt
@@ -281,7 +303,7 @@ proc readWriteLoop(c: Chat) {.async.} =
   asyncSpawn c.writeAndPrint() # execute the async function but does not block
   asyncSpawn c.readAndPrint()
 
-proc readInput(wfd: AsyncFD) {.thread.} =
+proc readInput(wfd: AsyncFD) {.thread, raises: [Defect, CatchableError].} =
   ## This procedure performs reading from `stdin` and sends data over
   ## pipe to main thread.
   let transp = fromPipe(wfd)
@@ -290,6 +312,7 @@ proc readInput(wfd: AsyncFD) {.thread.} =
     let line = stdin.readLine()
     discard waitFor transp.write(line & "\r\n")
 
+{.pop.} # @TODO confutils.nim(775, 17) Error: can raise an unlisted exception: ref IOError
 proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
   let transp = fromPipe(rfd)
 
@@ -298,7 +321,7 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
     (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
       Port(uint16(conf.tcpPort) + conf.portsShift),
       Port(uint16(conf.udpPort) + conf.portsShift))
-    node = WakuNode.init(conf.nodekey, conf.listenAddress,
+    node = WakuNode.new(conf.nodekey, conf.listenAddress,
       Port(uint16(conf.tcpPort) + conf.portsShift), extIp, extTcpPort)
 
   await node.start()
@@ -330,9 +353,13 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
 
     let randNode = selectRandomNode($conf.fleet)
 
-    echo "Connecting to " & randNode
+    if randNode.isOk():
+      echo "Connecting to " & randNode.get()
 
-    await connectToNodes(chat, @[randNode])
+      await connectToNodes(chat, @[randNode.get()])
+    else:
+      echo "Couldn't select a random node to connect to. Check --fleet configuration."
+      echo randNode.error()
 
   let peerInfo = node.peerInfo
   let listenStr = $peerInfo.addrs[0] & "/p2p/" & $peerInfo.peerId
@@ -351,12 +378,17 @@ proc processInput(rfd: AsyncFD, rng: ref BrHmacDrbgContext) {.async.} =
     elif conf.fleet != Fleet.none:
       echo "Store enabled, but no store nodes configured. Choosing one at random from " & $conf.fleet & " fleet..."
 
-      storenode = some(selectRandomNode($conf.fleet))
+      let selectNode = selectRandomNode($conf.fleet)
 
-      echo "Connecting to storenode: " & storenode.get()
+      if selectNode.isOk:
+        storenode = some(selectNode.get())
+      else:
+        echo "Couldn't select a random store node to connect to. Check --fleet configuration."
+        echo selectNode.error()
 
     if storenode.isSome():
       # We have a viable storenode. Let's query it for historical messages.
+      echo "Connecting to storenode: " & storenode.get()
 
       node.wakuStore.setPeer(parsePeerInfo(storenode.get()))
 
