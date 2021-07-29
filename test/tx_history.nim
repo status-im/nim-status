@@ -12,7 +12,7 @@ from ../../status/tx_history import nil
 
 # Initialize db
 let passwd = "qwerty"
-let path = currentSourcePath.parentDir() & "/build/myDatabase"
+let path = currentSourcePath.parentDir() & "/build/my.db"
 let db = initializeDB(path, passwd)
 
 #f315575765b14720b32382a61a89341a # real infura project id
