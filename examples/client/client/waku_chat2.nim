@@ -4,9 +4,9 @@ import # std libs
 import # vendor libs
   bearssl, chronicles, chronos, chronos/apps/http/httpclient, eth/keys,
   libp2p/[crypto/crypto, crypto/secp, multiaddress, muxers/muxer, peerid,
-          peerinfo, protobuf/minprotobuf, protocols/protocol,
-          protocols/secure/secio, stream/connection, switch],
-  nimcrypto/[pbkdf2, utils],
+          peerinfo, protobuf/minprotobuf, protocols/protocol, stream/connection,
+          switch],
+  nimcrypto/utils,
   stew/[byteutils, endians2, results],
   waku/common/utils/nat,
   waku/v2/node/[waku_payload, wakunode2],
