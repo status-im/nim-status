@@ -687,15 +687,22 @@ proc startWakuChat*(username: string) {.task(kind=no_rts, stoppable=false).} =
     wakuNode.mountFilter()
     wakuNode.wakuFilter.setPeer(parsePeerInfo(conf.filternode))
 
-    proc handler(message: WakuMessage) {.gcsafe.} =
+    proc handler(message: WakuMessage) {.gcsafe, raises: [Defect].} =
       trace "handling filtered message", contentTopic=message.contentTopic
 
-      let
-        event = UserMessageEvent.new(message)
-        eventEnc = event.encode
+      try:
+        let
+          event = UserMessageEvent.new(message)
+          eventEnc = event.encode
 
-      trace "task sent event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
+        trace "task sent event to host", event=eventEnc, task
+        asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+      except ValueError as e:
+        error "error handlinng filtered message", error=e.msg,
+          payload=message.payload
+      except IOError as e:
+        error "error encoding filtered message", error=e.msg
 
     let contentFilters = collect(newSeq):
       for contentTopic in contentTopics:
