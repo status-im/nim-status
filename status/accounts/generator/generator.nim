@@ -1,13 +1,12 @@
 import # std libs
-  std/[json, os, strformat, strutils, sugar, tables, times]
+  std/[json, os, strformat, strutils, tables, times]
 
 import # vendor libs
   eth/keys, eth/keyfile/[keyfile, uuid], json_serialization, secp256k1,
   stew/results, web3/ethtypes
 
 import # status libs
-  ./account, ../../conversions, ../../extkeys/[hdkey, mnemonic, types],
-  ../public_accounts, ./utils
+  ./account, ../../conversions, ../../extkeys/[hdkey, mnemonic, types], ./utils
 
 export utils
 

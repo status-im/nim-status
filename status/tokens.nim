@@ -1,10 +1,10 @@
 import # nim libs
-  json, options, strutils, strformat
+  json, options, strformat
 
 import # vendor libs
   web3/ethtypes,
   sqlcipher, json_serialization,
-  json_serialization/[reader, writer, lexer]
+  json_serialization/[reader, writer]
 
 import # status libs
   conversions

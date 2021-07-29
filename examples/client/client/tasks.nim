@@ -9,7 +9,7 @@ import # vendor libs
 import # status libs
   ../../status/accounts/[accounts, public_accounts],
   ../../status/[alias, conversions, client, database, protocol],
-  ../../status/extkeys/[paths, types]
+  ../../status/extkeys/types
 
 import # client libs
   ./events, ./waku_chat2
