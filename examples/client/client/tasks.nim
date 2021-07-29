@@ -669,7 +669,7 @@ proc startWakuChat*(username: string) {.task(kind=no_rts, stoppable=false).} =
 
     nodekeyGenerated = true
 
-  wakuNode = WakuNode.init(nodekey, ValidIpAddress.init($conf.listenAddress),
+  wakuNode = WakuNode.new(nodekey, ValidIpAddress.init($conf.listenAddress),
     Port(uint16(conf.tcpPort) + conf.portsShift), extIp, extTcpPort)
 
   await wakuNode.start()
