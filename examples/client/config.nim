@@ -22,6 +22,8 @@ type
   WakuFleet* = enum none, prod, test
 
 const
+  ERROR = LogLevel.ERROR
+  NONE = LogLevel.NONE
   defDataDir = "data"
   defDataDirComp = "./" & defDataDir
   defListenAddress = VIP("0.0.0.0")
@@ -310,7 +312,7 @@ macro config(): untyped =
           desc: "Default content topics for chat messages " &
                 "(space separated list). Topic names that do not conform to " &
                 "23/WAKU2-TOPICS will formatted as /waku/1/{topic}/proto " &
-                "with leading # removed",
+                "with leading \"#\" removed",
           name: "waku-content-topics"
         .}: string
 
