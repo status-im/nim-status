@@ -26,7 +26,7 @@ procSuite "accounts":
   asyncTest "createAccount":
     let
       password = "qwerty"
-      path = currentSourcePath.parentDir() & "/build/my.db"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
     let db = initializeDB(path, password)
@@ -57,7 +57,7 @@ procSuite "accounts":
   asyncTest "updateAccount":
     let
       password = "qwerty"
-      path = currentSourcePath.parentDir() & "/build/my.db"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
     let db = initializeDB(path, password)
@@ -115,7 +115,7 @@ procSuite "accounts":
   asyncTest "deleteAccount":
     let
       password = "qwerty"
-      path = currentSourcePath.parentDir() & "/build/my.db"
+      path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
     let db = initializeDB(path, password)

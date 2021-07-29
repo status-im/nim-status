@@ -148,7 +148,7 @@ procSuite "generator":
 
     let
       secretKey = secretKeyResult.get
-      dir = "build/test"
+      dir = currentSourcePath.parentDir().parentDir().parentDir() & "/build/keystore"
 
     var storeKeyFileResult = gntr.storeKeyFile(secretKey,
         testAccount.encryptionPassword, dir)

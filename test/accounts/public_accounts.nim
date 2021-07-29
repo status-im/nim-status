@@ -10,7 +10,7 @@ import # status libs
 
 procSuite "public accounts":
   asyncTest "saveAccount, updateAccountTimestamp, deleteAccount":
-    let path = currentSourcePath.parentDir() & "/build/my.db"
+    let path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
     let db = initializeDB(path)
 
