@@ -198,13 +198,24 @@ else ifeq ($(detected_OS),Windows)
   override SSL_LIB_DIR = /ucrt64/lib
  endif
 else
- SSL_INCLUDE_DIR ?= /usr/include
- ifeq ($(SSL_INCLUDE_DIR),)
-  override SSL_INCLUDE_DIR = /usr/include
- endif
- SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
- ifeq ($(SSL_LIB_DIR),)
-  override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
+ ifneq (,$(wildcard /etc/debian_version))
+  SSL_INCLUDE_DIR ?= /usr/include
+  ifeq ($(SSL_INCLUDE_DIR),)
+   override SSL_INCLUDE_DIR = /usr/include
+  endif
+  SSL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+  ifeq ($(SSL_LIB_DIR),)
+   override SSL_LIB_DIR = /usr/lib/x86_64-linux-gnu
+  endif
+ else
+  SSL_INCLUDE_DIR ?= /usr/include/openssl
+  ifeq ($(SSL_INCLUDE_DIR),)
+   override SSL_INCLUDE_DIR = /usr/include/openssl
+  endif
+  SSL_LIB_DIR ?= /usr/lib64
+  ifeq ($(SSL_LIB_DIR),)
+   override SSL_LIB_DIR = /usr/lib64
+  endif
  endif
 endif
 SSL_STATIC ?= true
@@ -274,13 +285,24 @@ else ifeq ($(detected_OS),Windows)
   override PCRE_LIB_DIR = /ucrt64/lib
  endif
 else
- PCRE_INCLUDE_DIR ?= /usr/include
- ifeq ($(PCRE_INCLUDE_DIR),)
-  override PCRE_INCLUDE_DIR = /usr/include
- endif
- PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
- ifeq ($(PCRE_LIB_DIR),)
-  override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
+ ifneq (,$(wildcard /etc/debian_version))
+  PCRE_INCLUDE_DIR ?= /usr/include
+  ifeq ($(PCRE_INCLUDE_DIR),)
+   override PCRE_INCLUDE_DIR = /usr/include
+  endif
+  PCRE_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+  ifeq ($(PCRE_LIB_DIR),)
+   override PCRE_LIB_DIR = /usr/lib/x86_64-linux-gnu
+  endif
+ else
+  PCRE_INCLUDE_DIR ?= /usr/include
+  ifeq ($(PCRE_INCLUDE_DIR),)
+   override PCRE_INCLUDE_DIR = /usr/include
+  endif
+  PCRE_LIB_DIR ?= /usr/lib64
+  ifeq ($(PCRE_LIB_DIR),)
+   override PCRE_LIB_DIR = /usr/lib64
+  endif
  endif
 endif
 PCRE_STATIC ?= true
@@ -317,9 +339,16 @@ else ifeq ($(detected_OS),Windows)
   override NCURSES_LIB_DIR = /ucrt64/lib
  endif
 else
- NCURSES_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
- ifeq ($(NCURSES_LIB_DIR),)
-  override NCURSES_LIB_DIR = /usr/lib/x86_64-linux-gnu
+ ifneq (,$(wildcard /etc/debian_version))
+  NCURSES_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+  ifeq ($(NCURSES_LIB_DIR),)
+   override NCURSES_LIB_DIR = /usr/lib/x86_64-linux-gnu
+  endif
+ else
+  NCURSES_LIB_DIR ?= /usr/lib64
+  ifeq ($(NCURSES_LIB_DIR),)
+   override NCURSES_LIB_DIR = /usr/lib64
+  endif
  endif
 endif
 NCURSES_STATIC ?= true
