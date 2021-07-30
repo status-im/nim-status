@@ -5,11 +5,10 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status libs
-  ../status/[client, conversions, database, settings],
-  ../status/accounts/public_accounts, ./test_helpers
+  ../status/[api, settings], ./test_helpers
 
-procSuite "client":
-  asyncTest "client":
+procSuite "api":
+  asyncTest "api":
 
     let dataDir = currentSourcePath.parentDir() / "build" / "data"
 
@@ -28,7 +27,7 @@ procSuite "client":
     )
 
     statusObj.saveAccount(account)
-    statusObj.updateAccountTimestamp(1, "0x1234")
+    statusObj.accountsDb.updateAccountTimestamp(1, "0x1234")
     let accounts = statusObj.getPublicAccounts()
     check:
       accounts[0].keyUid == "0x1234"
@@ -56,10 +55,9 @@ procSuite "client":
       settingsObj = Json.decode(settingsStr, Settings, allowUnknownFields = true)
       nodeConfig = %* {"config": 1}
 
-    var createSettingsResult = statusObj.createSettings(settingsObj, nodeConfig)
-    check:
+    expect UserDbError:
+      statusObj.userDb.createSettings(settingsObj, nodeConfig)
       # should not be able to create settings when logged out
-      createSettingsResult.isErr()
 
     var logoutResult = statusObj.logout()
     check:
@@ -83,10 +81,7 @@ procSuite "client":
       loginResult.isOk
       loginResult.get == account
 
-    createSettingsResult = statusObj.createSettings(settingsObj, nodeConfig)
-
-    check:
-      createSettingsResult.isOk
+    statusObj.userDb.createSettings(settingsObj, nodeConfig)
 
     # getSettingResult =
     #   statusObj.getSetting[int](SettingsCol.LatestDerivedPath, 0)

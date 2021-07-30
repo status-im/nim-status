@@ -5,7 +5,7 @@ import # client libs
   ./common
 
 import # status libs
-  ../../../status/[client, tokens]
+  ../../../status/[api, tokens]
 
 export common
 
