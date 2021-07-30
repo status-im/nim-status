@@ -50,12 +50,12 @@ proc drawOutputWin*(self: Tui) =
   box(self.outputWinBox, 0, 0)
 
   # add title to subwindow
-  mvwaddch(self.outputWinBox, 0, ((COLS.float64 * 0.5).int - 9).cint, ACS_RTEE)
+  mvwaddch(self.outputWinBox, 0, ((COLS.float64 * 0.5).int - 10).cint, ACS_RTEE)
   wattron(self.outputWinBox, COLOR_PAIR(3).cint)
-  mvwaddstr(self.outputWinBox, 0, ((COLS.float64 * 0.5).int - 8).cint,
+  mvwaddstr(self.outputWinBox, 0, ((COLS.float64 * 0.5).int - 9).cint,
     " nim-status client ")
   wattroff(self.outputWinBox, COLOR_PAIR(3).cint)
-  mvwaddch(self.outputWinBox, 0, ((COLS.float64 * 0.5).int + 9).cint, ACS_LTEE)
+  mvwaddch(self.outputWinBox, 0, ((COLS.float64 * 0.5).int + 10).cint, ACS_LTEE)
 
   # draw subwindow
   wrefresh(self.outputWinBox)
