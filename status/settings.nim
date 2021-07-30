@@ -92,13 +92,9 @@ proc getSettings*(db: DbConn): Settings =
     raise newException(ValueError, "No record found for settings")
   settings.get
 
-proc saveSetting*(db: DbConn, setting: string, value: auto)
-  {.deprecated("Please use saveSetting(SettingsCol) instead").} =
+proc saveSetting*(db: DbConn, setting: SettingsCol, value: auto) =
 
   var settings: Settings
   db.exec(fmt"""UPDATE    {settings.tableName}
                 SET       {setting} = ?
                 WHERE     synthetic_id = 'id'""", value)
-
-proc saveSetting*(db: DbConn, setting: SettingsCol, value: auto) =
-  db.saveSetting($setting, value)

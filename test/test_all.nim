@@ -10,7 +10,7 @@ import
   ./bip32,
   ./callrpc,
   ./chats,
-  ./client,
+  ./api,
   ./contacts,
   ./db_smoke,
 
