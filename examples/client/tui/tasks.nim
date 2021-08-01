@@ -49,12 +49,23 @@ proc readInput*() {.task(kind=no_rts, stoppable=false).} =
       var
         eventEnc: string
         shouldSend = false
-      if input > 255 or input == 10 or input == 27:
+      if input > 255 or input == 8 or input == 10 or input == 27 or
+         input == 127:
         var event: InputKey
-        if input == 10:
+        if input == 8:
+          # interpret as backspace key
+          event = InputKey(key: 263, name: $keyname(263.cint))
+        elif input == 10:
           event = InputKey(key: input, name: RETURN)
         elif input == 27:
           event = InputKey(key: input, name: ESCAPE)
+        elif input == 127:
+          if defined(macosx):
+            # interpret as backspace key
+            event = InputKey(key: 263, name: $keyname(263.cint))
+          else:
+            # interpret as delete key
+            event = InputKey(key: 330, name: $keyname(330.cint))
         else:
           event = InputKey(key: input, name: $keyname(input.cint))
         eventEnc = event.encode

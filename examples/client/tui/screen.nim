@@ -44,6 +44,52 @@ proc colors() =
   init_pair(7, COLOR_GREEN, -1)
   init_pair(8, COLOR_WHITE, COLOR_RED)
 
+proc deleteBackward*(self: Tui) =
+  let inputLen = self.currentInput.len
+  if inputLen > 0:
+    # when cursor is able to be moved with arrow keys, modifying
+    # self.currentInput needs to take into account current cursor
+    # position and geometry of self.inputWin
+    self.currentInput.setLen(inputLen - 1)
+
+    # adapted from: https://stackoverflow.com/a/55148654
+
+    let inputWin = self.inputWin
+    var y, x: cint
+    getyx(inputWin, y, x)
+
+    if x == 0.cint:
+      if y == 0.cint:
+        return
+
+      x = getmaxx(inputWin)
+      y = y - 1.cint
+      wmove(inputWin, y, x)
+
+      var ch = ' '.chtype
+      while ch == ' '.chtype and x != 0.cint:
+        x = x - 1.cint
+        wmove(inputWin, y, x)
+        ch = winch(inputWin)
+
+    else:
+      wmove(inputWin, y, x - 1.cint)
+
+    wdelch(inputWin)
+    wrefresh(inputWin)
+
+    trace "TUI backward-deleted in input window"
+
+proc deleteForward*(self: Tui) =
+  # implement when cursor is able to be moved with arrow keys; modifying
+  # self.currentInput and forward-deleting a char in self.inputWin needs
+  # to take into account current cursor position and geometry of
+  # self.inputWin
+
+  # trace "TUI forward-deleted in input window"
+
+  warn "TUI has no implementation for forward-deletion"
+
 proc drawOutputWin*(self: Tui) =
   # create subwindow for output box
   self.outputWinBox = subwin(self.mainWin, (LINES.float64 * 0.8).cint, COLS, 0, 0)
