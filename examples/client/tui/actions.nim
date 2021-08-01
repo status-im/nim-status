@@ -27,6 +27,8 @@ logScope:
 # at least 60 FPS in the TUI.
 
 const
+  KEY_BACKSPACE = "KEY_BACKSPACE"
+  KEY_DC = "KEY_DC"
   KEY_MOUSE = "KEY_MOUSE"
   KEY_RESIZE = "KEY_RESIZE"
 
@@ -51,6 +53,12 @@ proc action*(self: Tui, event: InputKey) {.async, gcsafe, nimcall.} =
     case name:
       of ESCAPE:
         discard
+
+      of KEY_BACKSPACE:
+        self.deleteBackward()
+
+      of KEY_DC:
+        self.deleteForward()
 
       of KEY_MOUSE:
         var me: MEvent
