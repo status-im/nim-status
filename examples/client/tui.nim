@@ -1,7 +1,7 @@
 import # client modules
-  ./tui/events
+  ./tui/[common, events, screen, tasks]
 
-export events
+export common
 
 logScope:
   topics = "tui"
@@ -11,10 +11,10 @@ logScope:
 # This module's purpose is to start the client and initiate listening for
 # events coming from the client and user
 
-const input = "input"
-
 # `type Tui` and `proc stop(self: Tui)` are defined in ./common to avoid
 # circular dependency
+
+const input = "input"
 
 proc new*(T: type Tui, clientConfig: ClientConfig): T =
   let

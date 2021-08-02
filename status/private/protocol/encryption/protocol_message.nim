@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # vendor libs
   protobuf_serialization
 
@@ -7,7 +9,9 @@ export protobuf_serialization
 # automatically exports `type ProtocolMessage`
 import_proto3 "protobuf/protocol_message.proto"
 
-proc decode*(T: type ProtocolMessage, input: seq[byte]): T =
+proc decode*(T: type ProtocolMessage, input: seq[byte]):
+  T {.raises: [Defect, ProtobufReadError].} =
+
   Protobuf.decode(input, T)
 
 proc encode*(input: ProtocolMessage): seq[byte] =

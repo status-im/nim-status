@@ -13,11 +13,11 @@ import # status modules
   ../private/extkeys/[paths, types],
   ./common
 
-export
-  common, public_accounts
-  # TODO: are these exports needed?
-  #   accounts, alias, conversions, generator, identicon, paths,
-  #   public_accounts, secp256k1, settings, types, uuid
+export common except setLoginState, setNetworkState
+export public_accounts
+# TODO: are these exports needed?
+#   accounts, alias, conversions, generator, identicon, paths,
+#   public_accounts, secp256k1, settings, types, uuid
 
 type
   AccountsError* = enum
@@ -113,10 +113,11 @@ proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
   # First, record if we are currently logged in, and then init the user db
   # if not. After we know the db has been inited, create the needed accounts.
   # Once finished, close the db if we were originally logged out.
-  let wasLoggedIn = self.isLoggedIn
+  let wasLoggedIn = self.loginState == LoginState.loggedin
   if not wasLoggedIn:
     ?self.initUserDb(keyUid, password).mapErrTo(
       {DbError.KeyError: InvalidPassword}.toTable, InitUserDbError)
+    self.setLoginState(LoginState.loggedin)
 
   let userDb = ?self.userDb.mapErrTo(UserDbError)
   ?userDb.createAccount(defaultWalletAccount).mapErrTo(CreateAcctError)
@@ -124,15 +125,15 @@ proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
 
   if not wasLoggedIn:
     ?self.closeUserDb.mapErrTo(CloseDbError)
+    self.setLoginState(LoginState.loggedout)
 
   ok pubAccount
-
 
 proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
   bip39Passphrase, password: string, dir: string):
   AccountsResult[PublicAccount] =
 
-  if self.isLoggedIn:
+  if self.loginState != LoginState.loggedout:
     return err MustBeLoggedOut
 
   let
@@ -145,6 +146,8 @@ proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
 
   ?self.initUserDb(account.keyUid, password).mapErrTo(
     {DbError.KeyError: InvalidPassword}.toTable, InitUserDbError)
+  self.setLoginState(LoginState.loggedin)
+
   let
     pubAccount = ?self.storeDerivedAccounts(account.id, account.keyUid, paths,
       password, dir, AccountType.Generated).mapErrTo(StoreDerivedAcctsError)
@@ -195,6 +198,7 @@ proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
   let userDb = ?self.userDb.mapErrTo(UserDbError)
   ?userDb.createSettings(settings, nodeConfig).mapErrTo(CreateSettingsError)
   ?self.closeUserDb.mapErrTo(CloseDbError)
+  self.setLoginState(LoginState.loggedout)
 
   ok pubAccount
 
@@ -202,6 +206,7 @@ proc getChatAccount*(self: StatusObject): AccountsResult[accounts.Account] =
   let
     userDb = ?self.userDb.mapErrTo(UserDbError)
     acct = ?userDb.getChatAccount.mapErrTo(GetChatAcctError)
+
   ok acct
 
 proc getPublicAccounts*(self: StatusObject):
@@ -210,10 +215,8 @@ proc getPublicAccounts*(self: StatusObject):
   let accts = ?self.accountsDb.getPublicAccounts().mapErrTo(GetPublicAcctsError)
   ok accts
 
-
 proc importMnemonic*(self: StatusObject, mnemonic: Mnemonic,
-  bip39Passphrase, password: string, dir: string):
-  AccountsResult[PublicAccount] =
+  bip39Passphrase, password, dir: string): AccountsResult[PublicAccount] =
 
   let
     imported = ?self.accountsGenerator.importMnemonic(mnemonic,
@@ -222,6 +225,7 @@ proc importMnemonic*(self: StatusObject, mnemonic: Mnemonic,
       PATH_DEFAULT_WALLET]
     pubAccount = ?self.storeDerivedAccounts(imported.id, imported.keyUid,
       paths, password, dir, AccountType.Seed).mapErrTo(StoreDerivedAcctsError)
+
   ok pubAccount
 
 proc saveAccount*(self: StatusObject, account: PublicAccount):

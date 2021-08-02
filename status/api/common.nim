@@ -1,7 +1,7 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[os, tables, typetraits]
+  std/[os, sets, strformat, strutils, tables, typetraits]
 
 import # vendor libs
   sqlcipher, web3, web3/ethtypes
@@ -10,42 +10,65 @@ from web3/conversions as web3_conversions import `$`
 
 import # status modules
   ../private/common,
-  ../private/[accounts/generator/generator, callrpc, database, settings,
-              token_prices, util]
+  ../private/[accounts/generator/generator, callrpc, database, events, settings,
+              token_prices, util, waku]
 
 from ../private/conversions import parseAddress, readValue, writeValue
 from ../private/extkeys/types import Mnemonic
+from ../private/opensea import Asset, AssetContract, Collection
 
-export
-  `$`, common, database, ethtypes, generator, Mnemonic, parseAddress, readValue,
-  sqlcipher, util, writeValue
+export # modules
+  common, database, ethtypes, events, generator, sqlcipher, util
+
+export # symbols
+  `$`, Asset, AssetContract, Collection, Mnemonic, parseAddress, readValue,
+  writeValue
 
 type
-  StatusObject* = ref object
-    accountsGenerator*: Generator
-    accountsDbConn: DbConn
-    dataDir*: string
-    userDbConn: DbConn
-    web3Conn: Table[string, Web3]
-    priceMap*: PriceMap
+  LoginState* = enum loggedout, loggingin, loggedin, loggingout
 
+  NetworkState* = enum offline, connecting, online, disconnecting
+
+  StatusObject* = ref object
+    accountsDbConn: DbConn
+    accountsGenerator*: Generator
+    dataDir*: string
+    loginState: LoginState
+    networkState: NetworkState
+    priceMap*: PriceMap
+    signalHandler*: StatusSignalHandler
+    topics*: OrderedSet[common.ContentTopic]
+    userDbConn: DbConn
+    wakuFilter*: bool
+    wakuFilterHandler*: ContentFilterHandler
+    wakuFilternode*: string
+    wakuHistoryHandler*: QueryHandlerFunc
+    wakuLightpush*: bool
+    wakuLightpushnode*: string
+    wakuNode*: WakuNode
+    wakuPubSubTopics*: seq[string]
+    wakuRlnRelay*: bool
+    wakuStore*: bool
+    wakuStorenode*: string
+    web3Conn: Table[string, Web3]
 
 proc new*(T: type StatusObject, dataDir: string,
-  accountsDbFileName: string = "accounts.sql"): DbResult[T] =
+  accountsDbFileName = "accounts.sql",
+  signalHandler = defaultStatusSignalHandler):
+  DbResult[T] =
 
   let
-    accountsDb = ?initDb(dataDir / accountsDbFileName).mapErrTo(
-      InitFailure)
+    accountsDb = ?initDb(dataDir / accountsDbFileName).mapErrTo(InitFailure)
     generator = Generator.new()
 
-  ok T(accountsDbConn: accountsDb, dataDir: dataDir, accountsGenerator: generator,
-    web3Conn: initTable[string, Web3](), priceMap: newTable[string, ToPriceMap]())
+  ok T(accountsDbConn: accountsDb, accountsGenerator: generator,
+       dataDir: dataDir, loginState: loggedout, networkState: offline,
+       priceMap: newTable[string, ToPriceMap](), signalHandler: signalHandler,
+       wakuPubSubTopics: @[waku.DefaultTopic], wakuStore: true,
+       web3Conn: initTable[string, Web3]())
 
 proc accountsDb*(self: StatusObject): DbConn {.raises: [].} =
   self.accountsDbConn
-
-proc isLoggedIn*(self: StatusObject): bool {.raises: [].} =
-  not distinctBase(self.userDbConn).isNil and self.userDbConn.isOpen
 
 proc userDb*(self: StatusObject): DbResult[DbConn] {.raises: [].} =
   if distinctBase(self.userDbConn).isNil:
@@ -59,15 +82,6 @@ proc closeUserDb*(self: StatusObject): DbResult[void] {.raises: [].} =
     return err CloseFailure
   self.userDbConn = nil
   ok()
-
-proc close*(self: StatusObject): DbResult[void] {.raises: [].} =
-  if self.isLoggedIn:
-    ?self.closeUserDb()
-  try:
-    self.accountsDb.close()
-    ok()
-  except SqliteError, Exception:
-    err CloseFailure
 
 proc initUserDb*(self: StatusObject, keyUid, password: string): DbResult[void] =
   self.userDbConn = ?initDb(self.dataDir / keyUid & ".db", password)
@@ -104,3 +118,27 @@ proc web3*(self: StatusObject): Web3Result[Web3]  =
     .mapErrTo(Web3Error(kind: web3Internal, internalError: NotFound))
 
   ok web3Conn
+
+proc loginState*(self: StatusObject): LoginState =
+  self.loginState
+
+proc setLoginState*(self: StatusObject, state: LoginState) {.raises: [].} =
+  self.loginState = state
+
+proc networkState*(self: StatusObject): NetworkState =
+  self.networkState
+
+proc setNetworkState*(self: StatusObject, state: NetworkState) {.raises: [].} =
+  self.networkState = state
+
+# this and logic around login/out and dis/connect needs to be reconsidered
+proc close*(self: StatusObject): DbResult[void] {.raises: [].} =
+  if self.loginState == LoginState.loggedin:
+    ?self.closeUserDb()
+    self.setLoginState(LoginState.loggedout)
+
+  try:
+    self.accountsDb.close()
+    ok()
+  except SqliteError, Exception:
+    err CloseFailure

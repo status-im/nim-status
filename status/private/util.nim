@@ -1,7 +1,7 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[re, strutils, tables, unicode]
+  std/[re, sets, strutils, tables, unicode]
 
 import # vendor libs
   nimcrypto, stew/results, web3/ethtypes
@@ -88,3 +88,13 @@ proc mapErrTo*[T, E1, E2](r: Result[T, E1], t: Table[E1, E2], default: E2):
       return t[e]
     except KeyError:
       return default)
+
+proc includes*[T](s: OrderedSet[T], key: T): bool =
+  # There seems to be a bug in Nim's std/sets.contains where on a non-main
+  # thread matching hashes do not result in a return value of true. Create a
+  # substitute proc here as a workaround until the bug can be identified and
+  # fixed.
+  let k = key.hash
+  for i in s:
+    if i.hash == k: return true
+  return false

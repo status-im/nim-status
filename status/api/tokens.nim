@@ -10,8 +10,8 @@ import # status modules
   ../private/[util, token_prices, tokens],
   ./common
 
-export
-  common, tokens
+export common except setLoginState, setNetworkState
+export tokens
 
 type
   CustomTokenError*     = enum
@@ -29,7 +29,7 @@ type
 proc addCustomToken*(self: StatusObject, address: Address, name, symbol,
   color: string, decimals: uint): CustomTokenResult[Token] =
 
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
   let token = Token(address: address, name: name, symbol: symbol, color: color,
@@ -43,7 +43,7 @@ proc addCustomToken*(self: StatusObject, address: Address, name, symbol,
 proc deleteCustomToken*(self: StatusObject, address: Address):
   CustomTokenResult[Address] =
 
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
   let userDb = ?self.userDb.mapErrTo(UserDbError)
@@ -52,16 +52,20 @@ proc deleteCustomToken*(self: StatusObject, address: Address):
   ok address
 
 proc getCustomTokens*(self: StatusObject): CustomTokenResult[seq[Token]] =
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
   let
     userDb = ?self.userDb.mapErrTo(UserDbError)
     tokens = ?userDb.getCustomTokens().mapErrTo(GetFailure)
+
   ok tokens
 
 proc getPrice*(self: StatusObject, tokenSymbol: string, fiatCurrency: string):
-  CustomTokenResult[float] {.raises: [ref KeyError].} =
+  CustomTokenResult[float] {.raises: [Defect, ref KeyError].} =
+
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
 
   if not contains(self.priceMap, tokenSymbol) or
      not contains(self.priceMap[tokenSymbol], fiatCurrency):
@@ -71,6 +75,9 @@ proc getPrice*(self: StatusObject, tokenSymbol: string, fiatCurrency: string):
 
 proc updatePrices*(self: StatusObject): Future[CustomTokenResult[void]]
   {.async.} =
+
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
 
   let tokensResult = self.getCustomTokens()
   if tokensResult.isErr: return err tokensResult.error

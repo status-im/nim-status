@@ -1,8 +1,11 @@
 ## client.nim is an example program demonstrating usage of nim-status,
-## nim-waku, nim-task-runner, and nim-ncurses
+## nim-task-runner, and nim-ncurses
 
 when not(compileOption("threads")):
   {.fatal: "Please compile this program with the --threads:on option!".}
+
+import # std libs
+  std/random
 
 import # client modules
   ./client/tui
@@ -22,6 +25,10 @@ proc main() {.async.} =
   notice "program exited"
 
 when isMainModule:
+  # initialize default random number generator, only needs to be called once:
+  # https://nim-lang.org/docs/random.html#randomize
+  randomize()
+
   # client program will handle all control characters with ncurses in raw mode
   proc nop() {.noconv.} = discard
   setControlCHook(nop)

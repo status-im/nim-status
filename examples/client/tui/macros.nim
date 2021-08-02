@@ -4,8 +4,6 @@ import # std libs
 import # client modules
   ./common
 
-export common
-
 # Events -----------------------------------------------------------------------
 
 macro `&`[T; A, B: static int](a: array[A, T], b: array[B, T]): untyped =

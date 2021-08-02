@@ -1,7 +1,5 @@
 import # client modules
-  ./commands as cmd, ./macros
-
-export cmd, macros
+  ./commands as cmd, ./common, ./macros
 
 logScope:
   topics = "tui"

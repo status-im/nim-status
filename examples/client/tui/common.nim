@@ -1,10 +1,8 @@
 import # client modules
-  ../client, ./ncurses_helpers
+  ../client, ../common,
+  ./ncurses_helpers
 
-import # vendor libs
-  eth/common
-
-export client, ncurses_helpers
+export client, common, ncurses_helpers
 
 logScope:
   topics = "tui"
@@ -46,10 +44,10 @@ type
 
   AddCustomToken* = ref object of Command
     address*: string
-    name*: string
-    symbol*: string
     color*: string
     decimals*: string
+    name*: string
+    symbol*: string
 
   AddWalletAccount* = ref object of Command
     name*: string
@@ -62,23 +60,23 @@ type
 
   AddWalletSeed* = ref object of Command
     bip39Passphrase*: string
-    name*: string
     mnemonic*: string
+    name*: string
     password*: string
 
   AddWalletWatchOnly* = ref object of Command
-    name*: string
     address*: string
+    name*: string
 
   CallRpc* = ref object of Command
-    rpcMethod*: string
     params*: string
+    rpcMethod*: string
 
   Connect* = ref object of Command
 
   CommandParameter* = ref object of RootObj
-    name*: string
     description*: string
+    name*: string
 
   CreateAccount* = ref object of Command
     password*: string
@@ -98,17 +96,17 @@ type
   GetCustomTokens* = ref object of Command
 
   GetPrice* = ref object of Command
-    tokenSymbol*: string
     fiatCurrency*: string
+    tokenSymbol*: string
 
   Help* = ref object of Command
     command*: string
 
   HelpText* = ref object of RootObj
-    command*: string
-    parameters*: seq[CommandParameter]
     aliases*: seq[string]
+    command*: string
     description*: string
+    parameters*: seq[CommandParameter]
 
   ImportMnemonic* = ref object of Command
     mnemonic*: string
@@ -140,19 +138,25 @@ type
 
   SendTransaction* = ref object of Command
     fromAddress*: string
-    toAddress*: string
-    value*: string
-    maxPriorityFee*: string
-    maxFee*: string
     gasLimit*: string
-    payload*: string
+    maxFee*: string
+    maxPriorityFee*: string
     nonce*: string
     password*: string
-    
+    payload*: string
+    toAddress*: string
+    value*: string
+
   SetPriceTimeout* = ref object of Command
     timeout*: string
 
+  SwitchTopic* = ref object of Command
+    topic*: string
+
 const
+  ESCAPE* = "ESCAPE"
+  RETURN* = "RETURN"
+
   TuiEvents* = [
     "InputKey",
     "InputReady",
@@ -186,9 +190,11 @@ const
     "listtopics": "ListTopics",
     "login": "Login",
     "logout": "Logout",
+    "quit": "Quit",
     "sendtransaction": "SendTransaction",
     "setpricetimeout": "SetPriceTimeout",
-    "quit": "Quit"
+    "quit": "Quit",
+    "switchtopic": "SwitchTopic"
   }.toTable
 
   aliases* = {
@@ -205,7 +211,11 @@ const
     "gettokens": "getcustomtokens",
     "import": "importmnemonic",
     "join": "jointopic",
+    "joinpublic": "jointopic",
+    "joinpublicchat": "jointopic",
     "leave": "leavetopic",
+    "leavepublic": "leavetopic",
+    "leavepublicchat": "leavetopic",
     "list": "listaccounts",
     "listwallets": "listwalletaccounts",
     "part": "leavetopic",
@@ -213,6 +223,7 @@ const
     "send": DEFAULT_COMMAND,
     "sub": "jointopic",
     "subscribe": "jointopic",
+    "switch": "switchtopic",
     "topics": "listtopics",
     "trx": "sendtransaction",
     "unjoin": "leavetopic",
@@ -236,12 +247,14 @@ const
     "getcustomtokens": @["gettokens"],
     "importmnemonic": @["import"],
     "help": @["?"],
-    "jointopic": @["join", "sub", "subscribe"],
-    "leavetopic": @["leave", "part", "unjoin", "unsub", "unsubscribe"],
+    "jointopic": @["join", "joinpublic", "joinpublicchat", "sub", "subscribe"],
+    "leavetopic": @["leave", "leavepublic", "leavepublicchat", "part", "unjoin",
+      "unsub", "unsubscribe"],
     "listaccounts": @["list"],
     "listtopics": @["topics"],
     "listwalletaccounts": @["listwallets", "wallets"],
-    "sendtransaction": @["trx"]
+    "sendtransaction": @["trx"],
+    "switchtopic": @["switch"]
   }.toTable
 
 proc stop*(self: Tui) {.async.} =

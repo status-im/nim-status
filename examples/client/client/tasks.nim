@@ -1,109 +1,123 @@
 import # std libs
   std/os
 
-from std/sugar import `=>`, collect
-
 import # vendor libs
-  stew/byteutils
+  stew/byteutils, task_runner
 
-from eth/common as eth_common import nil
+from eth/common as eth_common import EthAddress, Transaction
 
 import # status lib
-  status/api/[auth, opensea, provider, tokens, wallet],
+  status/api/[accounts, auth, opensea, provider, tokens, waku, wallet],
   status/private/[alias, protocol]
 
 import # client modules
-  ./events, ./serialization, ./waku_chat2
-
-export events
+  ./common, ./events, ./serialization
 
 logScope:
   topics = "client"
 
 type
   StatusArg* = ref object of ContextArg
+    chanSendToHost*: WorkerChannel
     clientConfig*: ClientConfig
 
-  StatusState* = enum loggedout, loggingin, loggedin, loggingout
-
-  WakuState* = enum stopped, starting, started, stopping
-
-const
-  DefaultTopic = waku_chat2.DefaultTopic
-  toyChat2App = "toy-chat/2"
-  waku1App = "waku/1"
-
 var
-  chatAccount {.threadvar.}: Account
+  chanSendToHost {.threadvar.}: WorkerChannel
   conf {.threadvar.}: ClientConfig
-  connected {.threadvar.}: bool
-  contentTopics {.threadvar.}: OrderedSet[ContentTopic]
-  contextArg {.threadvar.}: StatusArg
   extIp {.threadvar.}: Option[ValidIpAddress]
   extTcpPort {.threadvar.}: Option[Port]
   extUdpPort {.threadvar.}: Option[Port]
-  identity {.threadvar.}: seq[byte]
   natIsSetup {.threadvar.}: bool
-  nick {.threadvar.}: string
-  nodekey {.threadvar.}: waku_chat2.crypto.PrivateKey
+  nodekey {.threadvar.}: Nodekey
   nodekeyGenerated {.threadvar.}: bool
-  publicAccount {.threadvar.}: PublicAccount
-  subscribed {.threadvar.}: bool
   status {.threadvar.}: StatusObject
-  statusState {.threadvar.}: StatusState
-  updatePricesTimeout {.threadvar.}: int
+  stopped {.threadvar.}: bool
+  updatePricesTimeout {.threadvar.}: Duration
   updatingPrices {.threadvar.}: bool
-  wakuNode {.threadvar.}: WakuNode
-  wakuState {.threadvar.}: WakuState
 
-proc resetContext() {.gcsafe, nimcall.} =
-  connected = false
-  nick = ""
-  subscribed = false
-  wakuNode = nil
-  wakuState = WakuState.stopped
+const signalHandler: StatusSignalHandler = proc(signal: StatusSignal)
+  {.async, gcsafe, nimcall.} =
+
+  if not stopped:
+    case signal.kind:
+      of StatusEventKind.chat2Message:
+        let
+          signalEvent = cast[Chat2MessageEvent](signal.event)
+          chat2Message = signalEvent.data
+          message = string.fromBytes(chat2Message.payload)
+          timestamp = chat2Message.timestamp
+          topic = signalEvent.topic
+          username = chat2Message.nick
+          event = UserMessageEvent(message: message, timestamp: timestamp,
+            topic: topic, username: username)
+
+          eventEnc = event.encode
+
+        trace "signalHandler sent event to host", event=eventEnc
+        asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+      of StatusEventKind.chat2MessageError:
+        let
+          signalEvent = cast[Chat2MessageErrorEvent](signal.event)
+          err = signalEvent.error
+          timestamp = signalEvent.timestamp
+          topic = signalEvent.topic
+
+        error "error handling chat2 message", error=err, timestamp, topic
+
+      of StatusEventKind.publicChatMessage:
+        let
+          signalEvent = cast[PublicChatMessageEvent](signal.event)
+          publicChatMessage = signalEvent.data
+          message = publicChatMessage.message.text
+          timestamp = publicChatMessage.timestamp
+          topic = signalEvent.topic
+          username = publicChatMessage.alias
+          event = UserMessageEvent(message: message, timestamp: timestamp,
+            topic: topic, username: username)
+
+          eventEnc = event.encode
+
+        trace "signalHandler sent event to host", event=eventEnc
+        asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+      of StatusEventKind.publicChatMessageError:
+        let
+          signalEvent = cast[PublicChatMessageErrorEvent](signal.event)
+          err = signalEvent.error
+          timestamp = signalEvent.timestamp
+          topic = signalEvent.topic
+
+        error "error handling public chat message", error=err, timestamp, topic
 
 proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   raises: [Defect].} =
 
-  # set threadvar values that are never reset, i.e. persist across
-  # waku dis/connect
-  contextArg = cast[StatusArg](arg)
+  let contextArg = cast[StatusArg](arg)
+
+  chanSendToHost = contextArg.chanSendToHost
   conf = contextArg.clientConfig
+  stopped = false
+
+  # in a separate commit/PR, rename `StatusObject` to `Status`
+  status = StatusObject.new(dataDir = conf.dataDir,
+    signalHandler = signalHandler).expect("StatusObject init should never fail")
 
   let contentTopicsStr = conf.contentTopics.strip()
   if contentTopicsStr != "":
-    contentTopics = contentTopicsStr.split(" ").map(handleTopic)
-      .filter(t => t != "").toOrderedSet()
+    let contentTopics = contentTopicsStr.split(" ").toOrderedSet()
+    for topic in contentTopics.items:
+      let t = ContentTopic.init(topic)
+      if t.isOk:
+        status.joinTopic(t.get)
 
-  # threadvar `natIsSetup` is a special case because the values of its
-  # counterparts `ext[Ip,TcpPort,UdpPort]` only need to be set once, i.e. they
-  # also persists across waku dis/connect; but note that
-  # `ext[Ip,TcpPort,UdpPort]` themselves are set for the first time in task
-  # `startWakuChat` as a program startup optimization
-  natIsSetup = false
-
-  # threadvar `nodekeyGenerated` is a special case like `natIsSetup`, see
-  # previous comment
-  nodekeyGenerated = false
-
-  updatePricesTimeout = 60000 # 60 seconds by default
+  updatePricesTimeout = 60000.milliseconds # 60 seconds by default
   updatingPrices = false
-
-  status = StatusObject.new(conf.dataDir).expect(
-    "StatusObject init should never fail")
-  # threadvar `statusState` is currently out of scope re: "resetting the
-  # context"; the relevant code/logic can be reconsidered in the future, was
-  # originally implemented in context of `startWakuChat` and `stopWakuChat`
-  statusState = StatusState.loggedout
-
-  # re/set threadvars that don't persist across waku dis/connect
-  resetContext()
 
 proc updatePrices() {.async.} =
   updatingPrices = true
 
-  while statusState == StatusState.loggedin:
+  while status.loginState == LoginState.loggedin:
     let res = await status.updatePrices()
     if res.isErr:
       # TODO: send error to the TUI for display (possibly in the status bar?)
@@ -112,95 +126,12 @@ proc updatePrices() {.async.} =
 
   updatingPrices = false
 
-proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
+proc addWalletAccount*(name: string, password: string)
+  {.task(kind=no_rts, stoppable=false).} =
+
   let
-    topic = wakuMessage.contentTopic
-    topicSplit = topic.split('/')
-
-  var
-    fallback = true
-    message: string
-    timestamp: int64
-    username: string
-
-  # all content topics populated into threadvar `contentTopics` will be
-  # compliant with recommendations in waku v2 specs
-  # (https://rfc.vac.dev/spec/23/#content-topics) and when split on '/' will
-  # have length 5; since our relay handler checks that
-  # `wakuMessage.contentTopic` is in `contentTopics` before invoking this
-  # constructor, and for now assuming that history and filter nodes would never
-  # send us messages for content topics other than those we requested, we can
-  # safely access `topicSplit` indices 0..4
-
-  # we know how to properly handle messages for only some content topics:
-  # * `/toy-chat/2/{topic-name}/proto`
-  # * `/waku/1/{topic-name}/proto` -- should end with `/rlp` for real decoding
-  case fmt"{topicSplit[1]}/{topicSplit[2]}":
-    of toyChat2App:
-      if topicSplit[4] == "proto":
-        let protoResult = Chat2Message.init(wakuMessage.payload)
-        if protoResult.isOk:
-          let chat2Message = protoResult[]
-          message = string.fromBytes(chat2Message.payload)
-          timestamp = chat2Message.timestamp
-          username = chat2Message.nick
-
-          fallback = false
-
-        else:
-          error "error decoding toy-chat/2 message", contentTopic=topic,
-            error=protoResult, payload=string.fromBytes(wakuMessage.payload)
-
-    of waku1App:
-      if topicSplit[4] == "proto": # should be `rlp` for real decoding
-        try:
-          let
-            # will first need to RLP decode payload for real decoding
-            protoMsg = protocol.ProtocolMessage.decode(
-              wakuMessage.payload)
-            appMetaMsg = protocol.ApplicationMetadataMessage.decode(
-              protoMsg.public_message)
-            chatMsg = protocol.ChatMessage.decode(appMetaMsg.payload)
-
-          # "placeholder handling" of decoded protobuffer that will be iterated
-          # along with changes to what data we signal from the client to the
-          # TUI and how we display/notify re: that data in the TUI
-          message = chatMsg.text
-          timestamp = chatMsg.timestamp.int64
-          username = generateAlias(
-            "0x" & byteutils.toHex(protoMsg.bundles[0].identity)).get("error")
-
-          fallback = false
-
-        except CatchableError as e:
-          error "error decoding waku/1 message", contentTopic=topic,
-            error=e.msg, payload=string.fromBytes(wakuMessage.payload)
-
-  if fallback:
-    message = string.fromBytes(wakuMessage.payload)
+    task = taskArg.taskName
     timestamp = getTime().toUnix
-    username = "[unknown]"
-
-    warn "used fallback decoding strategy for unsupported contentTopic",
-      contentTopic=topic
-
-  T(message: message, timestamp: timestamp, topic: topic, username: username)
-
-proc addWalletAccount*(name: string,
-  password: string) {.task(kind=no_rts, stoppable=false).} =
-
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
-        "cannot create a new wallet account.", timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
 
   let
     dir = status.dataDir / "keystore"
@@ -210,10 +141,11 @@ proc addWalletAccount*(name: string,
 
   if walletAccountResult.isErr:
     let
-      event = AddWalletAccountEvent(error: "Error creating wallet account, " &
-        "error: " & $walletAccountResult.error, timestamp: timestamp)
+      event = AddWalletAccountEvent(error: $walletAccountResult.error,
+        timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -224,27 +156,16 @@ proc addWalletAccount*(name: string,
     event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
+proc addWalletPrivateKey*(name: string, privateKey:string, password: string)
   {.task(kind=no_rts, stoppable=false).} =
 
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
-        "cannot add a new wallet account.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let
     dir = status.dataDir / "keystore"
@@ -253,10 +174,11 @@ proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
 
   if walletAccountResult.isErr:
     let
-      event = AddWalletAccountEvent(error: "Error adding wallet account, " &
-        "error: " & $walletAccountResult.error, timestamp: timestamp)
+      event = AddWalletAccountEvent(error: $walletAccountResult.error,
+        timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -266,8 +188,8 @@ proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
     walletName = walletAccount.name.get("")
     event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
@@ -275,19 +197,9 @@ proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
 proc addWalletSeed*(name: string, mnemonic: string, password: string,
   bip39Passphrase: string) {.task(kind=no_rts, stoppable=false).} =
 
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
-        "cannot add a new wallet account.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let
     dir = status.dataDir / "keystore"
@@ -296,10 +208,11 @@ proc addWalletSeed*(name: string, mnemonic: string, password: string,
 
   if walletAccountResult.isErr:
     let
-      event = AddWalletAccountEvent(error: "Error adding wallet account, " &
-        "error: " & $walletAccountResult.error, timestamp: timestamp)
+      event = AddWalletAccountEvent(error: $walletAccountResult.error,
+        timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -309,36 +222,28 @@ proc addWalletSeed*(name: string, mnemonic: string, password: string,
     walletName = walletAccount.name.get("")
     event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc addWalletWatchOnly*(address: string,
-  name: string) {.task(kind=no_rts, stoppable=false).} =
+proc addWalletWatchOnly*(address: string, name: string)
+  {.task(kind=no_rts, stoppable=false).} =
 
-  let timestamp = getTime().toUnix
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = AddWalletAccountEvent(error: "Not logged in, " &
-        "cannot add a new wallet account.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
 
   let addressParsed = address.parseAddress
   if addressParsed.isErr:
     let
       event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
         "account: " & $addressParsed.error, timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -347,10 +252,11 @@ proc addWalletWatchOnly*(address: string,
 
   if walletAccountResult.isErr:
     let
-      event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
-        "account: " & $walletAccountResult.error, timestamp: timestamp)
+      event = AddWalletAccountEvent(error: $walletAccountResult.error,
+        timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -360,26 +266,16 @@ proc addWalletWatchOnly*(address: string,
     walletName = if walletAccount.name.isNone: "" else: walletAccount.name.get
     event = AddWalletAccountEvent(name: walletName,
       address: walletAccount.address, timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedout:
-    let
-      eventNotLoggedOut = AddWalletAccountEvent(error: "You must be logged " &
-        "out to create a new account.",
-        timestamp: timestamp)
-      eventNotLoggedOutEnc = eventNotLoggedOut.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedOutEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedOutEnc.safe)
-    return
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let
     dir = status.dataDir / "keystore"
@@ -391,8 +287,9 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
     let
       event = CreateAccountEvent(error: "Error creating account, error: " &
         $publicAccountResult.error, timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -401,29 +298,17 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
     account = publicAccountResult.get
     event = CreateAccountEvent(account: account, timestamp: timestamp)
     eventEnc = event.encode
-    task = taskArg.taskName
+
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc deleteWalletAccount*(index: int, password: string) {.task(kind=no_rts,
-  stoppable=false).} =
+proc deleteWalletAccount*(index: int, password: string)
+  {.task(kind=no_rts, stoppable=false).} =
 
   let
     task = taskArg.taskName
     timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = DeleteWalletAccountEvent(error: "Not logged in, " &
-        "cannot delete a wallet account.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event with error to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
 
   var
     event: DeleteWalletAccountEvent
@@ -442,22 +327,18 @@ proc deleteWalletAccount*(index: int, password: string) {.task(kind=no_rts,
     numberedAccount = allAccounts.get[index - 1]
     address = numberedAccount.address
 
-    try:
-      let
-        dir = status.dataDir / "keystore"
-        walletResult = status.deleteWalletAccount(address, password,dir)
+    let
+      dir = status.dataDir / "keystore"
+      walletResult = status.deleteWalletAccount(address, password, dir)
 
-      if walletResult.isOk:
-        let wallet = walletResult.get
-        event = DeleteWalletAccountEvent(name: wallet.name.get("(unnamed)"),
-          address: $wallet.address, timestamp: timestamp)
-      else:
-        event = DeleteWalletAccountEvent(error: "Error deleting wallet " &
-          "account: " & $walletResult.error, timestamp: timestamp)
+    if walletResult.isOk:
+      let wallet = walletResult.get
+      event = DeleteWalletAccountEvent(name: wallet.name.get("(unnamed)"),
+        address: $wallet.address, timestamp: timestamp)
 
-    except Exception as e:
-      event = DeleteWalletAccountEvent(error: "Error deleting wallet " &
-        "account, error: " & e.msg, timestamp: timestamp)
+    else:
+      event = DeleteWalletAccountEvent(error: $walletResult.error,
+        timestamp: timestamp)
 
   let eventEnc = event.encode
   trace "task sent event to host", event=eventEnc, task
@@ -467,17 +348,20 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
   password: string) {.task(kind=no_rts, stoppable=false).} =
 
   let
+    task = taskArg.taskName
     timestamp = getTime().toUnix
     dir = status.dataDir / "keystore"
-    importedResult = status.importMnemonic(Mnemonic mnemonic, bip39Passphrase,
+
+  let importedResult = status.importMnemonic(Mnemonic mnemonic, bip39Passphrase,
       password, dir)
 
   if importedResult.isErr:
     let
       event = ImportMnemonicEvent(error: "Error importing mnemonic: " &
         $importedResult.error, timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
@@ -486,99 +370,116 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
     account = importedResult.get
     event = ImportMnemonicEvent(account: account, timestamp: timestamp)
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc joinTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
-  if not contentTopics.contains(topic):
-    contentTopics.incl(topic)
-    trace "joined topic", contentTopic=topic
-  else:
-    trace "topic already joined", contentTopic=topic
+proc joinTopic*(topic: ContentTopic) {.task(kind=no_rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  status.joinTopic(topic)
 
   let
-    event = JoinTopicEvent(timestamp: getTime().toUnix, topic: topic)
+    event = JoinTopicEvent(timestamp: timestamp, topic: topic)
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
-  if contentTopics.contains(topic):
-    contentTopics.excl(topic)
-    trace "left topic", contentTopic=topic
-  else:
-    trace "topic not joined, no need to leave", contentTopic=topic
+  if status.wakuFilter: (await status.addFilters(@[topic])).expect(
+    "addFilters is not expected to fail in this context")
+
+  if status.wakuStore: (await status.queryHistory(@[topic])).expect(
+    "queryHistory is not expected to fail in this context")
+
+proc leaveTopic*(topic: ContentTopic) {.task(kind=no_rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  status.leaveTopic(topic)
 
   let
-    event = LeaveTopicEvent(timestamp: getTime().toUnix, topic: topic)
+    event = LeaveTopicEvent(timestamp: timestamp, topic: topic)
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+  if status.wakuFilter: (await status.removeFilters(@[topic])).expect(
+    "removeFilters is not expected to fail in this context")
 
 proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
   let accountsResult = status.getPublicAccounts()
+
   if accountsResult.isErr:
     let
       event = ListAccountsEvent(error: "Error listing accounts: " &
-        $accountsResult.error, timestamp: getTime().toUnix)
+        $accountsResult.error, timestamp: timestamp)
+
       eventEnc = event.encode
-      task = taskArg.taskName
+
     trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
 
   let
     event = ListAccountsEvent(accounts: accountsResult.get,
-      timestamp: getTime().toUnix)
+      timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc listWalletAccounts*() {.task(kind=no_rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
   let accounts = status.getWalletAccounts()
   if accounts.isErr:
     let
-      event = ListWalletAccountsEvent(error: $accounts.error)
-      eventEnc = event.encode
-      task = taskArg.taskName
+      event = ListWalletAccountsEvent(error: $accounts.error,
+        timestamp: timestamp)
 
-    trace "task sent errored event to host", event=eventEnc, task
+      eventEnc = event.encode
+
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
   let
     event = ListWalletAccountsEvent(accounts: accounts.get,
-      timestamp: getTime().toUnix)
+      timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc login*(account: int, password: string) {.
-  task(kind=no_rts, stoppable=false).} =
+proc login*(account: int, password: string)
+  {.task(kind=no_rts, stoppable=false).} =
 
-  let task = taskArg.taskName
-
-  if statusState != StatusState.loggedout: return
-  statusState = StatusState.loggingin
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let allAccountsResult = status.getPublicAccounts()
-  if allAccountsResult.isErr:
-    statusState = StatusState.loggedout
-    let
-      event = LoginEvent(error: $allAccountsResult.error)
-      eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent errored event to host", event=eventEnc, task
+  if allAccountsResult.isErr:
+    let
+      event = LoginEvent(error: $allAccountsResult.error, loggedin: false,
+        timestamp: timestamp)
+
+      eventEnc = event.encode
+
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
@@ -591,94 +492,42 @@ proc login*(account: int, password: string) {.
   let allAccounts = allAccountsResult.get
 
   if account < 1 or account > allAccounts.len:
-    statusState = StatusState.loggedout
+    event = LoginEvent(error: "bad account number", loggedin: false,
+      timestamp: timestamp)
 
-    event = LoginEvent(error: "bad account number", loggedin: false)
     eventEnc = event.encode
 
-  else:
-    numberedAccount = allAccounts[account - 1]
-    keyUid = numberedAccount.keyUid
-
-    let loginResult = status.login(keyUid, password)
-    if loginResult.isErr:
-      statusState = StatusState.loggedout
-      event = LoginEvent(error: "Login failed: " & $loginResult.error,
-        loggedin: false)
-      eventEnc = event.encode
-
-      trace "task sent error event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-
-    let chatAccountResult = status.getChatAccount()
-    if chatAccountResult.isErr:
-      statusState = StatusState.loggedout
-      event = LoginEvent(
-        error: "Login failed getting chat account: " &
-          $chatAccountResult.error, loggedin: false)
-      eventEnc = event.encode
-      trace "task sent error event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-
-    chatAccount = chatAccountResult.get
-    identity = @(chatAccount.publicKey.get.toRaw)
-    publicAccount = loginResult.get
-
-    statusState = StatusState.loggedin
-
-    if not updatingPrices: asyncSpawn updatePrices()
-
-    event = LoginEvent(account: publicAccount, error: "", loggedin: true)
-    eventEnc = event.encode
-
-  trace "task sent event to host", event=eventEnc, task
-  asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-proc logout*() {.task(kind=no_rts, stoppable=false).} =
-  let task = taskArg.taskName
-
-  if statusState != StatusState.loggedin: return
-  statusState = StatusState.loggingout
-
-  var
-    event: LogoutEvent
-    eventEnc: string
-
-  let logoutResult = status.logout()
-  if logoutResult.isErr:
-    statusState = StatusState.loggedin
-    event = LogoutEvent(error: $logoutResult.error, loggedin: true)
-    eventEnc = event.encode
-
-    trace "task sent event to host", event=eventEnc, task
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
-  chatAccount = Account()
-  identity.setLen(0)
-  publicAccount = PublicAccount()
-  statusState = StatusState.loggedout
+  numberedAccount = allAccounts[account - 1]
+  keyUid = numberedAccount.keyUid
 
-  event = LogoutEvent(error: "", loggedin: false)
+  let loginResult = status.login(keyUid, password)
+
+  if loginResult.isErr:
+    event = LoginEvent(error: $loginResult.error, loggedin: false,
+      timestamp: timestamp)
+
+    eventEnc = event.encode
+
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  event = LoginEvent(account: loginResult.get, loggedin: true,
+    timestamp: timestamp)
+
   eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc startWakuChat*(username: string) {.task(kind=no_rts, stoppable=false).} =
-  let task = taskArg.taskName
+  if not updatingPrices: asyncSpawn updatePrices()
 
-  if wakuState != WakuState.stopped: return
-  wakuState = WakuState.starting
+  var netEvent: WakuConnectionEvent
 
-  nick = username
-
-  # invoke `setupNat` here instead of `statusContext` to decrease startup time
-  # of `TaskRunner` instance; doing so here also avoids e.g. possibly
-  # triggering an OS dialog re: permitting network activity until the time a
-  # waku node initially connects to the network
   if not natIsSetup:
     (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
       Port(uint16(conf.tcpPort) + conf.portsShift),
@@ -686,554 +535,452 @@ proc startWakuChat*(username: string) {.task(kind=no_rts, stoppable=false).} =
 
     natIsSetup = true
 
-  # generate `nodekey` here instead of `statusContext` to decrease startup
-  # time of `TaskRunner` instance and therefore time to first paint of TUI
   if not nodekeyGenerated:
-    if $conf.nodekey == "":
-      nodekey = waku_chat2.crypto.PrivateKey.random(Secp256k1,
-        waku_chat2.keys.newRng()[]).tryGet()
-    else:
-      nodekey = waku_chat2.crypto.PrivateKey(scheme: Secp256k1,
-        skkey: SkPrivateKey.init(
-          waku_chat2.utils.fromHex($conf.nodekey)).tryGet())
+    nodekey =
+      if $conf.nodekey == "":
+        Nodekey.init()
+      else:
+        # per ../config `conf.nodekey` has already been validated
+        Nodekey.fromHex($conf.nodekey).get
 
     nodekeyGenerated = true
 
-  wakuNode = WakuNode.new(nodekey, ValidIpAddress.init($conf.listenAddress),
-    Port(uint16(conf.tcpPort) + conf.portsShift), extIp, extTcpPort)
+  let connectResult = await status.connect(nodekey, extIp, extTcpPort,
+    extUdpPort, ValidIpAddress.init($conf.listenAddress), conf.tcpPort,
+    conf.udpPort, conf.portsShift, conf.topics.split(" "), conf.rlnRelay,
+    conf.relay, conf.fleet, conf.staticnodes, conf.swap, conf.filternode,
+    conf.lightpushnode, conf.store, conf.storenode, conf.keepalive)
 
-  await wakuNode.start()
+  if connectResult.isErr:
+    netEvent = WakuConnectionEvent(error: $connectResult.error, online: false,
+      timestamp: timestamp)
 
-  wakuNode.mountRelay(conf.topics.split(" "), rlnRelayEnabled = conf.rlnRelay,
-    relayMessages = conf.relay)
+    eventEnc = netEvent.encode
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
 
-  wakuNode.mountLibp2pPing()
-
-  let
-    fleet = conf.fleet
-    staticnodes = conf.staticnodes
-
-  if staticnodes.len > 0:
-    info "connecting to static peers", nodes=staticnodes
-    await wakuNode.connectToNodes(staticnodes)
-
-  elif fleet != WakuFleet.none:
-    info "static peers not configured, choosing one at random", fleet
-    let node = await selectRandomNode($fleet)
-
-    info "connecting to peer", node
-    await wakuNode.connectToNodes(@[node])
-
-  connected = true
-
-  if conf.swap: wakuNode.mountSwap()
-
-  if (conf.storenode != "") or (conf.store == true):
-    wakuNode.mountStore(persistMessages = conf.persistMessages)
-
-    var storenode: Option[string]
-
-    if conf.storenode != "":
-      storenode = some(conf.storenode)
-
-    elif conf.fleet != WakuFleet.none:
-      info "store nodes not configured, choosing one at random", fleet
-      storenode = some(await selectRandomNode($fleet))
-
-    if storenode.isSome():
-      info "connecting to storenode", storenode
-      wakuNode.wakuStore.setPeer(parsePeerInfo(storenode.get()))
-
-      proc handler(response: HistoryResponse) {.gcsafe.} =
-        let
-          wakuMessages = response.messages
-          count = wakuMessages.len
-
-        trace "handling historical messages", count
-
-        for message in wakuMessages:
-          let
-            event = UserMessageEvent.new(message)
-            eventEnc = event.encode
-
-          trace "task sent event to host", event=eventEnc, task
-          asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-      let contentFilters = collect(newSeq):
-        for contentTopic in contentTopics:
-          HistoryContentFilter(contentTopic: contentTopic)
-
-      await wakuNode.query(HistoryQuery(contentFilters: contentFilters),
-        handler)
-
-  if conf.lightpushnode != "":
-    mountLightPush(wakuNode)
-    wakuNode.wakuLightPush.setPeer(parsePeerInfo(conf.lightpushnode))
-
-  if conf.filternode != "":
-    wakuNode.mountFilter()
-    wakuNode.wakuFilter.setPeer(parsePeerInfo(conf.filternode))
-
-    proc handler(message: WakuMessage) {.gcsafe, raises: [Defect].} =
-      trace "handling filtered message", contentTopic=message.contentTopic
-
-      try:
-        let
-          event = UserMessageEvent.new(message)
-          eventEnc = event.encode
-
-        trace "task sent event to host", event=eventEnc, task
-        asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-      except ValueError as e:
-        error "error handlinng filtered message", error=e.msg,
-          payload=message.payload
-      except IOError as e:
-        error "error encoding filtered message", error=e.msg
-
-    let contentFilters = collect(newSeq):
-      for contentTopic in contentTopics:
-        ContentFilter(contentTopic: contentTopic)
-
-    await wakuNode.subscribe(FilterRequest(contentFilters: contentFilters,
-      pubSubTopic: DefaultTopic, subscribe: true), handler)
-
-  if conf.relay:
-    proc handler(topic: waku_chat2.Topic, data: seq[byte]) {.async, gcsafe.} =
-      trace "handling relayed message", topic
-
-      let decoded = WakuMessage.init(data)
-
-      if decoded.isOk():
-        let message = decoded.get()
-        trace "decoded WakuMessage", message
-
-        let contentTopic = message.contentTopic
-
-        if not (contentTopic in contentTopics):
-          trace "ignored message for unjoined topic", contentTopic,
-            joined=contentTopics
-
-        else:
-          let
-            event = UserMessageEvent.new(message)
-            eventEnc = event.encode
-
-          trace "task sent event to host", event=eventEnc, task
-          asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-      else:
-        let error = decoded.error
-        error "received invalid WakuMessage", error
-
-    wakuNode.subscribe(DefaultTopic, handler)
-
-    subscribed = true
-
-  if conf.keepAlive: wakuNode.startKeepalive()
-
-  wakuState = WakuState.started
-
-  let
-    event = NetworkStatusEvent(online: true)
-    eventEnc = event.encode
+  netEvent = WakuConnectionEvent(online: true, timestamp: timestamp)
+  eventEnc = netEvent.encode
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc stopWakuChat*() {.task(kind=no_rts, stoppable=false).} =
-  let task = taskArg.taskName
+  if status.wakuStore: (await status.queryHistory(status.getTopics)).expect(
+    "queryHistory is not expected to fail in this context")
 
-  if wakuState != WakuState.started: return
-  wakuState = WakuState.stopping
-
-  if not wakuNode.wakuFilter.isNil():
-    let contentFilters = collect(newSeq):
-      for contentTopic in contentTopics:
-        ContentFilter(contentTopic: contentTopic)
-
-    await wakuNode.unsubscribe(FilterRequest(contentFilters: contentFilters,
-      pubSubTopic: DefaultTopic, subscribe: false))
-
-  wakuNode.unsubscribeAll(DefaultTopic)
-
-  await wakuNode.stop()
-  resetContext()
-
+proc logout*() {.task(kind=no_rts, stoppable=false).} =
   let
-    event = NetworkStatusEvent(online: false)
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  var
+    eventEnc: string
+    event: LogoutEvent
+    netEvent: WakuConnectionEvent
+
+  if status.networkState == NetworkState.online:
+    let disconnectResult = await status.disconnect()
+
+    if disconnectResult.isErr:
+      netEvent = WakuConnectionEvent(error: $disconnectResult.error, online: true,
+        timestamp: timestamp)
+
+      eventEnc = netEvent.encode
+      trace "task sent error event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+      event = LogoutEvent(error: "Logout failed because disonnect failed",
+        loggedin: true, timestamp: timestamp)
+
+      eventEnc = event.encode
+      trace "task sent error event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+
+    netEvent = WakuConnectionEvent(online: false, timestamp: timestamp)
+    eventEnc = netEvent.encode
+
+    trace "task sent event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+  let logoutResult = status.logout()
+
+  if logoutResult.isErr:
+    event = LogoutEvent(error: $logoutResult.error, loggedin: true,
+      timestamp: timestamp)
+
     eventEnc = event.encode
+
+    trace "task sent event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  event = LogoutEvent(loggedin: false, timestamp: timestamp)
+  eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc lightpushHandler(response: PushResponse) {.gcsafe.} =
-  trace "received lightpush response", response
+proc connect*() {.task(kind=no_rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
-proc publishWakuChat*(message: string) {.task(kind=no_rts, stoppable=false).} =
-  if wakuState != WakuState.started or not connected: return
+  var
+    event: WakuConnectionEvent
+    eventEnc: string
 
-  if contentTopics.len < 1:
-    trace "message not published, no topics joined", joined=contentTopics,
-      message, username=nick
+  if not natIsSetup:
+    (extIp, extTcpPort, extUdpPort) = setupNat(conf.nat, clientId,
+      Port(uint16(conf.tcpPort) + conf.portsShift),
+      Port(uint16(conf.udpPort) + conf.portsShift))
 
-  else:
-    # all content topics populated into threadvar `contentTopics` will be
-    # compliant with recommendations in waku v2 specs
-    # (https://rfc.vac.dev/spec/23/#content-topics) and when split on '/' will
-    # have length 5; so we can safely access `topicSplit` indices 0..4
+    natIsSetup = true
 
-    # we know how to properly handle messages for only some content topics:
-    # * `/toy-chat/2/{topic-name}/proto`
-    # * `/waku/1/{topic-name}/proto` -- should end with `/rlp` for real encoding
-    for topic in contentTopics:
-      var
-        payload: seq[byte]
-        unsupported = false
-
-      let topicSplit = topic.split('/')
-
-      case fmt"{topicSplit[1]}/{topicSplit[2]}":
-        of toyChat2App:
-          if topicSplit[4] == "proto":
-            let chat2pb = Chat2Message.init(nick, message).encode()
-            payload = chat2pb.buffer
-
-        of waku1App:
-          if topicSplit[4] == "proto": # should be `rlp` for real encoding
-            let
-              chatMsg = protocol.ChatMessage(
-                timestamp: getTime().toUnix.uint64, text: message,
-                message_type: protocol.PUBLIC_GROUP,
-                content_type: protocol.TEXT_PLAIN)
-
-              metaMsg = protocol.ApplicationMetadataMessage(
-                payload: chatMsg.encode,
-                `type`: protocol.application_metadata_message.CHAT_MESSAGE)
-
-              protoMsg = protocol.ProtocolMessage(
-                bundles: @[protocol.Bundle(identity: identity)],
-                public_message: metaMsg.encode)
-
-            payload = protoMsg.encode
-            # will finally need to RLP encode payload for real encoding
-
-        else:
-          unsupported = true
-
-      if unsupported:
-        error "cannot publish message for unsupported contentTopic",
-          contentTopic=topic, message
-
+  if not nodekeyGenerated:
+    nodekey =
+      if $conf.nodekey == "":
+        Nodekey.init()
       else:
-        let wakuMessage = WakuMessage(payload: payload, contentTopic: topic,
-                                      version: 0)
+        # per ../config `conf.nodekey` has already been validated
+        Nodekey.fromHex($conf.nodekey).get
 
-        if not wakuNode.wakuLightPush.isNil():
-          asyncSpawn wakuNode.lightpush(DefaultTopic, wakuMessage,
-            lightpushHandler)
+    nodekeyGenerated = true
 
-        else:
-          asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)
+  let connectResult = await status.connect(nodekey, extIp, extTcpPort,
+    extUdpPort, ValidIpAddress.init($conf.listenAddress), conf.tcpPort,
+    conf.udpPort, conf.portsShift, conf.topics.split(" "), conf.rlnRelay,
+    conf.relay, conf.fleet, conf.staticnodes, conf.swap, conf.filternode,
+    conf.lightpushnode, conf.store, conf.storenode, conf.keepalive)
+
+  if connectResult.isErr:
+    event = WakuConnectionEvent(error: $connectResult.error, online: false,
+      timestamp: timestamp)
+
+    eventEnc = event.encode
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  event = WakuConnectionEvent(online: true, timestamp: timestamp)
+  eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+  if status.wakuStore: (await status.queryHistory(status.getTopics)).expect(
+    "queryHistory is not expected to fail in this context")
+
+proc disconnect*() {.task(kind=no_rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  var
+    event: WakuConnectionEvent
+    eventEnc: string
+
+  let disconnectResult = await status.disconnect()
+
+  if disconnectResult.isErr:
+    event = WakuConnectionEvent(error: $disconnectResult.error, online: true,
+      timestamp: timestamp)
+
+    eventEnc = event.encode
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  event = WakuConnectionEvent(online: false, timestamp: timestamp)
+  eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc sendMessage*(message: string, topic: ContentTopic)
+  {.task(kind=no_rts, stoppable=false).} =
+
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  var
+    event: SendMessageEvent
+    eventEnc: string
+
+  let sendResult = await status.sendMessage(message, topic)
+
+  if sendResult.isErr:
+    event = SendMessageEvent(error: $sendResult.error, sent: false,
+      timestamp: timestamp)
+
+    eventEnc = event.encode
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  event = SendMessageEvent(sent: true, timestamp: timestamp)
+  eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc getAssets*(owner: Address) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
   let assets = await status.getOpenseaAssets(owner)
 
   if assets.isErr:
     let
       event = GetAssetsEvent(error: $assets.error)
       eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent errored event to host", event=eventEnc, task
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
   let
-    event = GetAssetsEvent(assets: assets.get,
-      timestamp: timestamp)
+    event = GetAssetsEvent(assets: assets.get, timestamp: timestamp)
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc getCustomTokens*() {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = GetCustomTokensEvent(error: "Not logged in, " &
-        "cannot get custom tokens.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
-
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let tokens = status.getCustomTokens()
+
   if tokens.isErr:
     let
       event = GetCustomTokensEvent(error: $tokens.error)
       eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent errored event to host", event=eventEnc, task
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
   let
     event = GetCustomTokensEvent(tokens: tokens.get,
-      timestamp: getTime().toUnix)
+      timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc addCustomToken*(address: Address, name: string, symbol: string, color: string, decimals: uint) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
+proc addCustomToken*(address: Address, name: string, symbol: string,
+  color: string, decimals: uint) {.task(kind=no_rts, stoppable=false).} =
 
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = AddCustomTokenEvent(error: "Not logged in, " &
-        "cannot add a new custom token.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let addResult = status.addCustomToken(address, name, symbol, color, decimals)
-
   if addResult.isErr:
     let
       event = AddCustomTokenEvent(error: $addResult.error,
         timestamp: timestamp)
-      eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent errored event to host", event=eventEnc, task
+      eventEnc = event.encode
+
+
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
-  else:
-    let
-      token = addResult.get
-      event = AddCustomTokenEvent(address: $token.address,
-        name: token.name, symbol: token.symbol, color: token.color,
-        decimals: token.decimals, timestamp: timestamp)
-      eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent event to host", event=eventEnc, task
-    asyncSpawn chanSendToHost.send(eventEnc.safe)
+  let
+    token = addResult.get
+    event = AddCustomTokenEvent(address: $token.address, name: token.name,
+      symbol: token.symbol, color: token.color, decimals: token.decimals,
+      timestamp: timestamp)
 
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
-  if statusState != StatusState.loggedin:
+  let allTokensResult = status.getCustomTokens()
+
+  if allTokensResult.isErr:
     let
-      eventNotLoggedIn = DeleteCustomTokenEvent(error: "Not logged in, " &
-        "cannot delete a custom token.",
+      event = DeleteCustomTokenEvent(error: $allTokensResult.error,
         timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
 
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
-
-  try:
-    let allTokens = status.getCustomTokens().get
-    if index > allTokens.len:
-      let
-        event = DeleteCustomTokenEvent(error: "bad token number")
-        eventEnc = event.encode
-        task = taskArg.taskName
-      trace "task sent event with error to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-
-    let
-      address = allTokens[index - 1].address
-      deleteResult = status.deleteCustomToken(address)
-
-    if deleteResult.isErr:
-      let
-        event = DeleteCustomTokenEvent(error: $deleteResult.error,
-          timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent errored event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-    else:
-      let
-        event = DeleteCustomTokenEvent(address: $address, timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-  except CatchableError as e:
-    let
-      event = DeleteCustomTokenEvent(error: "Error deleting custom token, " &
-        "error: " & e.msg, timestamp: timestamp)
       eventEnc = event.encode
-      task = taskArg.taskName
-    trace "task sent event with error to host", event=eventEnc, task
-    asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-proc callRpc*(rpcMethod: string, params: JsonNode) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = CallRpcEvent(error: "Not logged in, " &
-        "cannot call rpc methods.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
-
-  try:
-    let callResult = await status.callRpc(rpcMethod, params)
-    if callResult.isErr:
-      let
-        error = callResult.error
-        errorMsg =  if error.kind == pRpc:
-                      error.rpcError.message
-                    else:
-                      $error.apiError
-        event = CallRpcEvent(error: errorMsg, timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent errored event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-    else:
-      let
-        response = callResult.get
-        event = CallRpcEvent(response: $response, timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-  except CatchableError as e:
-    let
-      event = CallRpcEvent(error: "Error calling rpc method, " &
-        "error: " & e.msg, timestamp: timestamp)
-      eventEnc = event.encode
-      task = taskArg.taskName
 
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-proc getPrice*(tokenSymbol: string, fiatCurrency: string) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
-
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = GetPriceEvent(error: "Not logged in, " &
-        "cannot get price for a custom token.",
-        timestamp: timestamp)
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
     return
+
+  let allTokens = allTokensResult.get
+
+  if index > allTokens.len:
+    let
+      event = DeleteCustomTokenEvent(error: "bad token number",
+        timestamp: timestamp)
+
+      eventEnc = event.encode
+
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    address = allTokens[index - 1].address
+    deleteResult = status.deleteCustomToken(address)
+
+  if deleteResult.isErr:
+    let
+      event = DeleteCustomTokenEvent(error: $deleteResult.error,
+        timestamp: timestamp)
+
+      eventEnc = event.encode
+
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    event = DeleteCustomTokenEvent(address: $address, timestamp: timestamp)
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc callRpc*(rpcMethod: string, params: JsonNode)
+  {.task(kind=no_rts, stoppable=false).} =
+
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  let callResult = await status.callRpc(rpcMethod, params)
+
+  if callResult.isErr:
+    let
+      error = callResult.error
+      errorMsg =  if error.kind == pRpc:
+                    error.rpcError.message
+                  else:
+                    $error.apiError
+      event = CallRpcEvent(error: errorMsg, timestamp: timestamp)
+      eventEnc = event.encode
+
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    response = callResult.get
+    event = CallRpcEvent(response: $response, timestamp: timestamp)
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc getPrice*(tokenSymbol: string, fiatCurrency: string)
+  {.task(kind=no_rts, stoppable=false).} =
+
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
   let price = status.getPrice(tokenSymbol, fiatCurrency)
+
   if price.isErr:
     let
       event = GetPriceEvent(error: $price.error)
       eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent errored event to host", event=eventEnc, task
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
   let
     event = GetPriceEvent(symbol: tokenSymbol, currency: fiatCurrency,
-      price: price.get, timestamp: getTime().toUnix)
+      price: price.get, timestamp: timestamp)
+
     eventEnc = event.encode
-    task = taskArg.taskName
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
-proc setPriceTimeout*(priceTimeout: int) {.task(kind=no_rts, stoppable=false).} =
-  let timestamp = getTime().toUnix
-
-  updatePricesTimeout = priceTimeout * 1000
-
-  let
-    event = SetPriceTimeoutEvent(timeout: priceTimeout, timestamp: getTime().toUnix)
-    eventEnc = event.encode
-    task = taskArg.taskName
-
-  trace "task sent event to host", event=eventEnc, task
-  asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-proc sendTransaction*(fromAddress: eth_common.EthAddress,
-  transaction: eth_common.Transaction, password: string)
+proc setPriceTimeout*(priceTimeout: int)
   {.task(kind=no_rts, stoppable=false).} =
 
-  let timestamp = getTime().toUnix
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
 
-  if statusState != StatusState.loggedin:
-    let
-      eventNotLoggedIn = SendTransactionEvent(error: "Not logged in, " &
-        "cannot send transactions.", timestamp: timestamp)
-
-      eventNotLoggedInEnc = eventNotLoggedIn.encode
-      task = taskArg.taskName
-
-    trace "task sent event to host", event=eventNotLoggedInEnc, task
-    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
-    return
+  updatePricesTimeout = (priceTimeout * 1000).milliseconds
 
   let
-    dir = status.dataDir / "keystore"
-    sendTransactionResult = await status.sendTransaction(fromAddress,
-      transaction, password, dir)
+    event = SetPriceTimeoutEvent(timeout: priceTimeout, timestamp: timestamp)
+    eventEnc = event.encode
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc sendTransaction*(fromAddress: EthAddress, transaction: Transaction,
+  password: string) {.task(kind=no_rts, stoppable=false).} =
+
+  let
+    task = taskArg.taskName
+    timestamp = getTime().toUnix
+
+  let dir = status.dataDir / "keystore"
+  let sendTransactionResult = await status.sendTransaction(fromAddress,
+    transaction, password, dir)
 
   if sendTransactionResult.isErr:
     let
       error = sendTransactionResult.error
-      errorMsg =  if error.kind == pRpc:
-                    error.rpcError.message
-                  else:
-                    $error.apiError
+      errorMsg = if error.kind == pRpc:
+                   error.rpcError.message
+                 else:
+                   $error.apiError
+
       event = SendTransactionEvent(error: errorMsg, timestamp: timestamp)
       eventEnc = event.encode
-      task = taskArg.taskName
 
-    trace "task sent errored event to host", event=eventEnc, task
+    trace "task sent error event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
-  else:
-    let
-      response = sendTransactionResult.get
-      event = SendTransactionEvent(response: $response, timestamp: timestamp)
-      eventEnc = event.encode
-      task = taskArg.taskName
+  let
+    response = sendTransactionResult.get
+    event = SendTransactionEvent(response: $response, timestamp: timestamp)
+    eventEnc = event.encode
 
-    trace "task sent event to host", event=eventEnc, task
-    asyncSpawn chanSendToHost.send(eventEnc.safe)
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc getTopics*(): seq[ContentTopic] {.task(kind=rts, stoppable=false).} =
+  let
+    task = taskArg.taskName
+    topics = status.getTopics()
+
+  trace "task returned result to sender", task, result=topics
+  asyncSpawn chanReturnToSender.send(topics.encode.safe)
+
+proc stopContext*() {.task(kind=rts, stoppable=false).} =
+  let task = taskArg.taskName
+
+  stopped = true
+  discard await status.disconnect()
+  discard status.logout()
+  discard status.close()
+
+  trace "task returned result to sender", task, result="void", stopped
+  asyncSpawn chanReturnToSender.send("done".safe)

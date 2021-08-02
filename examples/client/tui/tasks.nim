@@ -4,14 +4,8 @@ import # vendor libs
 import # client modules
   ./common
 
-export common
-
 logScope:
   topics = "tui"
-
-const
-  ESCAPE* = "ESCAPE"
-  RETURN* = "RETURN"
 
 type ByteArray = array[0..3, byte]
 

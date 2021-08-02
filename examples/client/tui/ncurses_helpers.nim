@@ -2,12 +2,9 @@ import # std libs
   std/bitops
 
 import # vendor libs
-  chronicles, ncurses
+  ncurses
 
 export ncurses
-
-logScope:
-  topics = "tui"
 
 # NOTE: depending on OS, terminal emulator, font, and related software, there
 # can be problems re: how ncurses displays some emojis and other characters,
