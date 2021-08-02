@@ -112,6 +112,9 @@ proc deleteWalletAccount*(db: DbConn, address: Address):
     var tblAccounts: Account
     let account = ?db.getWalletAccount(address)
     if account.isSome:
+      if account.get.wallet.isSome and
+         account.get.wallet.get: return ok none(Account)
+
       let query = fmt"""DELETE FROM {tblAccounts.tableName}
                         WHERE       {tblAccounts.address.columnName} = ?
                                     AND {tblAccounts.wallet.columnName} = FALSE"""

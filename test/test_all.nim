@@ -17,5 +17,5 @@ import # test modules
   ./permissions,
   ./settings,
   ./tokens,
-  ./tx_history,
-  ./waku_smoke
+  ./tx_history
+  # ./waku_smoke

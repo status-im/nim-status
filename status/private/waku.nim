@@ -1,28 +1,43 @@
-# NOTE: Including a top-level {.push raises: [Defect].} here interferes with
-# nim-confutils. The compiler will force nim-confutils to annotate its procs
-# with the needed `{.raises: [,,,].}` pragmas.
+{.push raises: [Defect].}
+
+# imports and exports in this module need to be checked, some don't seem to be
+# necessary even though the compiler doesn't warn about unused imports
 
 import # std libs
-  std/[options, os]
+  std/[json, options, random, sequtils, strutils, tables, uri]
 
 import # vendor libs
-  confutils, chronicles, chronos,
-  libp2p/crypto/[crypto, secp],
-  eth/keys,
-  json_rpc/[rpcclient, rpcserver],
-  stew/shims/net as stewNet,
-  waku/v2/node/[config, wakunode2],
-  waku/common/utils/nat
+  bearssl, chronos, chronos/apps/http/httpclient, eth/keys,
+  libp2p/[crypto/crypto, crypto/secp, multiaddress, muxers/muxer, peerid,
+          peerinfo, protocols/protocol, stream/connection, switch],
+  nimcrypto/utils,
+  stew/[byteutils, endians2, results, shims/net],
+  waku/common/utils/nat,
+  waku/v2/node/wakunode2,
+  waku/v2/protocol/[waku_filter/waku_filter, waku_lightpush/waku_lightpush,
+                    waku_message, waku_store/waku_store],
+  waku/v2/utils/peers,
+  waku/whisper/whisper_types
 
-# The initial implementation of initNode is by intention a minimum viable usage
-# of nim-waku v2 from within nim-status
+export # modules
+  byteutils, crypto, keys, nat, net, peers, results, secp, wakunode2,
+  whisper_types
 
-proc initNode*(config: WakuNodeConf = WakuNodeConf.load()): WakuNode =
+type
+  PrivateKey* = crypto.PrivateKey
 
+  Topic* = wakunode2.Topic
+
+  WakuFleet* = enum none, prod, test
+
+const DefaultTopic* = "/waku/2/default-waku/proto"
+
+proc selectRandomNode*(fleetStr: string): Future[string] {.async.} =
   let
-    (extIp, extTcpPort, extUdpPort) = setupNat(config.nat, clientId,
-      Port(uint16(config.tcpPort) + config.portsShift),
-      Port(uint16(config.udpPort) + config.portsShift))
+    url = "https://fleets.status.im"
+    response = await fetch(HttpSessionRef.new(), parseUri(url))
+    fleet = string.fromBytes(response.data)
+    nodes = toSeq(
+      fleet.parseJson(){"fleets", "wakuv2." & fleetStr, "waku"}.pairs())
 
-  result = WakuNode.new(config.nodeKey, config.listenAddress,
-      Port(uint16(config.tcpPort) + config.portsShift), extIp, extTcpPort)
+  return nodes[rand(nodes.len - 1)].val.getStr()

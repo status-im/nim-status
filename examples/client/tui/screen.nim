@@ -1,10 +1,8 @@
-import # std libs
-  std/[strformat, strutils]
+# std libs
+from times import fromUnix, inZone, local
 
 import # client modules
   ./common
-
-export common
 
 logScope:
   topics = "tui"

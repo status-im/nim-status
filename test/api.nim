@@ -19,7 +19,7 @@ procSuite "api":
     check statusObjResult.isOk
     let statusObj = statusObjResult.get
     check:
-      statusObj.isLoggedIn == false
+      statusObj.loginState == LoginState.loggedout
       statusObj.accountsGenerator != nil
       statusObj.dataDir == dataDir
 
@@ -69,7 +69,7 @@ procSuite "api":
     check:
       # should not be able to log out when not logged in
       logoutResult.isErr
-      statusObj.isLoggedIn == false
+      statusObj.loginState == LoginState.loggedout
 
     # var getSettingResult =
     #   statusObj.getSetting(int, SettingsCol.LatestDerivedPath, 0)
@@ -108,7 +108,7 @@ procSuite "api":
     logoutResult = statusObj.logout()
     check:
       logoutResult.isOk
-      statusObj.isLoggedIn == false
+      statusObj.loginState == LoginState.loggedout
 
 
     check statusObj.close.isOk

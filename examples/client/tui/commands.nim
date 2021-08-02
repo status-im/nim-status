@@ -1,14 +1,11 @@
 import # std libs
-  std/[json, sequtils, strformat, strutils, sugar]
-
-import # client modules
-  ./common, ./macros, ./screen, ./tasks
+  std/sugar
 
 import # vendor libs
   eth/common as eth_common, stew/byteutils
 
-
-export common, screen, strutils, tasks
+import # client modules
+  ./common, ./macros, ./screen
 
 logScope:
   topics = "tui"
@@ -61,7 +58,8 @@ proc new*(T: type AddCustomToken, args: varargs[string]): T =
     color = args[3]
     decimals = args[4]
 
-  T(address: address, name: name, symbol: symbol, color: color, decimals: decimals)
+  T(address: address, name: name, symbol: symbol, color: color,
+    decimals: decimals)
 
 proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
   argsRaw.split(" ")
@@ -309,11 +307,7 @@ proc split*(T: type Connect, argsRaw: string): seq[string] =
   @[]
 
 proc command*(self: Tui, command: Connect) {.async, gcsafe, nimcall.} =
-  if self.client.loggedin:
-    asyncSpawn self.client.connect(self.client.account.name)
-  else:
-    self.wprintFormatError(getTime().toUnix,
-      "client is not logged in, cannot connect.")
+  asyncSpawn self.client.connect()
 
 # CreateAccount ----------------------------------------------------------------
 
@@ -436,10 +430,7 @@ proc split*(T: type Disconnect, argsRaw: string): seq[string] =
   @[]
 
 proc command*(self: Tui, command: Disconnect) {.async, gcsafe, nimcall.} =
-  if self.client.online:
-    asyncSpawn self.client.disconnect()
-  else:
-    self.wprintFormatError(getTime().toUnix, "client is not online.")
+  asyncSpawn self.client.disconnect()
 
 # GetAssets -----------------------------------------------------------------
 
@@ -620,15 +611,21 @@ proc split*(T: type JoinTopic, argsRaw: string): seq[string] =
   @[argsRaw.strip().split(" ")[0]]
 
 proc command*(self: Tui, command: JoinTopic) {.async, gcsafe, nimcall.} =
-  var topic = handleTopic(command.topic)
+  let timestamp = getTime().toUnix
+
+  var topic = command.topic
 
   if topic == "":
-    self.wprintFormatError(getTime().toUnix,
+    self.wprintFormatError(timestamp,
       "topic cannot be blank, please provide a topic as the first argument.")
-  elif self.client.topics.contains(topic):
-    self.printResult(fmt"Topic already joined: {topic}", getTime().toUnix)
+
   else:
-    asyncSpawn self.client.joinTopic(topic)
+    let topicResult = ContentTopic.init(topic)
+
+    if topicResult.isErr:
+      self.wprintFormatError(timestamp, $topicResult.error)
+    else:
+      asyncSpawn self.client.joinTopic(topicResult.get)
 
 # LeaveTopic -------------------------------------------------------------------
 
@@ -646,16 +643,21 @@ proc split*(T: type LeaveTopic, argsRaw: string): seq[string] =
   @[argsRaw.strip().split(" ")[0]]
 
 proc command*(self: Tui, command: LeaveTopic) {.async, gcsafe, nimcall.} =
-  let topic = handleTopic(command.topic)
+  let timestamp = getTime().toUnix
+
+  var topic = command.topic
 
   if topic == "":
-    self.wprintFormatError(getTime().toUnix,
+    self.wprintFormatError(timestamp,
       "topic cannot be blank, please provide a topic as the first argument.")
-  elif not self.client.topics.contains(topic):
-    self.printResult(fmt"Topic not joined, no need to leave: {topic}",
-      getTime().toUnix)
+
   else:
-    asyncSpawn self.client.leaveTopic(topic)
+    let topicResult = ContentTopic.init(topic)
+
+    if topicResult.isErr:
+      self.wprintFormatError(timestamp, $topicResult.error)
+    else:
+      asyncSpawn self.client.leaveTopic(topicResult.get)
 
 # ListAccounts -----------------------------------------------------------------
 
@@ -673,7 +675,7 @@ proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
 proc command*(self: Tui, command: ListAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listAccounts()
 
-# ListTopics -----------------------------------------------------------------
+# ListTopics -------------------------------------------------------------------
 
 proc help*(T: type ListTopics): HelpText =
   let command = "listtopics"
@@ -694,15 +696,34 @@ proc command*(self: Tui, command: ListTopics) {.async, gcsafe, nimcall.} =
   if topics.len > 0:
     var i = 1
     self.printResult("Joined topics:", timestamp)
-    for topic in topics:
-      self.printResult(fmt"{2.indent()}{i}. {topic}", timestamp)
+    for topic in topics.items:
+      let t =
+        if topic.shortName != "":
+          fmt("{topic.shortName} ({$topic})")
+        else:
+          $topic
+
+      self.printResult(fmt"{2.indent()}{i}. {t}", timestamp)
       i = i + 1
+
+    let currentTopic = self.client.currentTopic
+    if currentTopic != noTopic:
+      let topic = if currentTopic.shortName != "": currentTopic.shortName
+                  else: $currentTopic
+
+      self.printResult(fmt"Current topic: {topic}", timestamp)
+
+    else:
+      # there shouldn't be a situation where:
+      #  `topics.len > 0 and currentTopic == noTopic`
+      # but hand-written state machines are tricky, so just in case...
+      self.printResult("No current topic set", timestamp)
 
   else:
     self.printResult("No topics joined. Join a topic using `/join <topic>`.",
       timestamp)
 
-# ListWalletAccounts -----------------------------------------------------------------
+# ListWalletAccounts -----------------------------------------------------------
 
 proc help*(T: type ListWalletAccounts): HelpText =
   let command = "listwalletaccounts"
@@ -789,7 +810,7 @@ proc split*(T: type Quit, argsRaw: string): seq[string] =
   @[]
 
 proc command*(self: Tui, command: Quit) {.async, gcsafe, nimcall.} =
-  await self.stop()
+  waitFor self.stop()
 
 # SendMessage ------------------------------------------------------------------
 
@@ -810,11 +831,14 @@ proc split*(T: type SendMessage, argsRaw: string): seq[string] =
   @[argsRaw]
 
 proc command*(self: Tui, command: SendMessage) {.async, gcsafe, nimcall.} =
-  if not self.client.online:
-    self.wprintFormatError(getTime().toUnix,
-      "client is not online, cannot send message.")
+  let timestamp = getTime().toUnix
+
+  if self.client.currentTopic == noTopic:
+    self.wprintFormatError(timestamp,
+      "current topic is not set, cannot send message.")
   else:
-    asyncSpawn self.client.sendMessage(command.message)
+    asyncSpawn self.client.sendMessage(command.message,
+      self.client.currentTopic)
 
 # CallRpc ----------------------------------------------------------------------
 
@@ -979,6 +1003,46 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
       cmd.password)
   except:
     self.wprintFormatError(getTime().toUnix, "invalid arguments.")
+
+# Switchtopic ------------------------------------------------------------------
+
+proc help*(T: type SwitchTopic): HelpText =
+  let command = "switchtopic"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "topic",
+      description: "Name of the topic to make the current topic.")
+  ], description: "Sets the current topic to which messages will be sent.")
+
+proc new*(T: type Switchtopic, args: varargs[string]): T =
+  T(topic: args[0])
+
+proc split*(T: type Switchtopic, argsRaw: string): seq[string] =
+  @[argsRaw.strip().split(" ")[0]]
+
+proc command*(self: Tui, command: Switchtopic) {.async, gcsafe, nimcall.} =
+  let timestamp = getTime().toUnix
+  var topic = command.topic
+
+  if topic == "":
+    self.wprintFormatError(timestamp,
+      "topic cannot be blank, please provide a topic as the first argument.")
+
+  else:
+    let topicResult = ContentTopic.init(topic)
+
+    if topicResult.isErr:
+      self.wprintFormatError(timestamp, $topicResult.error)
+    else:
+      let contentTopic = topicResult.get
+      topic = if contentTopic.shortName != "": contentTopic.shortName
+              else: $contentTopic
+
+      if self.client.topics.contains(contentTopic):
+        self.client.currentTopic = contentTopic
+        self.printResult(fmt"Switched current topic: {topic}", timestamp)
+      else:
+        self.wprintFormatError(timestamp,
+          fmt"Cannot set current topic to an unjoined topic: {topic}")
 
 # Help -------------------------------------------------------------------------
 # Note: although "Help" is not alphabetically last, we need to keep this below

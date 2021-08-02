@@ -1,13 +1,14 @@
-import # std libs
-  std/sugar
+import # vendor libs
+  eth/common as eth_common
 
 import # client modules
-  ./client/tasks
+  ./client/[common, events, tasks]
 
-import # vendor libs
-  eth/common
+export # modules
+  events
 
-export tasks
+export # symbols
+  Client, clientEvents
 
 logScope:
   topics = "client"
@@ -18,19 +19,21 @@ logScope:
 
 # `type Client` is defined in ./common to avoid circular dependency
 
+const status = "status"
+
 proc new*(T: type Client, clientConfig: ClientConfig): T =
-  let statusArg = StatusArg(clientConfig: clientConfig)
-  var taskRunner = TaskRunner.new()
+  var
+    statusArg = StatusArg(clientConfig: clientConfig)
+    taskRunner = TaskRunner.new()
+
   taskRunner.createWorker(thread, status, statusContext, statusArg)
+  statusArg.chanSendToHost =
+    taskRunner.workers[status].worker.chanRecvFromWorker
 
-  var topics: OrderedSet[string]
-  let topicsStr = clientConfig.contentTopics.strip()
-  if topicsStr != "":
-    topics = topicsStr.split(" ").map(handleTopic).filter(t => t != "")
-      .toOrderedSet()
+  T(clientConfig: clientConfig, events: newEventChannel(), running: false,
+    taskRunner: taskRunner)
 
-  T(clientConfig: clientConfig, events: newEventChannel(), loggedin: false,
-    online: false, running: false, taskRunner: taskRunner, topics: topics)
+proc getTopics(self: Client): Future[seq[ContentTopic]] {.async, gcsafe.}
 
 proc start*(self: Client) {.async.} =
   debug "client starting"
@@ -44,15 +47,28 @@ proc start*(self: Client) {.async.} =
   debug "client started"
 
   asyncSpawn self.listen()
+  self.topics = toOrderedSet(await self.getTopics())
+  if self.topics.len > 0: self.currentTopic = self.topics.toSeq[^1]
+
+proc stopContext(self: Client): Future[void] {.async, gcsafe.}
 
 proc stop*(self: Client) {.async.} =
   debug "client stopping"
 
   self.running = false
+  await self.stopContext()
   await self.taskRunner.stop()
   self.events.close()
 
   debug "client stopped"
+
+# task invocation procs --------------------------------------------------------
+
+proc addCustomToken*(self: Client, address: Address, name, symbol,
+  color: string, decimals: uint) {.async.} =
+
+  asyncSpawn addCustomToken(self.taskRunner, status, address, name, symbol,
+    color, decimals)
 
 proc addWalletAccount*(self: Client, name, password: string) {.async.} =
   asyncSpawn addWalletAccount(self.taskRunner, status, name, password)
@@ -72,8 +88,17 @@ proc addWalletSeed*(self: Client, name, mnemonic, password,
 proc addWalletWatchOnly*(self: Client, address, name: string) {.async.} =
   asyncSpawn addWalletWatchOnly(self.taskRunner, status, address, name)
 
-proc connect*(self: Client, username: string) {.async.} =
-  asyncSpawn startWakuChat(self.taskRunner, status, username)
+proc callRpc*(self: Client, rpcMethod: string, params: JsonNode) {.async.} =
+  asyncSpawn callRpc(self.taskRunner, status, rpcMethod, params)
+
+proc connect*(self: Client) {.async.} =
+  asyncSpawn connect(self.taskRunner, status)
+
+proc createAccount*(self: Client, password: string) {.async.} =
+  asyncSpawn createAccount(self.taskRunner, status, password)
+
+proc deleteCustomToken*(self: Client, index: int) {.async.} =
+  asyncSpawn deleteCustomToken(self.taskRunner, status, index)
 
 proc deleteWalletAccount*(self: Client, index: int,
   password: string) {.async.} =
@@ -81,10 +106,19 @@ proc deleteWalletAccount*(self: Client, index: int,
   asyncSpawn deleteWalletAccount(self.taskRunner, status, index, password)
 
 proc disconnect*(self: Client) {.async.} =
-  asyncSpawn stopWakuChat(self.taskRunner, status)
+  asyncSpawn disconnect(self.taskRunner, status)
 
-proc createAccount*(self: Client, password: string) {.async.} =
-  asyncSpawn createAccount(self.taskRunner, status, password)
+proc getAssets*(self: Client, owner: Address) {.async.} =
+  asyncSpawn getAssets(self.taskRunner, status, owner)
+
+proc getCustomTokens*(self: Client) {.async.} =
+  asyncSpawn getCustomTokens(self.taskRunner, status)
+
+proc getTopics(self: Client): Future[seq[ContentTopic]] {.async, gcsafe.} =
+  return await getTopics(self.taskRunner, status)
+
+proc getPrice*(self: Client, tokenSymbol, fiatCurrency: string) {.async.} =
+  asyncSpawn getPrice(self.taskRunner, status, tokenSymbol, fiatCurrency)
 
 proc importMnemonic*(self: Client, mnemonic: string, passphrase: string,
   password: string) {.async.} =
@@ -92,10 +126,10 @@ proc importMnemonic*(self: Client, mnemonic: string, passphrase: string,
   asyncSpawn importMnemonic(self.taskRunner, status, mnemonic, passphrase,
     password)
 
-proc joinTopic*(self: Client, topic: string) {.async.} =
+proc joinTopic*(self: Client, topic: ContentTopic) {.async.} =
   asyncSpawn joinTopic(self.taskRunner, status, topic)
 
-proc leaveTopic*(self: Client, topic: string) {.async.} =
+proc leaveTopic*(self: Client, topic: ContentTopic) {.async.} =
   asyncSpawn leaveTopic(self.taskRunner, status, topic)
 
 proc listAccounts*(self: Client) {.async.} =
@@ -110,29 +144,19 @@ proc login*(self: Client, account: int, password: string) {.async.} =
 proc logout*(self: Client) {.async.} =
   asyncSpawn logout(self.taskRunner, status)
 
-proc sendMessage*(self: Client, message: string) {.async.} =
-  asyncSpawn publishWakuChat(self.taskRunner, status, message)
+proc sendMessage*(self: Client, message: string, topic: ContentTopic)
+  {.async.} =
 
-proc getAssets*(self: Client, owner: Address) {.async.} =
-  asyncSpawn getAssets(self.taskRunner, status, owner)
+  asyncSpawn sendMessage(self.taskRunner, status, message, topic)
 
-proc getCustomTokens*(self: Client) {.async.} =
-  asyncSpawn getCustomTokens(self.taskRunner, status)
+proc sendTransaction*(self: Client, fromAddress: EthAddress,
+  transaction: Transaction, password: string) {.async.} =
 
-proc addCustomToken*(self: Client, address: Address, name, symbol, color: string, decimals: uint) {.async.} =
-  asyncSpawn addCustomToken(self.taskRunner, status, address, name, symbol, color, decimals)
-
-proc deleteCustomToken*(self: Client, index: int) {.async.} =
-  asyncSpawn deleteCustomToken(self.taskRunner, status, index)
-
-proc callRpc*(self: Client, rpcMethod: string, params: JsonNode) {.async.} =
-  asyncSpawn callRpc(self.taskRunner, status, rpcMethod, params)
-
-proc sendTransaction*(self: Client, fromAddress: EthAddress, transaction: Transaction, password: string) {.async.} =
-  asyncSpawn sendTransaction(self.taskRunner, status, fromAddress, transaction, password)
-
-proc getPrice*(self: Client, tokenSymbol, fiatCurrency: string) {.async.} =
-  asyncSpawn getPrice(self.taskRunner, status, tokenSymbol, fiatCurrency)
+  asyncSpawn sendTransaction(self.taskRunner, status, fromAddress, transaction,
+    password)
 
 proc setPriceTimeout*(self: Client, timeout: int) {.async.} =
   asyncSpawn setPriceTimeout(self.taskRunner, status, timeout)
+
+proc stopContext(self: Client) {.async, gcsafe.} =
+  await stopContext(self.taskRunner, status)

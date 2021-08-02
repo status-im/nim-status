@@ -47,7 +47,7 @@ type
 proc callRpc*(self: StatusObject, rpcMethod: string, params: JsonNode):
   Future[ProviderResult[JsonNode]] {.async.} =
 
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err ProviderError(kind: pApi, apiError: MustBeLoggedIn)
 
   let web3Result = self.web3
@@ -72,7 +72,7 @@ proc sendTransaction*(self: StatusObject, fromAddress: EthAddress,
   transaction: Transaction, password: string, dir: string):
   Future[ProviderResult[JsonNode]] {.async.} =
 
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err ProviderError(kind: pApi, apiError: MustBeLoggedIn)
 
   let db = self.userDb()
@@ -129,5 +129,7 @@ proc sendTransaction*(self: StatusObject, fromAddress: EthAddress,
       let
         ogRpcError = error.rpcError
         rpcError = RpcError(code: ogRpcError.code, message: ogRpcError.message)
+
       return err ProviderError(kind: pRpc, rpcError: rpcError)
+
   return ok respResult.get

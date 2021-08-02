@@ -4,10 +4,14 @@ import # std libs
 import # vendor libs
   chronicles, confutils, confutils/std/net
 
-import # client modules
-  ./client/waku_chat2
+import # status lib
+  status/api/waku
 
-export confutils, net.ValidIpAddress, net.init
+export # modules
+  confutils
+
+export # symbols
+  net.ValidIpAddress, net.init, waku.WakuFleet
 
 logScope:
   topics = "client config"
@@ -18,8 +22,6 @@ type
   PK* = distinct string
 
   VIP* = distinct string
-
-  WakuFleet* = enum none, prod, test
 
 const
   ERROR = LogLevel.ERROR
@@ -181,7 +183,7 @@ macro config(): untyped =
 
         topics* {.
           defaultValue: "/waku/2/default-waku/proto"
-          desc: "Default topics to subscribe to (space separated list)"
+          desc: "PubSub topics to subscribe to (space separated list)"
           name: "waku-topics"
         .}: string
 
@@ -302,17 +304,12 @@ macro config(): untyped =
           name: "waku-fleet"
         .}: WakuFleet
 
-        # in the help text for --waku-content-topics the formatting-indicator
-        # should end with /rlp for real decoding; and when topic sha256 hashing
-        # is implemented for /waku/1 chats should change {topic} to
-        # {topic-digest}
-
         contentTopics* {.
           defaultValue: "#test"
-          desc: "Default content topics for chat messages " &
-                "(space separated list). Topic names that do not conform to " &
-                "23/WAKU2-TOPICS will formatted as /waku/1/{topic}/proto " &
-                "with leading \"#\" removed",
+          desc: "Content topics to subscribe to for chat messages (space " &
+                "separated list). Topic names that do not conform to " &
+                "23/WAKU2-TOPICS will be formatted as " &
+                "/waku/1/{topic-digest}/rfc26 with leading \"#\" removed",
           name: "waku-content-topics"
         .}: string
 
@@ -347,10 +344,9 @@ proc completeCmdArg*(T: type LLevel, val: TaintedString): seq[string] =
 
 proc parseCmdArg*(T: type PK, p: TaintedString): T =
   try:
-    discard waku_chat2.crypto.PrivateKey(scheme: Secp256k1,
-      skkey: SkPrivateKey.init(waku_chat2.utils.fromHex(p)).tryGet())
-    result = PK(p)
-  except CatchableError:
+    discard Nodekey.fromHex(p).tryGet()
+    return PK(p)
+  except CatchableError as e:
     raise newException(ConfigurationError, "Invalid private key")
 
 proc completeCmdArg*(T: type PK, val: TaintedString): seq[string] =

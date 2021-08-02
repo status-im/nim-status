@@ -12,8 +12,8 @@ import # status modules
   ../private/extkeys/[paths, types],
   ./auth, ./common
 
-export
-  accounts, common
+export accounts
+export common except setLoginState, setNetworkState
 # TODO: do we still need these exports?
 # auth, conversions, paths, secp256k1, settings, types, uuid
 
@@ -104,10 +104,10 @@ proc storeDerivedAccount(self: StatusObject, id: UUID, path: KeyPath, name,
   return self.storeWalletAccount(name, address, publicKey.some, accountType,
     path)
 
-proc addWalletAccount*(self: StatusObject, name, password,
-  dir: string): WalletResult[accounts.Account] =
+proc addWalletAccount*(self: StatusObject, name, password, dir: string):
+  WalletResult[accounts.Account] =
 
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
   let
@@ -159,6 +159,9 @@ proc storeImportedWalletAccount(self: StatusObject, privateKey: SkSecretKey,
 proc addWalletPrivateKey*(self: StatusObject, privateKeyHex: string,
   name, password, dir: string): WalletResult[accounts.Account] =
 
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
+
   var privateKeyStripped = privateKeyHex
   privateKeyStripped.removePrefix("0x")
 
@@ -171,6 +174,9 @@ proc addWalletPrivateKey*(self: StatusObject, privateKeyHex: string,
 proc addWalletSeed*(self: StatusObject, mnemonic: Mnemonic, name, password,
   dir, bip39Passphrase: string): WalletResult[accounts.Account] =
 
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
+
   let isPasswordValid = ?self.validatePassword(password, dir).mapErrTo(
     PasswordValidationError)
   if not isPasswordValid:
@@ -182,14 +188,20 @@ proc addWalletSeed*(self: StatusObject, mnemonic: Mnemonic, name, password,
   return self.storeDerivedAccount(imported.id, PATH_DEFAULT_WALLET, name,
     password, dir, AccountType.Seed)
 
-proc addWalletWatchOnly*(self: StatusObject, address: Address,
-  name: string): WalletResult[accounts.Account] =
+proc addWalletWatchOnly*(self: StatusObject, address: Address, name: string):
+  WalletResult[accounts.Account] =
+
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
 
   return self.storeWalletAccount(name, address, SkPublicKey.none,
     AccountType.Watch, PATH_DEFAULT_WALLET)
 
 proc deleteWalletAccount*(self: StatusObject, address: Address,
   password, dir: string): WalletResult[accounts.Account] =
+
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
 
   let isPasswordValid = ?self.validatePassword(password, dir).mapErrTo(
     PasswordValidationError)
@@ -207,18 +219,17 @@ proc deleteWalletAccount*(self: StatusObject, address: Address,
 
   ok deleted.get
 
-
 proc toWalletAccount(account: accounts.Account): WalletAccount {.used.} =
   let name = if account.name.isNone: "" else: account.name.get
   WalletAccount(address: account.address, name: name)
 
 proc getWalletAccounts*(self: StatusObject): WalletResult[seq[WalletAccount]] =
-
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
   let
     userDb = ?self.userDb.mapErrTo(UserDbError)
     walletAccts = ?userDb.getWalletAccounts.mapErrTo(GetWalletError)
     accounts = walletAccts.map(a => a.toWalletAccount)
+
   ok accounts

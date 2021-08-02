@@ -1,5 +1,11 @@
-import
+import # std libs
+  std/[hashes, strutils]
+
+import # vendor libs
   stew/results
+
+import # status modules
+  ./util
 
 export results
 
@@ -7,6 +13,16 @@ type
   StatusDefect* = object of Defect
 
   StatusError* = object of CatchableError
+
+  ContentTopic* = object
+    appName*: string
+    appVersion*: string
+    encoding*: string
+    shortName*: string
+    topicName*: string
+
+  ContentTopicError* = enum
+    invalid = "invalid content topic"
 
   DbError* = enum
     CloseFailure        = "db: failed to close database"
@@ -64,3 +80,63 @@ type
       rpcError*: RpcError
 
   Web3Result*[T] = Result[T, Web3Error]
+
+const noTopic* = ContentTopic()
+
+proc `$`*(t: ContentTopic): string =
+  "/" & t.appName & "/" & t.appVersion & "/" & t.topicName & "/" & t.encoding
+
+proc hash*(t: ContentTopic): Hash =
+  hash $t
+
+proc init*(T: type ContentTopic, t: string, s: string = ""):
+  Result[ContentTopic, ContentTopicError] =
+
+  var
+    appName: string
+    appVersion: string
+    encoding: string
+    shortName = s
+    topicName: string
+
+    topic = t.strip()
+
+  if topic == "" or topic == "#":
+    return err ContentTopicError.invalid
+
+  else:
+    let topicSplit = topic.split('/')
+
+    if topic.startsWith('/') and topicSplit.len == 5:
+      appName = topicSplit[1]
+      appVersion = topicSplit[2]
+      topicName = topicSplit[3]
+      encoding = topicSplit[4]
+
+    else:
+      if topic.startsWith('#'): topic = topic[1..^1]
+
+      appName = "waku"
+      appVersion = "1"
+      topicName = "0x" & ($keccak256.digest(topic))[0..7].toLowerAscii
+      encoding = "rfc26"
+
+      if shortName == "":
+        shortName = "#" & topic
+      elif not shortName.startsWith('#'):
+        shortName = "#" & shortName
+
+  ok(T(appName: appName, appVersion: appVersion, encoding: encoding,
+       shortName: shortName, topicName: topicName))
+
+proc isChat2*(t: ContentTopic): bool =
+  t.appName == "toy-chat" and
+  t.appVersion == "2" and
+  t.encoding == "proto"
+
+proc isWaku1*(t: ContentTopic): bool =
+  t.appName == "waku" and
+  t.appVersion == "1" and
+  isHexString(t.topicName).get(false) and
+  t.topicName.toLowerAscii == t.topicName and
+  t.encoding == "rfc26"

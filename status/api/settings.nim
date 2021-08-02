@@ -4,8 +4,7 @@ import # status modules
   ../private/[settings, util],
   ./common
 
-export
-  common
+export common except setLoginState, setNetworkState
 
 type
   SettingsError* = enum
@@ -16,10 +15,11 @@ type
   SettingsResult*[T] = Result[T, SettingsError]
 
 proc getSettings*(self: StatusObject): SettingsResult[Settings] =
-  if not self.isLoggedIn:
+  if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
   let
     userDb = ?self.userDb.mapErrTo(UserDbError)
     settings = ?userDb.getSettings.mapErrTo(GetSettingsError)
+
   ok settings

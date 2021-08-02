@@ -1,16 +1,11 @@
 import # std libs
-  std/[strformat, strutils, tables]
+  std/tables
 
 import # vendor libs
   web3/conversions
 
-import # status lib
-  status/api/opensea
-
 import # client modules
-  ./parser
-
-export parser
+  ./commands, ./common, ./macros, ./parser, ./screen
 
 logScope:
   topics = "tui"
@@ -343,28 +338,66 @@ proc action*(self: Tui, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
 proc action*(self: Tui, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
   let
     timestamp = event.timestamp
-    topic = event.topic
+    topic = if event.topic.shortName != "": event.topic.shortName
+            else: $event.topic
 
-  if not self.client.topics.contains(topic):
-    self.client.topics.incl(topic)
-    self.printResult(fmt"Joined topic: {topic}", timestamp)
+  if not self.client.topics.contains(event.topic):
+    self.client.topics.incl(event.topic)
+    if self.outputReady:
+      self.printResult(fmt"Joined topic: {topic}", timestamp)
   else:
-    self.printResult(fmt"Topic already joined: {topic}", timestamp)
+    if self.outputReady:
+      self.printResult(fmt"Topic already joined: {topic}", timestamp)
+
+  if self.client.currentTopic != event.topic:
+    self.client.currentTopic = event.topic
+    if self.outputReady:
+      self.printResult(fmt"Switched current topic: {topic}", timestamp)
 
 # LeaveTopicEvent -------------------------------------------------------------
 
 proc action*(self: Tui, event: LeaveTopicEvent) {.async, gcsafe,
   nimcall.} =
-  let
-    timestamp = event.timestamp
-    topic = event.topic
+  let timestamp = event.timestamp
+  var topic = if event.topic.shortName != "": event.topic.shortName
+              else: $event.topic
 
-  if self.client.topics.contains(topic):
-    self.client.topics.excl(topic)
-    self.printResult(fmt"Left topic: {topic}", timestamp)
+  if self.client.topics.contains(event.topic):
+    self.client.topics.excl(event.topic)
+    if self.outputReady:
+      self.printResult(fmt"Left topic: {topic}", timestamp)
   else:
-    self.printResult(fmt"Topic not joined, no need to leave: {topic}",
-      timestamp)
+    if self.outputReady:
+      self.printResult(fmt"Topic not joined, no need to leave: {topic}",
+        timestamp)
+
+  if self.client.topics.len > 0:
+    if self.client.currentTopic == event.topic or
+       self.client.currentTopic == noTopic:
+
+      let currentTopic = self.client.topics.toSeq[^1]
+
+      topic = if currentTopic.shortName != "": currentTopic.shortName
+              else: $currentTopic
+
+      self.client.currentTopic = currentTopic
+      if self.outputReady:
+        self.printResult(fmt"Switched current topic: {topic}", timestamp)
+
+    else:
+      let currentTopic = self.client.currentTopic
+
+      topic = if currentTopic.shortName != "": currentTopic.shortName
+              else: $currentTopic
+
+      if self.outputReady:
+        self.printResult(fmt"Current topic: {topic}", timestamp)
+
+  else:
+    self.client.currentTopic = noTopic
+    if self.outputReady:
+      self.printResult("No current topic set because no topics are joined",
+        timestamp)
 
 # ListAccountsEvent -----------------------------------------------------------
 
@@ -391,6 +424,7 @@ proc action*(self: Tui, event: ListAccountsEvent) {.async, gcsafe,
         self.printResult(fmt"{2.indent()}{i}. {name} ({abbrev})",
           timestamp)
         i = i + 1
+
     else:
       self.printResult(
         "No accounts. Create an account using `/create <password>`.",
@@ -432,46 +466,58 @@ proc action*(self: Tui, event: ListWalletAccountsEvent) {.async, gcsafe,
 # LoginEvent ------------------------------------------------------------------
 
 proc action*(self: Tui, event: LoginEvent) {.async, gcsafe, nimcall.} =
-  let
-    error = event.error
-    loggedin = event.loggedin
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      error = event.error
+      timestamp = event.timestamp
 
-  if error != "":
-    self.wprintFormatError(getTime().toUnix(), fmt"{error}")
-  else:
-    self.client.account = event.account
-    self.printResult("Login successful.", getTime().toUnix())
-    if not self.client.online:
-      asyncSpawn self.client.connect(self.client.account.name)
-
-  self.client.loggedin = loggedin
-  trace "TUI updated client state", loggedin
+    if error != "":
+      self.wprintFormatError(timestamp, fmt"{error}")
+    else:
+      self.printResult("Login successful.", timestamp)
 
 # LogoutEvent -----------------------------------------------------------------
 
 proc action*(self: Tui, event: LogoutEvent) {.async, gcsafe, nimcall.} =
-  let
-    error = event.error
-    loggedin = event.loggedin
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      error = event.error
+      timestamp = event.timestamp
 
-  if error != "":
-    self.wprintFormatError(getTime().toUnix(), fmt"{error}")
-  else:
-    self.client.account = PublicAccount()
-    self.printResult("Logout successful.", getTime().toUnix())
-    if self.client.online:
-      asyncSpawn self.client.disconnect()
+    if error != "":
+      self.wprintFormatError(timestamp, fmt"{error}")
+    else:
+      self.printResult("Logout successful.", timestamp)
 
-  self.client.loggedin = loggedin
-  trace "TUI updated client state", loggedin
+# WakuConnectionEvent ----------------------------------------------------------
 
-# NetworkStatusEvent -----------------------------------------------------------
+proc action*(self: Tui, event: WakuConnectionEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      error = event.error
+      online = event.online
+      timestamp = event.timestamp
 
-proc action*(self: Tui, event: NetworkStatusEvent) {.async, gcsafe, nimcall.} =
-  let online = event.online
+    if error != "":
+      self.wprintFormatError(timestamp, fmt"{error}")
+    elif online:
+      self.printResult("Connected to network.", timestamp)
+    else:
+      self.printResult("Disconnected from network.", timestamp)
 
-  self.client.online = online
-  trace "TUI updated client state", online
+# SendMessageEvent -------------------------------------------------------------
+
+proc action*(self: Tui, event: SendMessageEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    let
+      error = event.error
+      timestamp = event.timestamp
+
+    if error != "": self.wprintFormatError(timestamp, fmt"{error}")
 
 # UserMessageEvent -------------------------------------------------------------
 
@@ -481,25 +527,23 @@ proc action*(self: Tui, event: UserMessageEvent) {.async, gcsafe, nimcall.} =
     let
       message = event.message
       timestamp = event.timestamp
+      topic =
+        if event.topic.shortName != "":
+          event.topic.shortName
+        else:
+          if isChat2(event.topic):
+            "chat2: #" & event.topic.topicName
+          else:
+            $event.topic
+
       username = event.username
-
-    var topic = event.topic
-    let topicSplit = topic.split('/')
-
-    # if event.topic is not a properly formatted waku v2 content topic then the
-    # whole string will be passed to printMessage
-    if topicSplit.len == 5 and topicSplit[0] == "":
-      # for "/toy-chat/2/example/proto", topic would be "example"
-      topic = topicSplit[3]
 
     debug "TUI received user message", message, timestamp, username
     self.printMessage(message, timestamp, username, topic)
 
 # CallRpcEvent -----------------------------------------------------------------
 
-proc action*(self: Tui, event: CallRpcEvent) {.async, gcsafe,
-  nimcall.} =
-
+proc action*(self: Tui, event: CallRpcEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
   if self.outputReady:
     if event.error != "":
