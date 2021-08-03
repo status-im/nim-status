@@ -177,6 +177,9 @@ type
 proc `$`*(self: Settings): string =
   return Json.encode(self)
 
-proc getCurrentNetwork*(self: Settings): Option[Network] =
-  let found = self.networks.filter(network => network.id == self.currentNetwork)
+proc getNetwork*(self: Settings, network: string): Option[Network] =
+  let found = self.networks.filter(n => n.id == network)
   result = if found.len > 0: some found[0] else: none(Network)
+
+proc getCurrentNetwork*(self: Settings): Option[Network] =
+  return self.getNetwork(self.currentNetwork)

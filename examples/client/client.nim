@@ -118,3 +118,6 @@ proc addCustomToken*(self: Client, address: Address, name, symbol, color: string
 
 proc deleteCustomToken*(self: Client, index: int) {.async.} =
   asyncSpawn deleteCustomToken(self.taskRunner, status, index)
+
+proc callRpc*(self: Client, rpcMethod: string, params: JsonNode) {.async.} =
+  asyncSpawn callRpc(self.taskRunner, status, rpcMethod, params)

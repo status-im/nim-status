@@ -7,7 +7,7 @@ import # vendor libs
   stew/byteutils
 
 import # status lib
-  status/api/[auth, tokens, wallet],
+  status/api/[auth, provider, tokens, wallet],
   status/private/[alias, protocol]
 
 import # client modules
@@ -1066,5 +1066,50 @@ proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
         "error: " & e.msg, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc callRpc*(rpcMethod: string, params: JsonNode) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = CallRpcEvent(error: "Not logged in, " &
+        "cannot call rpc methods.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  try:
+    let callResult = await status.callRpc(rpcMethod, params)
+    if callResult.isErr:
+      let
+        event = CallRpcEvent(error: callResult.error, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent errored event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+    else:
+      let
+        response = callResult.get
+        event = CallRpcEvent(response: $response, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except CatchableError as e:
+    let
+      event = CallRpcEvent(error: "Error calling rpc method, " &
+        "error: " & e.msg, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)

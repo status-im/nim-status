@@ -128,9 +128,9 @@ for t in dbData.txToData.values:
   echo "transfer data: ", t
 echo "dbData end: "
 
-########### callRPC examples
+########### callRpc examples
 # var jsonNode = parseJSON("""[]""")
-# var resp = callRPC(web3Obj, eth_blockNumber, jsonNode)
+# var resp = callRpc(web3Obj, eth_blockNumber, jsonNode)
 # echo "eth_blockNumber response", resp
 # var latestBlockNumber = fromHex[int](resp.result.getStr)
 # var blockNumber = intToHex(latestBlockNumber /% 2) # intToHex(blockNumber/%2)
@@ -138,22 +138,22 @@ echo "dbData end: "
 
 # jsonNode = parseJson(fmt"""["0x111d500fe567696D0224A7292D47AF11e8A4bCB4", "{blockNumber}"]""")
 # echo "jsonNode ", jsonNode
-# resp = callRPC(web3Obj, eth_getTransactionCount, jsonNode)
+# resp = callRpc(web3Obj, eth_getTransactionCount, jsonNode)
 # echo "eth_getTransactionCount Response ", resp
 
 # jsonNode = parseJson(fmt"""["0x111d500fe567696D0224A7292D47AF11e8A4bCB4", "{blockNumber}"]""")
 # echo "jsonNode ", jsonNode
-# resp = callRPC(web3Obj, eth_getTransactionCount, jsonNode)
+# resp = callRpc(web3Obj, eth_getTransactionCount, jsonNode)
 # echo "eth_getTransactionCount Response ", resp
 
-# resp = callRPC(web3Obj, eth_getBalance, jsonNode)
+# resp = callRpc(web3Obj, eth_getBalance, jsonNode)
 # echo "eth_getBalance Response ", resp
 
 # let fromBlock = intToHex(latestBlockNumber - 1)
 # let toBlock = intToHex(latestBlockNumber)
 
 # jsonNode = parseJson("""[{"address": "0xedae1aaa4f1ba708a30ecf8f5e64551aca403850", "fromBlock": "0x0", "toBlock": "latest"}]""")
-# resp = callRPC(web3Obj, eth_getLogs, jsonNode)
+# resp = callRpc(web3Obj, eth_getLogs, jsonNode)
 # echo "eth_getLogs Response ", resp
 
 

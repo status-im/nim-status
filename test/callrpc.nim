@@ -35,18 +35,18 @@ procSuite "callrpc":
 
     let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
     let web3Obj = newWeb3(settingsObj)
-    let rGasPrice = callRPC(web3Obj, eth_gasPrice, %[])
+    let rGasPrice = await callRpc(web3Obj, eth_gasPrice, %[])
 
     check:
       rGasPrice.getStr()[0..1] == "0x"
 
-    let rEthSign = callRPC(web3Obj, "eth_sign", %[])
+    let rEthSign = await callRpc(web3Obj, "eth_sign", %[])
 
     check:
       rEthSign["code"].getInt == -32601
       rEthSign["message"].getStr == "the method eth_sign does not exist/is not available"
 
-    let rSendTransaction = callRPC(web3Obj, "eth_sendTransaction", %* [%*{"from": "0x0000000000000000000000000000000000000000", "to": "0x0000000000000000000000000000000000000000", "value": "123"}])
+    let rSendTransaction = await callRpc(web3Obj, "eth_sendTransaction", %* [%*{"from": "0x0000000000000000000000000000000000000000", "to": "0x0000000000000000000000000000000000000000", "value": "123"}])
 
     check:
       rSendTransaction["code"].getInt == -32601

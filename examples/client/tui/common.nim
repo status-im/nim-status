@@ -124,6 +124,10 @@ type
   SendMessage* = ref object of Command
     message*: string
 
+  CallRpc* = ref object of Command
+    rpcMethod*: string
+    params*: JsonNode
+
 const
   TuiEvents* = [
     "InputKey",
@@ -140,6 +144,7 @@ const
     "addwalletpk": "AddWalletPrivateKey",
     "addwalletseed": "AddWalletSeed",
     "addwalletwatch": "AddWalletWatchOnly",
+    "call": "CallRpc",
     "connect": "Connect",
     "createaccount": "CreateAccount",
     "deletecustomtoken": "DeleteCustomToken",
@@ -175,6 +180,7 @@ const
     "list": "listaccounts",
     "listwallets": "listwalletaccounts",
     "part": "leavetopic",
+    "rpc": "call",
     "send": DEFAULT_COMMAND,
     "sub": "jointopic",
     "subscribe": "jointopic",
@@ -192,6 +198,7 @@ const
     "addwalletpk": @["addpk"],
     "addwalletseed": @["addseed"],
     "addwalletwatch": @["addwatch"],
+    "call": @["rpc"],
     "createaccount": @["create"],
     "deletecustomtoken": @["deletetoken"],
     "deletewalletaccount": @["delete"],

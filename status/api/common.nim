@@ -1,15 +1,16 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[os, typetraits]
+  std/[os, tables, typetraits]
 
 import # vendor libs
-  sqlcipher, stew/results, web3/ethtypes
+  sqlcipher, stew/results, web3, web3/ethtypes
 
 from web3/conversions as web3_conversions import `$`
 
 import # status modules
-  ../private/common, ../private/[accounts/generator/generator, database]
+  ../private/common,
+  ../private/[accounts/generator/generator, callrpc, database, settings]
 
 from ../private/conversions import parseAddress, readValue, writeValue
 from ../private/extkeys/types import Mnemonic
@@ -28,6 +29,7 @@ type
     accountsDbConn: DbConn
     dataDir*: string
     userDbConn: DbConn
+    web3Conn: Table[string, Web3]
 
 proc new*(T: type StatusObject, dataDir: string,
   accountsDbFileName: string = "accounts.sql"): T =
@@ -44,7 +46,8 @@ proc new*(T: type StatusObject, dataDir: string,
 
   let generator = Generator.new()
 
-  T(accountsDbConn: accountsDb, dataDir: dataDir, accountsGenerator: generator)
+  T(accountsDbConn: accountsDb, dataDir: dataDir, accountsGenerator: generator,
+    web3Conn: initTable[string, Web3]())
 
 proc accountsDb*(self: StatusObject): DbConn =
   self.accountsDbConn
@@ -85,3 +88,15 @@ proc initUserDb*(self: StatusObject, keyUid, password: string) {.raises:
   except DbError as e:
     # convert to a defect as we are in an unrecoverable state
     raise (ref StatusApiDefect)(parent: e, msg: "Error initializing user database")
+
+proc web3*(self: StatusObject, network: string): Web3 {.raises: [Defect, Exception]} =
+  let settings = self.userDb.getSettings()
+  if not self.web3Conn.hasKey(network):
+    self.web3Conn[network] = newWeb3(settings, network)
+  return self.web3Conn[network]
+
+proc web3*(self: StatusObject): Web3 {.raises: [Defect, Exception]}  =
+  let settings = self.userDb.getSettings()
+  if not self.web3Conn.hasKey(settings.currentNetwork):
+    self.web3Conn[settings.currentNetwork] = newWeb3(settings, settings.currentNetwork)
+  return self.web3Conn[settings.currentNetwork]

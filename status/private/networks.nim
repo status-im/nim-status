@@ -25,7 +25,7 @@ type
     name*: string
 
 # set via `nim c` param `-d:INFURA_TOKEN:[token]`; should be set in CI/release builds
-const INFURA_TOKEN {.strdefine.} = ""
+const INFURA_TOKEN {.strdefine.} = "220a1abb4b6943a093c35d0ce4fb0732" # @TODO: remove this
 # TODO: allow runtime override via environment variable; core contributors can set a
 # release token in this way for local development. INFURA_TOKEN needs to be constant
 # due to GC safety requirements. We could allow the Infura token to be passed in
@@ -42,7 +42,7 @@ const DEFAULT_NETWORKS* = @[
       dataDir: "/ethereum/testnet_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
-        url: "https://ropsten.infura.io/v3/" & INFURA_TOKEN
+        url: "wss://ropsten.infura.io/ws/v3/" & INFURA_TOKEN
       )
     )
   ),
@@ -55,7 +55,7 @@ const DEFAULT_NETWORKS* = @[
       dataDir: "/ethereum/rinkeby_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
-        url: "https://rinkeby.infura.io/v3/" & INFURA_TOKEN
+        url: "wss://rinkeby.infura.io/ws/v3/" & INFURA_TOKEN
       )
     )
   ),
@@ -81,7 +81,7 @@ const DEFAULT_NETWORKS* = @[
       dataDir: "/ethereum/mainnet_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
-        url: "https://mainnet.infura.io/v3/" & INFURA_TOKEN
+        url: "wss://mainnet.infura.io/ws/v3/" & INFURA_TOKEN
       )
     )
   ),
@@ -149,16 +149,16 @@ const NODE_CONFIG* = fmt"""{{
     "MaxMessageDeliveryAttempts": 6,
     "PFSEnabled": true,
     "VerifyENSContractAddress": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-    "VerifyENSURL": "https://mainnet.infura.io/v3/{INFURA_TOKEN}",
+    "VerifyENSURL": "wss://mainnet.infura.io/ws/v3/{INFURA_TOKEN}",
     "VerifyTransactionChainID": 1,
-    "VerifyTransactionURL": "https://mainnet.infura.io/v3/{INFURA_TOKEN}"
+    "VerifyTransactionURL": "wss://mainnet.infura.io/ws/v3/{INFURA_TOKEN}"
   }},
   "StatusAccountsConfig": {{
     "Enabled": true
   }},
   "UpstreamConfig": {{
     "Enabled": true,
-    "URL": "https://mainnet.infura.io/v3/{INFURA_TOKEN}"
+    "URL": "wss://mainnet.infura.io/ws/v3/{INFURA_TOKEN}"
   }},
   "WakuConfig": {{
     "BloomFilterMode": null,
