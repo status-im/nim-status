@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # std libs
   std/strformat
 
@@ -51,7 +53,9 @@ proc derive*(k: ExtendedPrivKey, path: KeyPath): ExtendedPrivKeyResult =
 
   ok(extKey)
 
-proc newMaster*(seed: Keyseed): ExtendedPrivKeyResult =
+proc newMaster*(seed: Keyseed): ExtendedPrivKeyResult {.raises: [Defect,
+  ValueError].} =
+
   # NewMaster creates new master node, root of HD chain/tree.
   # Both master and child nodes are of ExtendedKey type, and all the children derive from the root node.
   let lseed = openArray[byte](seed).len
@@ -62,6 +66,8 @@ proc newMaster*(seed: Keyseed): ExtendedPrivKeyResult =
 
   splitHMAC(string.fromBytes(openArray[byte](seed)), masterSecret)
 
-proc toExtendedKey*(secretKey: SkSecretKey): ExtendedPrivKeyResult =
+proc toExtendedKey*(secretKey: SkSecretKey): ExtendedPrivKeyResult
+  {.raises: [].} =
+
   let extPrivKey = ExtendedPrivKey(secretKey: secretKey)
   ExtendedPrivKeyResult.ok(extPrivKey)

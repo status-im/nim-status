@@ -1,3 +1,7 @@
+# NOTE: Including a top-level {.push raises: [Defect].} here interferes with
+# nim-confutils. The compiler will force nim-confutils to annotate its procs
+# with the needed `{.raises: [,,,].}` pragmas.
+
 import
   std/[os,options],
   confutils, chronicles, chronos,
@@ -11,7 +15,9 @@ import
 # The initial implementation of initNode is by intention a minimum viable usage
 # of nim-waku v2 from within nim-status
 
-proc initNode*(config: WakuNodeConf = WakuNodeConf.load()): WakuNode =
+proc initNode*(config: WakuNodeConf = WakuNodeConf.load()): WakuNode {.raises:
+  [Defect, Exception].} =
+
   let
     (extIp, extTcpPort, extUdpPort) = setupNat(config.nat, clientId,
       Port(uint16(config.tcpPort) + config.portsShift),

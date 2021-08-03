@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # std libs
   std/tables
 
@@ -60,7 +62,8 @@ proc toGeneratedAccountInfo*(a: Account, id: UUID,
     publicKey: idInfo.publicKey, address: idInfo.address, mnemonic: mnemonic)
 
 proc toGeneratedAndDerived*(a: GeneratedAccountInfo,
-  derived: Table[KeyPath, AccountInfo]): GeneratedAndDerivedAccountInfo =
+  derived: Table[KeyPath, AccountInfo]): GeneratedAndDerivedAccountInfo
+  {.raises: [].} =
 
   GeneratedAndDerivedAccountInfo(mnemonic: a.mnemonic, id: a.id,
     keyUid: a.keyUid, publicKey: a.publicKey, address: a.address,

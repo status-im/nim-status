@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import json_serialization
 import sqlcipher
 import tables

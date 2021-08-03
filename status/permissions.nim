@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   strformat, tables, sugar, sequtils
 
@@ -23,7 +25,9 @@ type DappPermissions* {.dbTableName("permissions").} = object
   .}: seq[string]
 
 
-proc addPermissions*(db: DbConn, dappPerms: DappPermissions) =
+proc addPermissions*(db: DbConn, dappPerms: DappPermissions) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var dapp: Dapp
   var dappPermission: DappPermissions
   var query = fmt"""INSERT OR REPLACE INTO {dapp.tableName}
@@ -46,7 +50,9 @@ proc addPermissions*(db: DbConn, dappPerms: DappPermissions) =
   for perm in dappPerms.permissions:
     db.exec(query, dappPerms.name, @[perm])
 
-proc getPermissions*(db: DbConn): seq[DappPermissions] =
+proc getPermissions*(db: DbConn): seq[DappPermissions] {.raises: [Defect,
+  SerializationError, SqliteError, ref ValueError].} =
+
   var
     dapp: Dapp
     dappPermission: DappPermissions
@@ -73,7 +79,9 @@ proc getPermissions*(db: DbConn): seq[DappPermissions] =
     tblDappPerms[dappPerm.name] = existing
   toSeq(tblDappPerms.values)
 
-proc deletePermission*(db: DbConn, name: string) =
+proc deletePermission*(db: DbConn, name: string) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var dapp: Dapp
   let query = fmt"""DELETE FROM
                       {dapp.tableName}

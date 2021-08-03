@@ -2,7 +2,7 @@ import # nim libs
   os, tables, unittest
 
 import # vendor libs
-  chronos, results, sqlcipher, stew/byteutils
+  chronos, sqlcipher, stew/[byteutils, results]
 
 import # status libs
   ../status/migration,

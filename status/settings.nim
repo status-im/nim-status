@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   std/[json, options, strutils, strformat]
 
@@ -9,7 +11,10 @@ import # status libs
 
 export types, options
 
-proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: replace JsonNode by a proper NodeConfig object?
+proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) {.raises:
+  [Defect, SqliteError, ValueError].} =
+  # TODO: replace JsonNode by a proper NodeConfig object?
+
   var setting: Settings
   let query = fmt"""INSERT INTO {setting.tableName} (
                       {setting.userAddress.columnName},
@@ -57,7 +62,8 @@ proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) = # TODO: repla
             s.signingPhrase,
             s.walletRootAddress)
 
-proc getNodeConfig*(db: DbConn): JsonNode =
+proc getNodeConfig*(db: DbConn): JsonNode {.raises: [Defect, Exception].} =
+
   var settings: Settings
   let query = fmt"""SELECT    {settings.nodeConfig.columnName}
                     FROM      {settings.tableName}
@@ -67,7 +73,8 @@ proc getNodeConfig*(db: DbConn): JsonNode =
     raise newException(ValueError, "No record found for node config")
   nodeConfig.get
 
-proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol): Option[T] =
+proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol): Option[T]
+  {.raises: [Defect, SqliteError, ref ValueError].} =
   var settings: Settings
   let query = fmt"""SELECT    {$setting}
                     FROM      {settings.tableName}
@@ -75,14 +82,17 @@ proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol): Option[T]
 
   db.value(T, query)
 
-proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol, defaultValue: T): T =
+proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol,
+  defaultValue: T): T {.raises: [Defect, SqliteError, ValueError].} =
+
   let setting = db.getSetting[:T](T, setting)
   if setting.isNone:
     result = defaultValue
   else:
     result = setting.get
 
-proc getSettings*(db: DbConn): Settings =
+proc getSettings*(db: DbConn): Settings {.raises: [Defect, Exception].} =
+
   let query = fmt"""SELECT    *
                     FROM      {result.tableName}
                     WHERE     synthetic_id = 'id'"""
@@ -92,7 +102,8 @@ proc getSettings*(db: DbConn): Settings =
     raise newException(ValueError, "No record found for settings")
   settings.get
 
-proc saveSetting*(db: DbConn, setting: SettingsCol, value: auto) =
+proc saveSetting*(db: DbConn, setting: SettingsCol, value: auto) {.raises:
+  [Defect, SqliteError, ValueError].} =
 
   var settings: Settings
   db.exec(fmt"""UPDATE    {settings.tableName}

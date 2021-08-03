@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import web3, json, strutils
 import chronos, json_rpc/client
 import settings
@@ -50,7 +52,9 @@ type RemoteMethod* {.pure.} = enum
   net_listening = "net_listening"
 
 
-proc newWeb3*(settings: Settings): Web3 =
+proc newWeb3*(settings: Settings): Web3 {.raises: [CatchableError, Defect,
+  ref Web3Error].} =
+
   let network = settings.getCurrentNetwork()
   if network.isNone:
     raise (ref Web3Error)(msg: "config not found for network " & settings.currentNetwork)
@@ -60,14 +64,18 @@ proc newWeb3*(settings: Settings): Web3 =
 
   result = waitFor newWeb3(network.get().config.upstreamConfig.url)
 
-proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode): Response =
+proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode):
+  Response {.raises: [Defect, CatchableError].} =
+
   try:
     result = waitFor web3Conn.provider.call($rpcMethod, params)
   except ValueError:
     raise (ref Web3Error)(msg: getCurrentExceptionMsg())
 
 
-proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response =
+proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response
+  {.raises: [CatchableError, Defect, ref Web3Error].} =
+
   if web3Conn == nil:
     raise (ref Web3Error)(msg: "web3 connection is not available")
 

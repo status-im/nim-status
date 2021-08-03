@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # std libs
   std/[strutils, random, times]
 

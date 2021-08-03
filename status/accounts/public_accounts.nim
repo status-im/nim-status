@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   json, options, strformat
 
@@ -17,14 +19,18 @@ type
     keyUid* {.serializedFieldName("keyUid"), dbColumnName("keyUid").}: string
     loginTimestamp* {.serializedFieldName("loginTimestamp"), dbColumnName("loginTimestamp").}: Option[int64]
 
-proc deleteAccount*(db: DbConn, keyUid: string) =
+proc deleteAccount*(db: DbConn, keyUid: string) {.raises: [SqliteError,
+  ref ValueError].} =
+
   var tblAccounts: PublicAccount
   let query = fmt"""DELETE FROM {tblAccounts.tableName}
                     WHERE       {tblAccounts.keyUid.columnName} = ?"""
 
   db.exec(query, keyUid)
 
-proc getPublicAccount*(db: DbConn, keyUid: string): Option[PublicAccount] =
+proc getPublicAccount*(db: DbConn, keyUid: string): Option[PublicAccount]
+  {.raises: [Defect, SqliteError, ref ValueError].} =
+
   var tblAccounts: PublicAccount
   let query = fmt"""SELECT    {tblAccounts.creationTimestamp.columnName},
                               {tblAccounts.name.columnName},
@@ -36,7 +42,9 @@ proc getPublicAccount*(db: DbConn, keyUid: string): Option[PublicAccount] =
                     WHERE     {tblAccounts.keyUid.columnName}= ?"""
   result = db.one(PublicAccount, query, keyUid)
 
-proc getPublicAccounts*(db: DbConn): seq[PublicAccount] =
+proc getPublicAccounts*(db: DbConn): seq[PublicAccount] {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var tblAccounts: PublicAccount
   let query = fmt"""SELECT    {tblAccounts.creationTimestamp.columnName},
                               {tblAccounts.name.columnName},
@@ -48,7 +56,9 @@ proc getPublicAccounts*(db: DbConn): seq[PublicAccount] =
                     ORDER BY  {tblAccounts.creationTimestamp.columnName} ASC"""
   result = db.all(PublicAccount, query)
 
-proc saveAccount*(db: DbConn, account: PublicAccount) =
+proc saveAccount*(db: DbConn, account: PublicAccount) {.raises: [SqliteError,
+  ref ValueError].} =
+
   var tblAccounts: PublicAccount
   let query = fmt"""
     INSERT OR REPLACE INTO  {tblAccounts.tableName} (
@@ -62,10 +72,14 @@ proc saveAccount*(db: DbConn, account: PublicAccount) =
 
   db.exec(query, account.creationTimestamp, account.name, account.identicon, account.keycardPairing, account.keyUid)#, account.loginTimestamp)
 
-proc toDisplayString*(account: PublicAccount): string =
+proc toDisplayString*(account: PublicAccount): string {.raises:
+  [ref ValueError].} =
+
   fmt"{account.name} ({account.keyUid})"
 
-proc updateAccount*(db: DbConn, account: PublicAccount) =
+proc updateAccount*(db: DbConn, account: PublicAccount) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var tblAccounts: PublicAccount
   let query = fmt"""UPDATE  {tblAccounts.tableName}
                     SET     {tblAccounts.creationTimestamp.columnName} = ?,
@@ -77,7 +91,9 @@ proc updateAccount*(db: DbConn, account: PublicAccount) =
 
   db.exec(query, account.creationTimestamp, account.name, account.identicon, account.keycardPairing, account.loginTimestamp, account.keyUid)
 
-proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string) =
+proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string)
+  {.raises: [SqliteError, ref ValueError].} =
+
   var tblAccounts: PublicAccount
   let query = fmt"""UPDATE  {tblAccounts.tableName}
                     SET     {tblAccounts.loginTimestamp.columnName} = ?

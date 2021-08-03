@@ -1,9 +1,13 @@
-import sqlcipher, results
-import sequtils, tables, algorithm, strformat
-import stew/byteutils
-import nimcrypto
-import chronicles
-import migrations/types
+{.push raises: [Defect].}
+
+import # std libs
+  std/[algorithm, sequtils, strformat, tables]
+
+import # vendor libs
+  chronicles, nimcrypto, sqlcipher, stew/[byteutils, results]
+
+import # nim-status libs
+  ./migrations/types
 
 export MigrationDefinition
 
@@ -14,7 +18,8 @@ type Migration* {.dbTableName("migrations").} = object
 type MigrationResult* = Result[Migration, string]
 
 
-proc createMigrationTableIfNotExists*(db: DbConn) =
+proc createMigrationTableIfNotExists*(db: DbConn) {.raises: [Exception].} =
+
   var migration: Migration
   const query = fmt"""CREATE TABLE IF NOT EXISTS {migration.tableName} (
                           {migration.name.columnName} VARCHAR NOT NULL PRIMARY KEY,
@@ -23,7 +28,9 @@ proc createMigrationTableIfNotExists*(db: DbConn) =
   db.execScript(query)
 
 
-proc getLastMigrationExecuted*(db: DbConn): MigrationResult =
+proc getLastMigrationExecuted*(db: DbConn): MigrationResult {.raises: [Defect,
+  Exception].} =
+
   var migration: Migration
   db.createMigrationTableIfNotExists()
   const query = fmt"SELECT {migration.name.columnName}, {migration.hash.columnName} FROM {migration.tableName} ORDER BY rowid DESC LIMIT 1"
@@ -32,13 +39,17 @@ proc getLastMigrationExecuted*(db: DbConn): MigrationResult =
     return  MigrationResult.err("No migrations were executed")
   MigrationResult.ok(queryResult.get())
 
-proc getAllMigrationsExecuted*(db: DbConn): seq[Migration] =
+proc getAllMigrationsExecuted*(db: DbConn): seq[Migration] {.raises: [Defect,
+  Exception].} =
+
   db.createMigrationTableIfNotExists()
   var migration: Migration
   const query = fmt"SELECT {migration.name.columnName}, {migration.hash.columnName} FROM {migration.tableName} ORDER BY rowid ASC;"
   db.all(Migration, query)
 
-proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool =
+proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool
+  {.raises: [Defect, Exception].} =
+
   let allMigrationsExecuted = db.getAllMigrationsExecuted()
   let migrations = toSeq(definition.migrationUp.keys)
 
@@ -62,7 +73,9 @@ proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool =
   return true
 
 
-proc isUpToDate*(db: DbConn, definition: MigrationDefinition):bool =
+proc isUpToDate*(db: DbConn, definition: MigrationDefinition): bool {.raises:
+  [Defect, Exception].} =
+
   let lastMigrationExecuted = db.getLastMigrationExecuted()
   if lastMigrationExecuted.isOk:
     # Check what's the latest migration
@@ -77,7 +90,9 @@ proc isUpToDate*(db: DbConn, definition: MigrationDefinition):bool =
   result = false
 
 
-proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
+proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult
+  {.raises: [Defect, Exception].} =
+
   db.createMigrationTableIfNotExists()
   if not db.checkMigrations(definition): return MigrationResult.err "db/migration mismatch"
   var migration: Migration
@@ -114,7 +129,9 @@ proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult =
   return db.getLastMigrationExecuted()
 
 
-proc tearDown*(db: DbConn, definition: MigrationDefinition):bool =
+proc tearDown*(db: DbConn, definition: MigrationDefinition): bool {.raises:
+  [Defect, Exception].} =
+
   var migration: Migration
   var allMigrationsExecuted = db.getAllMigrationsExecuted().reversed()
   try:

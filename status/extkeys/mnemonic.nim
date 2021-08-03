@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # std libs
   std/[parseutils, os, sequtils, strutils]
 
@@ -15,14 +17,14 @@ type
   Language* = enum
     English, French, Italian, Japanese
 
-proc `$`*(s: BitSeq): string =
+proc `$`*(s: BitSeq): string {.raises: [].} =
   var str: string
   for b in s:
     str.add(if b == 1: '1' else: '0')
 
   return str
 
-proc getBits*(b: byte): BitSeq =
+proc getBits*(b: byte): BitSeq {.raises: [].} =
   var s = newSeq[byte]()
   for i in 0..7:
     let bit = (b shr i) and 1
@@ -30,14 +32,14 @@ proc getBits*(b: byte): BitSeq =
 
   return s
 
-proc getBits*(byteSeq: seq[byte]): BitSeq =
+proc getBits*(byteSeq: seq[byte]): BitSeq {.raises: [].} =
   var s: BitSeq
   for b in byteSeq:
     s = concat(s, getBits(b))
 
   return s
 
-proc getBits*(byteStr: string): BitSeq =
+proc getBits*(byteStr: string): BitSeq {.raises: [].} =
   var s: BitSeq
   for b in byteStr:
     let bits = getBits(b.byte)
@@ -46,13 +48,14 @@ proc getBits*(byteStr: string): BitSeq =
   return s
 
 # MnemonicPhrase returns a human readable seed for BIP32 Hierarchical Deterministic Wallets
-proc mnemonicPhrase*(strength: EntropyStrength, language: Language): Mnemonic =
+proc mnemonicPhrase*(strength: EntropyStrength, language: Language): Mnemonic
+  {.raises: [ValueError].} =
   # The mnemonic must encode entropy in a multiple of 32 bits.
   # With more entropy security is improved but the sentence length increases.
   # We refer to the initial entropy length as ENT. The recommended size of ENT is 128-256 bits.
 
   if strength.int mod 32 > 0 or strength.int < 128 or strength.int > 256:
-    raise newException(Exception, "ErrInvalidEntropyStrength")
+    raise newException(ValueError, "ErrInvalidEntropyStrength")
 
   # First, an initial entropy of ENT bits is generated
   var entropy = newSeq[byte](strength.int div 8)
@@ -87,7 +90,9 @@ proc mnemonicPhrase*(strength: EntropyStrength, language: Language): Mnemonic =
 
   return Mnemonic words.join(wordSeparator)
 
-proc mnemonicSeed*(mnemonic: Mnemonic, password: KeystorePass = ""): KeySeed =
+proc mnemonicSeed*(mnemonic: Mnemonic, password: KeystorePass = ""): KeySeed
+  {.raises: [].} =
+
   # MnemonicSeed creates and returns a binary seed from the mnemonic.
   # We use the PBKDF2 function with a mnemonic sentence (in UTF-8 NFKD)
   # used as the password and the string SALT + passphrase (again in UTF-8 NFKD) used as the salt.

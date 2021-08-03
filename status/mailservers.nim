@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   json, options, strutils, strformat
 
@@ -26,19 +28,25 @@ type
     password* {.serializedFieldName($MailserverType.Password), dbColumnName($MailserversCol.Password).}: Option[string]
     fleet* {.serializedFieldName($MailserverType.Fleet), dbColumnName($MailserversCol.Fleet).}: string
 
-proc deleteMailserver*(db: DbConn, mailserver: Mailserver) =
+proc deleteMailserver*(db: DbConn, mailserver: Mailserver) {.raises: [Defect,
+  SqliteError].} =
+
   let query = fmt"""
                  DELETE FROM mailservers WHERE id = ?
                  """
   db.exec(query, mailserver.id)
 
-proc getMailservers*(db: DbConn): seq[Mailserver] =
+proc getMailservers*(db: DbConn): seq[Mailserver] {.raises: [Defect,
+  SqliteError].} =
+
   let query = """
               SELECT id, name, address, password, fleet FROM mailservers
               """
   db.all(Mailserver, query)
 
-proc saveMailserver*(db: DbConn, mailserver: Mailserver) =
+proc saveMailserver*(db: DbConn, mailserver: Mailserver) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   let query = fmt"""
                  INSERT INTO mailservers(
                    {$MailserversCol.Id},
@@ -55,6 +63,8 @@ proc saveMailserver*(db: DbConn, mailserver: Mailserver) =
           (if mailserver.password.isSome(): mailserver.password.get() else: ""),
           mailserver.fleet)
 
-proc saveMailservers*(db: DbConn, mailservers: seq[Mailserver]) =
+proc saveMailservers*(db: DbConn, mailservers: seq[Mailserver]) {.raises:
+  [Defect, SqliteError, ValueError].} =
+
   for mailserver in mailservers:
     db.saveMailserver(mailserver)

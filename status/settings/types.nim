@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   std/[json, options, os, sequtils, sugar]
 

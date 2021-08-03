@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import bitops, secp256k1, stew/endians2, strformat
 
 import ./alias/data, ./util
@@ -7,7 +9,7 @@ type Lsfr = ref object
   poly*: uint64
   data*: uint64
 
-proc next(self: Lsfr): uint64 =
+proc next(self: Lsfr): uint64 {.raises: [].} =
   var bit: uint64 = 0
   for i in 0..64:
     if bitand(self.poly, 1.uint64 shl i) != 0:
@@ -20,7 +22,7 @@ proc truncPubKey(pubKey: string): uint64 =
   let rawKey = SkPublicKey.fromHex(pubKey).get.toRaw
   fromBytesBE(uint64, rawKey[25..32])
 
-proc generateAlias*(pubKey: string): string =
+proc generateAlias*(pubKey: string): string {.raises: [RegexError].} =
   ## generateAlias returns a 3-words generated name given a hex encoded (prefixed with 0x) public key.
   ## We ignore any error, empty string result is considered an error.
   result = ""

@@ -1,4 +1,13 @@
-import base64, chroma, identicon/color, md5, nimage, nimPNG, streams
+{.push raises: [Defect].}
+
+import # std libs
+  std/[base64, md5, streams]
+
+import # vendor libs
+  chroma, nimage, nimPNG
+
+import # nim-status libs
+  ./identicon/color
 
 type
   Bitmap = array[0..24, uint8]
@@ -7,7 +16,7 @@ type
     color*: ColorRGBA
   NimageColor = uint32
 
-proc bitmapFromHash(hash: MD5Digest): Bitmap =
+proc bitmapFromHash(hash: MD5Digest): Bitmap {.raises: [].} =
   for i in 0..4:
     for j in 0..4:
       var jCount = j
@@ -22,7 +31,7 @@ proc bitmapFromHash(hash: MD5Digest): Bitmap =
     else:
       result[k] = 0
 
-proc colorFromHash(hash: MD5Digest): ColorRGBA =
+proc colorFromHash(hash: MD5Digest): ColorRGBA {.raises: [].} =
   const saturation: float64 = 50
   const lightness: float64  = 70
   # Take the least 3 relevant bytes, and convert to a float between [0..360]
@@ -30,13 +39,14 @@ proc colorFromHash(hash: MD5Digest): ColorRGBA =
   let hue: float64 = (sum / 765) * 360
   color.asRGBA(color.hsl(hue, saturation, lightness))
 
-proc generate(id: string): Identicon =
+proc generate(id: string): Identicon {.raises: [].} =
   let hash = id.toMD5
   let bitmap = bitmapFromHash(hash)
   let color = colorFromHash(hash)
   Identicon(bitmap: bitmap, color: color)
 
-proc renderBase64(icon: Identicon): string =
+proc renderBase64(icon: Identicon): string {.raises: [Defect, Exception].} =
+
   let img = newNimage(50, 50)
   # make the background transparent
   const transparent: NimageColor = 0
@@ -90,11 +100,11 @@ proc renderBase64(icon: Identicon): string =
   strm.close()
   "data:image/png;base64," & encoded
 
-proc generateBase64(id: string): string =
+proc generateBase64(id: string): string {.raises: [Defect, Exception].} =
   let icon = generate(id)
   renderBase64(icon)
 
-proc identicon*(str: string): string =
+proc identicon*(str: string): string {.raises: [].} =
   ## identicon returns a base64 encoded icon given a string.
   ## We ignore any error, empty string result is considered an error.
   try:

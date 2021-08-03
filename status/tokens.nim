@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   json, options, strformat
 
@@ -36,17 +38,23 @@ type
     color* {.serializedFieldName($TokenType.Color), dbColumnName($TokenCol.Color).}: string
     decimals* {.serializedFieldName($TokenType.Decimals), dbColumnName($TokenCol.Decimals).}: uint
 
-proc addCustomToken*(db: DbConn, token: Token) =
+proc addCustomToken*(db: DbConn, token: Token) {.raises: [Defect,
+  SqliteError].} =
+
   const query = fmt"""INSERT OR REPLACE INTO TOKENS ({$TokenCol.NetworkId}, {$TokenCol.Address}, {$TokenCol.Name}, {$TokenCol.Symbol}, {$TokenCol.Decimals}, {$TokenCol.Color}) VALUES (?, ?, ?, ?, ?, ?)"""
   # TODO: get network id
   db.exec(query, 1, $token.address, token.name, token.symbol, token.decimals, token.color)
 
-proc getCustomTokens*(db: DbConn): seq[Token] =
+proc getCustomTokens*(db: DbConn): seq[Token] {.raises: [Defect,
+  SqliteError, ValueError].} =
+
   var token: Token
   const query = fmt"""SELECT * FROM {token.tableName} ORDER BY {token.symbol.columnName}, {token.networkId.columnName}"""
   result = db.all(Token, query)
 
-proc deleteCustomToken*(db: DbConn, address: Address) =
+proc deleteCustomToken*(db: DbConn, address: Address) {.raises: [Defect,
+  SqliteError].} =
+
   var token: Token
   const query = fmt"""DELETE FROM {token.tableName} WHERE {$TokenCol.Address} = ?"""
   db.exec(query, $address)

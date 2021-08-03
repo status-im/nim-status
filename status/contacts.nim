@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   std/[json, options, strformat]
 
@@ -87,7 +89,9 @@ type
     tributeToTalk* {.serializedFieldName($ContactType.TributeToTalk), dbColumnName($ContactsCol.TributeToTalk).}: Option[string]
     localNickname* {.serializedFieldName($ContactType.LocalNickname), dbColumnName($ContactsCol.LocalNickname).}: Option[string]
 
-proc saveContact*(db: DbConn, contact: Contact) =
+proc saveContact*(db: DbConn, contact: Contact) {.raises:[Defect, SqliteError,
+  ref ValueError].} =
+
   let query = fmt"""INSERT INTO contacts(
                       {$ContactsCol.Id},
                       {$ContactsCol.Address},
@@ -123,11 +127,15 @@ proc saveContact*(db: DbConn, contact: Contact) =
           contact.localNickname,
           contact.lastEnsClockValue)
 
-proc saveContacts*(db: DbConn, contacts: seq[Contact]) =
+proc saveContacts*(db: DbConn, contacts: seq[Contact]) {.raises:[Defect,
+  SqliteError, ref ValueError].} =
+
   for contact in contacts:
     db.saveContact(contact)
 
-proc getContacts*(db: DbConn): seq[Contact] =
+proc getContacts*(db: DbConn): seq[Contact] {.raises:[Defect, SqliteError,
+  ref ValueError, SerializationError].} =
+
   var contact: Contact
   let query = fmt"""SELECT *
                     FROM {contact.tableName}"""
