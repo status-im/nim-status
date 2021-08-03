@@ -98,10 +98,6 @@
 	path = vendor/nim-web3
 	url = https://github.com/status-im/nim-web3
 	ignore = untracked
-[submodule "vendor/nim-result"]
-	path = vendor/nim-result
-	url = https://github.com/arnetheduck/nim-result
-	ignore = untracked
 [submodule "vendor/nim-byteutils"]
 	path = vendor/nim-byteutils
 	url = https://github.com/status-im/nim-byteutils
