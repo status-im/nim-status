@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # std libs
   std/[json, os, strformat, strutils, tables, times]
 
@@ -45,7 +47,7 @@ type
 
   StoreKeyFileResult* = Result[string, string]
 
-proc new*(T: type Generator): T =
+proc new*(T: type Generator): T {.raises: [].} =
   T(accounts: newTable[string, Account]())
 
 proc addAccount(self: Generator, acc: Account): AddAccountResult =
@@ -76,7 +78,9 @@ proc deriveChildAccounts(self: Generator, a: Account,
 
   DeriveChildAccountsResult.ok(derived)
 
-proc findAccount(self: Generator, accountId: UUID): AccountResult =
+proc findAccount(self: Generator, accountId: UUID): AccountResult {.raises:
+  [Defect, ref KeyError].} =
+
   let id = $accountId
   if not self.accounts.hasKey(id):
     return AccountResult.err "Account doesn't exist"
@@ -84,7 +88,7 @@ proc findAccount(self: Generator, accountId: UUID): AccountResult =
   AccountResult.ok(self.accounts[id])
 
 proc deriveAddresses*(self: Generator, accountId: UUID,
-  paths: seq[KeyPath]): DeriveAddressesResult =
+  paths: seq[KeyPath]): DeriveAddressesResult {.raises: [Defect, KeyError].} =
 
   let
     acc = ?self.findAccount(accountId)
@@ -98,7 +102,8 @@ proc deriveAddresses*(self: Generator, accountId: UUID,
   DeriveAddressesResult.ok(derived)
 
 proc importMnemonic*(self: Generator, mnemonic: Mnemonic,
-  bip39Passphrase: string): ImportMnemonicResult =
+  bip39Passphrase: string): ImportMnemonicResult {.raises: [Defect,
+  ValueError].} =
 
   let
     seed = mnemonic.mnemonicSeed(bip39Passphrase)
@@ -129,7 +134,7 @@ proc importPrivateKey*(self: Generator,
   ImportPrivateKeyResult.ok account.toIdentifiedAccountInfo(id)
 
 proc generate*(self: Generator, mnemonicPhraseLength: int, n: int,
-  bip39Passphrase: string): GenerateResult =
+  bip39Passphrase: string): GenerateResult {.raises: [Defect, ValueError].} =
 
   var generated: seq[GeneratedAccountInfo] = @[]
 
@@ -142,7 +147,8 @@ proc generate*(self: Generator, mnemonicPhraseLength: int, n: int,
 
 proc generateAndDeriveAddresses*(self: Generator, mnemonicPhraseLength: int,
   n: int, bip39Passphrase: string,
-  paths: seq[KeyPath]): GenerateAndDeriveAddressesResult =
+  paths: seq[KeyPath]): GenerateAndDeriveAddressesResult {.raises: [Defect,
+  ValueError].} =
 
   let masterAccounts = ?self.generate(mnemonicPhraseLength, n, bip39Passphrase)
 
@@ -158,7 +164,7 @@ proc generateAndDeriveAddresses*(self: Generator, mnemonicPhraseLength: int,
   GenerateAndDeriveAddressesResult.ok(generatedAndDerived)
 
 proc findKeyFile(self: Generator, address: Address,
-  dir: string): FindKeyFileResult =
+  dir: string): FindKeyFileResult {.raises: [Defect, ref OSError].} =
 
   let strAddress = $address
 
@@ -178,7 +184,7 @@ proc findKeyFile(self: Generator, address: Address,
   FindKeyFileResult.ok path
 
 proc deleteKeyFile*(self: Generator, address: Address, password: string,
-  dir: string): DeleteKeyFileResult =
+  dir: string): DeleteKeyFileResult {.raises: [Defect, Exception].} =
 
   let findKeyFileResult = self.findKeyFile(address, dir)
 
@@ -203,7 +209,7 @@ proc deleteKeyFile*(self: Generator, address: Address, password: string,
   DeleteKeyFileResult.ok
 
 proc loadAccount*(self: Generator, address: Address, password: string,
-  dir: string = ""): LoadAccountResult =
+  dir: string = ""): LoadAccountResult {.raises: [Defect, Exception].} =
 
   let
     path = ?self.findKeyFile(address, dir)
@@ -226,13 +232,14 @@ proc loadAccount*(self: Generator, address: Address, password: string,
 
   LoadAccountResult.ok(identifiedAccInfo)
 
-proc reset(self: Generator) =
+proc reset(self: Generator) {.raises: [].} =
   # Reset resets the accounts map removing all the accounts from memory.
   self.accounts.clear()
 
 proc storeKeyFile*(self: Generator, secretKey: SkSecretKey, password: string,
   dir: string, version: int = 3, cryptkind: CryptKind = AES128CTR,
-  kdfkind: KdfKind = PBKDF2, workfactor: int = 0): StoreKeyFileResult =
+  kdfkind: KdfKind = PBKDF2, workfactor: int = 0): StoreKeyFileResult {.raises:
+  [Defect, ref IOError, OSError, ValueError].} =
 
   let
     address = secretKey.toAddress
@@ -267,7 +274,8 @@ proc storeKeyFile*(self: Generator, secretKey: SkSecretKey, password: string,
 proc storeDerivedAccounts*(self: Generator, accountId: UUID, paths: seq[KeyPath],
   password: string, dir: string = "", version: int = 3,
   cryptkind: CryptKind = AES128CTR, kdfkind: KdfKind = PBKDF2,
-  workfactor: int = 0): StoreDerivedAccountsResult =
+  workfactor: int = 0): StoreDerivedAccountsResult {.raises: [Defect, IOError,
+  KeyError, OSError, ValueError].} =
 
   let
     acc = ?self.findAccount(accountId)

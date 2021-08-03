@@ -1,16 +1,16 @@
+{.push raises: [Defect].}
+
 import callrpc, conversions, os
 
-import web3, json, strutils, strformat, sequtils
-import json_rpc/client
-import nimcrypto
-import sets
-import tables
-import rlocks
-import # vendor libs
-  sqlcipher, json_serialization, json_serialization/[reader, writer, lexer],
-  stew/byteutils
+import # std libs
+  std/[json, sequtils, sets, strformat, strutils, rlocks, tables]
 
-import tx_history/types
+import # vendor libs
+  sqlcipher, json_rpc/client, json_serialization,
+  json_serialization/[reader, writer, lexer], nimcrypto, stew/byteutils, web3
+
+import # nim-status libs
+  ./tx_history/types
 
 #import # status libs
   #../[settings, database, conversions, tx_history, callrpc]
@@ -30,7 +30,9 @@ proc setDbConn*(dbConn: DbConn) =
   db = dbConn
 
 # blockNumber can be either "earliest", "latest", "pending", or hex-encoding int
-proc getValueForBlock*(address: types.Address, blockNumber: string, methodName: RemoteMethod): int =
+proc getValueForBlock*(address: types.Address, blockNumber: string,
+  methodName: RemoteMethod): int {.raises: [Defect, Exception, IOError, OSError,
+  ValueError].} =
 
   let jsonNode = parseJson(fmt"""["{address}", "{blockNumber}"]""")
   let resp = callRPC(web3Obj, methodName, jsonNode)
@@ -38,7 +40,9 @@ proc getValueForBlock*(address: types.Address, blockNumber: string, methodName: 
 
   return txCount
 
-proc getLastBlockNumber*(): int =
+proc getLastBlockNumber*(): int {.raises: [Defect, Exception, IOError, OSError,
+  ValueError].} =
+
   var jsonNode = parseJSON("""[]""")
   var resp = callRPC(web3Obj, RemoteMethod.eth_blockNumber, jsonNode)
   return fromHex[int](resp.getStr)
@@ -46,8 +50,9 @@ proc getLastBlockNumber*(): int =
 # Find lowest block number for which a condition
 # procPtr(address, blockNumber) >= targetValue holds
 proc findLowestBlockNumber*(address: types.Address,
-                           blockRange: BlockRange,
-                           methodName: RemoteMethod, targetValue: int): int =
+  blockRange: BlockRange, methodName: RemoteMethod, targetValue: int): int
+  {.raises: [Defect, Exception].} =
+
   var fromBlock = blockRange[0]
   var toBlock = blockRange[1]
   var blockNumber = fromBlock
@@ -63,8 +68,11 @@ proc findLowestBlockNumber*(address: types.Address,
   result = fromBlock
 
 # Find a block range with minimum txsPerPage transactions
-proc txBinarySearch*(address: types.Address, toBlock: int): BlockRange =
-  let totalTxCount = getValueForBlock(address, intToHex(toBlock), RemoteMethod.eth_getTransactionCount)
+proc txBinarySearch*(address: types.Address, toBlock: int): BlockRange {.raises:
+  [Defect, Exception].} =
+
+  let totalTxCount = getValueForBlock(address, intToHex(toBlock),
+    RemoteMethod.eth_getTransactionCount)
   if totalTxCount == 0:
     return [0, 0]
 
@@ -86,18 +94,23 @@ proc txBinarySearch*(address: types.Address, toBlock: int): BlockRange =
 # equal to that of toBlock
 # Then we check if there were any outgoing txs between it and the last block,
 # as it could've happened that several txs balanced themselves out
-proc findBlockWithBalanceChange(address: types.Address, blockRange: BlockRange): int =
+proc findBlockWithBalanceChange(address: types.Address, blockRange: BlockRange):
+  int {.raises: [Defect, Exception].} =
+
   var fromBlock = blockRange[0]
   var toBlock = blockRange[1]
   var blockNumber = toBlock
-  let targetBalance = getValueForBlock(address, intToHex(toBlock), RemoteMethod.eth_getBalance)
+  let targetBalance = getValueForBlock(address, intToHex(toBlock),
+    RemoteMethod.eth_getBalance)
   blockNumber = findLowestBlockNumber(address, [fromBlock, toBlock],
                          RemoteMethod.eth_getBalance, targetBalance)
 
   # Check if there were no txs in [blockNumber, toBlock]
   # Note that eth_getTransactionCount only counts outgoing transactions
-  let txCount1 = getValueForBlock(address, intToHex(blockNumber), RemoteMethod.eth_getTransactionCount)
-  let txCount2 = getValueForBlock(address, intToHex(toBlock), RemoteMethod.eth_getTransactionCount)
+  let txCount1 = getValueForBlock(address, intToHex(blockNumber),
+    RemoteMethod.eth_getTransactionCount)
+  let txCount2 = getValueForBlock(address, intToHex(toBlock),
+    RemoteMethod.eth_getTransactionCount)
   if txCount1 == txCount2:
     # No txs occurred in between [blockNumber, toBlock]
     result = blockNumber
@@ -106,18 +119,22 @@ proc findBlockWithBalanceChange(address: types.Address, blockRange: BlockRange):
     # of the lowest block containing txCount2
     blockNumber = findLowestBlockNumber(address, [fromBlock, toBlock],
                         RemoteMethod.eth_getTransactionCount, txCount2)
-    let balance = getValueForBlock(address, intToHex(blockNumber), RemoteMethod.eth_getBalance)
+    let balance = getValueForBlock(address, intToHex(blockNumber),
+      RemoteMethod.eth_getBalance)
     if balance == targetBalance:
       # This was the tx setting targetbalance
       result = blockNumber
     else:
-      # This means there must have been an incoming tx inside [blockNumber, toBlock]
+      # This means there must have been an incoming tx inside [blockNumber,
+      # toBlock]
       result = findLowestBlockNumber(address, [blockNumber, toBlock],
                          RemoteMethod.eth_getBalance, targetBalance)
 
 
 # We need to find exact block numbers containing balance changes
-proc balanceBinarySearch*(address: types.Address, blockRange: BlockRange): BlockSeq =
+proc balanceBinarySearch*(address: types.Address, blockRange: BlockRange):
+  BlockSeq {.raises: [Defect, Exception].} =
+
   var blockNumbers: BlockSeq = @[]
   var fromBlock = blockRange[0]
   var toBlock = blockRange[1]
@@ -129,7 +146,10 @@ proc balanceBinarySearch*(address: types.Address, blockRange: BlockRange): Block
 
   result = blockNumbers
 
-proc filterTxsForAddress*(address: types.Address, blockNumbers: BlockSeq, txToData: var TransferMap) =
+proc filterTxsForAddress*(address: types.Address, blockNumbers: BlockSeq,
+  txToData: var TransferMap) {.raises: [Defect, Exception, IOError, OSError,
+  ValueError].} =
+
   for n in items(blockNumbers):
     let blockNumber = intToHex(n)
     let jsonNode = parseJSON(fmt"""["{blockNumber}", true]""")
@@ -153,7 +173,9 @@ proc filterTxsForAddress*(address: types.Address, blockNumbers: BlockSeq, txToDa
 
 # Find blocks with balance changes and extract tx hashes from info
 # fetched via eth_getBlockByNumber
-proc fetchEthTxHashes(address: types.Address, txBlockRange: BlockRange, txToData: var TransferMap) =
+proc fetchEthTxHashes(address: types.Address, txBlockRange: BlockRange,
+  txToData: var TransferMap) {.raises: [Defect, Exception].} =
+
   # Find block numbers containing balance changes
   var blockNumbers: BlockSeq = balanceBinarySearch(address, txBlockRange)
 
@@ -161,7 +183,10 @@ proc fetchEthTxHashes(address: types.Address, txBlockRange: BlockRange, txToData
   filterTxsForAddress(address, blockNumbers, txToData)
 
 # Parse log entry in order to fetch fromAddr, toAddr, and value
-proc parseLog(log: JsonNode): tuple[fromAddr: types.Address, toAddr: types.Address, value: int] =
+proc parseLog(log: JsonNode): tuple[fromAddr: types.Address,
+  toAddr: types.Address, value: int] {.raises: [Defect, ref KeyError,
+  ref ValueError].} =
+
   if len(log["topics"].getElems) < 3:
     echo "not enough topics for erc20 transfer", log["topics"]
     return
@@ -189,8 +214,13 @@ proc parseLog(log: JsonNode): tuple[fromAddr: types.Address, toAddr: types.Addre
 
 # We have to invoke eth_getLogs twice for both
 # incoming and outgoing ERC-20 transfers
-proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange, txToData: var TransferMap) {.gcsafe.} =
-  let transferEventSignatureHash = "0x" & $keccak_256.digest("Transfer(address,address,uint256)")
+# TODO: check if this {.gcsafe.} is needed!
+proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange,
+  txToData: var TransferMap) {.gcsafe, raises: [Defect, Exception, IOError,
+  OSError, ValueError].} =
+
+  let transferEventSignatureHash = "0x" &
+    $keccak_256.digest("Transfer(address,address,uint256)")
   echo "transferEventSignatureHash :", transferEventSignatureHash
 
   let fromBlock = intToHex(blockRange[0])
@@ -233,11 +263,16 @@ proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange, txToData: v
     txToData[txHash] = trView
 
 
-proc fetchTxDetails*(address: types.Address, txToData: var TransferMap) =
+proc fetchTxDetails*(address: types.Address, txToData: var TransferMap)
+  {.raises: [Defect, Exception, IOError, OSError, ValueError].} =
+
   for tx in txToData.keys:
-    let jsonNode = parseJSON(fmt"""["{tx}"]""")
-    let txInfo = callRPC(web3Obj, RemoteMethod.eth_getTransactionByHash, jsonNode)
-    let txReceipt = callRPC(web3Obj, RemoteMethod.eth_getTransactionReceipt, jsonNode)
+    let
+      jsonNode = parseJSON(fmt"""["{tx}"]""")
+      txInfo = callRPC(web3Obj, RemoteMethod.eth_getTransactionByHash,
+        jsonNode)
+      txReceipt = callRPC(web3Obj, RemoteMethod.eth_getTransactionReceipt,
+        jsonNode)
 
     echo "fetchTxDetails txInfo: ", txInfo
 
@@ -261,7 +296,9 @@ proc fetchTxDetails*(address: types.Address, txToData: var TransferMap) =
     txToData[tx] = trView
 
 
-proc fetchDbData*(address: types.Address): TxDbData =
+proc fetchDbData*(address: types.Address): TxDbData {.raises: [Defect,
+  SqliteError, ValueError].} =
+
   var dbData = TxDbData()
 
   let query = fmt"""SELECT * FROM tx_history where address=?"""
@@ -280,7 +317,9 @@ proc fetchDbData*(address: types.Address): TxDbData =
 
   return dbData
 
-proc saveTransferInfo*(transferInfo: TransferInfo) =
+proc saveTransferInfo*(transferInfo: TransferInfo) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   let query = fmt"""
                  INSERT INTO tx_history_info(
                    {$TransferInfoCol.Address},
@@ -296,7 +335,9 @@ proc saveTransferInfo*(transferInfo: TransferInfo) =
           transferInfo.blockNumber,
           transferInfo.txCount)
 
-proc saveTransfer*(transfer: Transfer) =
+proc saveTransfer*(transfer: Transfer) {.raises: [Defect, SqliteError,
+  ref ValueError].} =
+
   let query = fmt"""
                  INSERT INTO tx_history(
                    {$TransferCol.Id},
@@ -340,7 +381,7 @@ proc saveTransfer*(transfer: Transfer) =
           transfer.contract,
           transfer.networkID)
 
-proc writeToDb(dbData: TxDbData) =
+proc writeToDb(dbData: TxDbData) {.raises: [Defect, SqliteError, ValueError].} =
   echo "writeToDb"
   saveTransferInfo(dbData.info)
   for transfer in dbData.txToData.values:
@@ -357,7 +398,7 @@ var fetchLock: RLock
 let schedulerInterval = 2 * 60 * 1000
 
 # Main history fetching proc
-proc schedulerProc() {.thread.} =
+proc schedulerProc() {.thread, raises: [Defect, Exception, ref ValueError].} =
   while true:
     withRLock(fetchLock):
       var addresses = initHashSet[string]()
@@ -387,8 +428,11 @@ proc schedulerProc() {.thread.} =
         var lastBlockNumber = getLastBlockNumber()
         if lastBlockNumber > dbBlockNumber:
           # There are new blocks, check if outgoing tx count or balance changed
-          let txCount = getValueForBlock(address, intToHex(lastBlockNumber), RemoteMethod.eth_getTransactionCount)
-          let balance = getValueForBlock(address, intToHex(lastBlockNumber), RemoteMethod.eth_getBalance)
+          let
+            txCount = getValueForBlock(address, intToHex(lastBlockNumber),
+              RemoteMethod.eth_getTransactionCount)
+            balance = getValueForBlock(address, intToHex(lastBlockNumber),
+              RemoteMethod.eth_getBalance)
 
 
           var txBlockRange: BlockRange
@@ -417,7 +461,9 @@ proc schedulerProc() {.thread.} =
 
     sleep(schedulerInterval)
 
-proc fetchTxHistory*(address: types.Address, toBlock: int): TransferMap =
+proc fetchTxHistory*(address: types.Address, toBlock: int): TransferMap
+  {.raises: [Defect, Exception, SqliteError].} =
+
   var txToData = TransferMap()
 
   # Find block range that we will search for balance changes
@@ -435,7 +481,9 @@ proc fetchTxHistory*(address: types.Address, toBlock: int): TransferMap =
 
   result = txToData
 
-proc getTransfersByAddress*(address: types.Address, toBlock: int): TransferMap =
+proc getTransfersByAddress*(address: types.Address, toBlock: int): TransferMap
+   {.raises: [Defect, Exception, SqliteError, ValueError].} =
+
   var dbData = fetchDbData(address)
   if dbData.info.blockNumber == 0:
     # Nothing has been fetched yet, wait for
@@ -449,7 +497,7 @@ proc getTransfersByAddress*(address: types.Address, toBlock: int): TransferMap =
 
   return dbData.txToData
 
-proc init*(addresses: seq[types.Address]) =
+proc init*(addresses: seq[types.Address]) {.raises: [Defect, Exception].} =
 
   initRLock(fetchLock)
 

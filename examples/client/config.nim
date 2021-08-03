@@ -350,7 +350,7 @@ proc parseCmdArg*(T: type PK, p: TaintedString): T =
     discard waku_chat2.crypto.PrivateKey(scheme: Secp256k1,
       skkey: SkPrivateKey.init(waku_chat2.utils.fromHex(p)).tryGet())
     result = PK(p)
-  except CatchableError as e:
+  except CatchableError:
     raise newException(ConfigurationError, "Invalid private key")
 
 proc completeCmdArg*(T: type PK, val: TaintedString): seq[string] =
@@ -360,7 +360,7 @@ proc parseCmdArg*(T: type VIP, p: TaintedString): T =
   try:
     discard ValidIpAddress.init(p)
     result = VIP(p)
-  except CatchableError as e:
+  except CatchableError:
     raise newException(ConfigurationError, "Invalid IP address")
 
 proc completeCmdArg*(T: type VIP, val: TaintedString): seq[string] =
@@ -369,7 +369,7 @@ proc completeCmdArg*(T: type VIP, val: TaintedString): seq[string] =
 proc parseCmdArg*(T: type Port, p: TaintedString): T =
   try:
     result = Port(parseInt(p))
-  except CatchableError as e:
+  except CatchableError:
     raise newException(ConfigurationError, "Invalid Port number")
 
 proc completeCmdArg*(T: type Port, val: TaintedString): seq[string] =

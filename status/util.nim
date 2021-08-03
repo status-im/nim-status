@@ -1,21 +1,26 @@
+{.push raises: [Defect].}
+
 import nimcrypto, re, strutils, unicode, web3/ethtypes
+
+export re
 
 const hexPattern = "^[0-9a-f]+$"
 
-proc isHexString*(str: string): bool =
+proc isHexString*(str: string): bool {.raises: [ref RegexError].} =
   let reHex = re(hexPattern, {reIgnoreCase})
   str.len > 3 and
   str.len mod 2 == 0 and
   str[0..1] == "0x" and
   match(str[2..^1], reHex)
 
-proc isPubKey*(str: string): bool =
+proc isPubKey*(str: string): bool {.raises: [ref RegexError].} =
   let reHex = re(hexPattern, {reIgnoreCase})
   str.len == 132 and
   str[0..3] == "0x04" and
   match(str[2..^1], reHex)
 
-proc hashMessage*(message: string): string =
+proc hashMessage*(message: string): string {.raises: [ref RegexError].} =
+
   ## hashMessage calculates the hash of a message to be safely signed by the keycard.
   ## The hash is calulcated as
   ##  keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).

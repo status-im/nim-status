@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import strutils
 import stew/[results]
 import ./types
@@ -13,9 +15,12 @@ const
   PATH_WHISPER* = KeyPath(PATH_EIP_1581.string & "/0'/0")
     # EIP1581 Chat Key 0, the default whisper key
 
-proc isNonHardened*(self: PathLevel): bool = (self.uint32 and HARDENED_INDEX) == 0
+proc isNonHardened*(self: PathLevel): bool {.raises: [].} =
+  (self.uint32 and HARDENED_INDEX) == 0
 
-func parse(T: type PathLevel, value: string): PathLevelResult =
+func parse(T: type PathLevel, value: string): PathLevelResult {.raises:
+  [ValueError].} =
+
   var child: string
   var mask: uint32
 
@@ -32,14 +37,14 @@ func parse(T: type PathLevel, value: string): PathLevelResult =
   else:
     PathLevelResult.err("Invalid index number")
 
-proc toBEBytes*(x: PathLevel): array[4, byte] =
+proc toBEBytes*(x: PathLevel): array[4, byte] {.raises: [].} =
   # BigEndian
   result[3] = ((x.uint32 shr  0) and 0xff).byte
   result[2] = ((x.uint32 shr  8) and 0xff).byte
   result[1] = ((x.uint32 shr 16) and 0xff).byte
   result[0] = ((x.uint32 shr 24) and 0xff).byte
 
-iterator pathNodes*(path: KeyPath): PathLevelResult =
+iterator pathNodes*(path: KeyPath): PathLevelResult {.raises: [].} =
   try:
     for elem in path.string.split("/"):
       if elem == "m": continue

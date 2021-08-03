@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   json, options, strformat, marshal
 import # vendor libs
@@ -62,17 +64,23 @@ type
     invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
     muted* {.serializedFieldName($ChatType.Muted), dbColumnName($ChatCol.Muted).}: bool
 
-proc getChats*(db: DbConn): seq[Chat] =
+proc getChats*(db: DbConn): seq[Chat] {.raises: [Defect, SqliteError,
+  ref ValueError].} =
+
   let query = """SELECT * from chats"""
 
   result = db.all(Chat, query)
 
-proc getChatById*(db: DbConn, id: string): Option[Chat] =
+proc getChatById*(db: DbConn, id: string): Option[Chat] {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   let query = """SELECT * from chats where id = ?"""
 
   result = db.one(Chat, query, id)
 
-proc saveChat*(db: DbConn, chat: Chat) =
+proc saveChat*(db: DbConn, chat: Chat) {.raises: [Defect, SqliteError,
+  ref ValueError].} =
+
   let query = fmt"""INSERT INTO chats(
     {$ChatCol.Id},
     {$ChatCol.Name},
@@ -110,23 +118,27 @@ proc saveChat*(db: DbConn, chat: Chat) =
     chat.invitationAdmin,
     chat.muted)
 
-proc muteChat*(db: DbConn, chatId: string) =
+proc muteChat*(db: DbConn, chatId: string) {.raises: [SqliteError].} =
+
   let query = fmt"""UPDATE chats SET muted = 1 WHERE id = ?"""
 
   db.exec(query, chatId)
 
-proc unmuteChat*(db: DbConn, chatId: string) =
+proc unmuteChat*(db: DbConn, chatId: string) {.raises: [SqliteError].} =
+
   let query = fmt"""UPDATE chats SET muted = 0 WHERE id = ?"""
 
   db.exec(query, chatId)
 
-proc deleteChat*(db: DbConn, chat: Chat) =
+proc deleteChat*(db: DbConn, chat: Chat) {.raises: [SqliteError].} =
   let query = fmt"""DELETE FROM chats where id = ?"""
 
   db.exec(query, chat.id)
 
 # BlockContact updates a contact, deletes all the messages and 1-to-1 chat, updates the unread messages count and returns a map with the new count
-proc blockContact*(db: DbConn, contact: Contact): seq[Chat] =
+proc blockContact*(db: DbConn, contact: Contact): seq[Chat] {.raises: [Defect,
+  IOError, OSError, SqliteError, ref ValueError].} =
+
   var chats:seq[Chat] = @[]
   # Delete messages
   var query = fmt"""DELETE

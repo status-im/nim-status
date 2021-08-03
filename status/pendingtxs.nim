@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   json, options, strutils, strformat
 
@@ -36,31 +38,38 @@ type
     data* {.serializedFieldName($PendingTxType.Data), dbColumnName($PendingTxCol.Data).}: string
 
 
-proc getPendingTxs*(db: DbConn, networkId: int): seq[PendingTx] = 
+proc getPendingTxs*(db: DbConn, networkId: int): seq[PendingTx] {.raises:
+  [Defect, SqliteError, ref ValueError].} =
+
   var pendingTx: PendingTx
   let query = fmt"""SELECT {pendingTx.networkId.columnName}, {pendingTx.transactionHash.columnName}, {pendingTx.blkNumber.columnName}, {pendingTx.fromAddress.columnName}, {pendingTx.toAddress.columnName}, {pendingTx.txType.columnName}, {pendingTx.data.columnName} FROM {pendingTx.tableName} WHERE {pendingTx.networkId.columnName} = ?"""
   result = db.all(PendingTx, query, networkId)
 
-proc getPendingOutboundTxsByAddress*(db: DbConn, networkId: int, address: string): seq[PendingTx] = 
+proc getPendingOutboundTxsByAddress*(db: DbConn, networkId: int,
+  address: string): seq[PendingTx] {.raises: [Defect, SqliteError,
+  ref ValueError].} =
+
   var pendingTx: PendingTx
   let query = fmt"""SELECT {pendingTx.networkId.columnName}, {pendingTx.transactionHash.columnName}, {pendingTx.blkNumber.columnName}, {pendingTx.fromAddress.columnName}, {pendingTx.toAddress.columnName}, {pendingTx.txType.columnName}, {pendingTx.data.columnName} FROM {pendingTx.tableName} WHERE {pendingTx.networkId.columnName} = ? AND {pendingTx.fromAddress.columnName} = ?"""
   result = db.all(PendingTx, query, networkId, address)
 
-proc savePendingTx*(db: DbConn, tx: PendingTx) = 
+proc savePendingTx*(db: DbConn, tx: PendingTx) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var pendingTx: PendingTx
   let query = fmt"""
     INSERT OR REPLACE INTO {pendingTx.tableName} (
       {$PendingTxCol.NetworkId},
-      {$PendingTxCol.TransactionHash}, 
-      {$PendingTxCol.BlkNumber}, 
-      {$PendingTxCol.FromAddress}, 
-      {$PendingTxCol.ToAddress}, 
-      {$PendingTxCol.TxType}, 
-      {$PendingTxCol.Data}) 
+      {$PendingTxCol.TransactionHash},
+      {$PendingTxCol.BlkNumber},
+      {$PendingTxCol.FromAddress},
+      {$PendingTxCol.ToAddress},
+      {$PendingTxCol.TxType},
+      {$PendingTxCol.Data})
     VALUES (?, ?, ?, ?, ?, ?, ?)
     """
 
-  db.exec(query, 
+  db.exec(query,
     tx.networkId,
     tx.transactionHash,
     tx.blkNumber,
@@ -69,7 +78,9 @@ proc savePendingTx*(db: DbConn, tx: PendingTx) =
     tx.txType,
     tx.data)
 
-proc deletePendingTx*(db: DbConn, transactionHash: string) =
+proc deletePendingTx*(db: DbConn, transactionHash: string) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var pendingTx: PendingTx
   let query = fmt"""DELETE FROM {pendingTx.tableName} WHERE {pendingTx.transactionHash.columnName} = ?"""
   db.exec(query, transactionHash)

@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # nim libs
   json, options, strformat, times
 
@@ -30,7 +32,9 @@ type
 
 const STORAGE_ON_DEVICE* = "This device"
 
-proc createAccount*(db: DbConn, account: Account) =
+proc createAccount*(db: DbConn, account: Account) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var tblAccounts: Account
   let query = fmt"""
     INSERT OR REPLACE INTO  {tblAccounts.tableName} (
@@ -52,14 +56,17 @@ proc createAccount*(db: DbConn, account: Account) =
     account.`type`, account.storage, account.path, account.publicKey,
     account.name, account.color, now, now)
 
-proc deleteAccount*(db: DbConn, address: Address) =
+proc deleteAccount*(db: DbConn, address: Address) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var tblAccounts: Account
   let query = fmt"""DELETE FROM {tblAccounts.tableName}
                     WHERE       {tblAccounts.address.columnName} = ?"""
 
   db.exec(query, address)
 
-proc getWalletAccount*(db: DbConn, address: Address): Option[Account] =
+proc getWalletAccount*(db: DbConn, address: Address): Option[Account] {.raises:
+  [Defect, SqliteError, ref ValueError].} =
   # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
   # status-go enforces only one account to have wallet = 1 (using a unique
   # constraint in the db)
@@ -80,7 +87,9 @@ proc getWalletAccount*(db: DbConn, address: Address): Option[Account] =
                               AND wallet = 0"""
   db.one(Account, query)
 
-proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account] =
+proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account]
+  {.raises: [Defect, SqliteError, ValueError].} =
+
   var tblAccounts: Account
   let account = db.getWalletAccount(address)
   if account.isSome:
@@ -94,7 +103,9 @@ proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account] =
     db.exec(query, address)
   return account
 
-proc getAccounts*(db: DbConn): seq[Account] =
+proc getAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var tblAccounts: Account
   let query = fmt"""SELECT    {tblAccounts.address.columnName},
                               {tblAccounts.wallet.columnName},
@@ -111,7 +122,9 @@ proc getAccounts*(db: DbConn): seq[Account] =
                     ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
   result = db.all(Account, query)
 
-proc getChatAccount*(db: DbConn): Account =
+proc getChatAccount*(db: DbConn): Account {.raises: [Defect, SqliteError,
+  ref ValueError].} =
+
   var tblAccounts: Account
   let query = fmt"""SELECT    {tblAccounts.address.columnName},
                               {tblAccounts.wallet.columnName},
@@ -128,7 +141,9 @@ proc getChatAccount*(db: DbConn): Account =
                     WHERE     {tblAccounts.chat.columnName} = TRUE"""
   result = db.one(Account, query).get
 
-proc getWalletAccounts*(db: DbConn): seq[Account] =
+proc getWalletAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
   # status-go enforces only one account to have wallet = 1 (using a unique
   # constraint in the db)
@@ -149,7 +164,9 @@ proc getWalletAccounts*(db: DbConn): seq[Account] =
                     ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
   result = db.all(Account, query)
 
-proc updateAccount*(db: DbConn, account: Account) =
+proc updateAccount*(db: DbConn, account: Account) {.raises: [Defect,
+  SqliteError, ref ValueError].} =
+
   var tblAccounts: Account
   let query = fmt"""UPDATE  {tblAccounts.tableName}
                     SET     {tblAccounts.wallet.columnName} = ?,

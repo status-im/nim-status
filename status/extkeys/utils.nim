@@ -1,3 +1,5 @@
+{.push raises: [Defect].}
+
 import # vendor libs
   eth/keys, secp256k1, stew/[results, byteutils], nimcrypto/hmac
 

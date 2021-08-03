@@ -1,8 +1,10 @@
+{.push raises: [Defect].}
+
 import # std libs
   std/[os, unicode]
 
 import # vendor libs
-  nimcrypto/keccak, results, sqlcipher
+  nimcrypto/keccak, stew/results, sqlcipher
 
 import # status libs
   ./migration,
@@ -11,7 +13,8 @@ import # status libs
 
 export sqlcipher
 
-proc initializeDB*(path:string): DbConn =
+proc initializeDB*(path:string): DbConn {.raises: [Defect, Exception].} =
+
   createDir path.parentDir()
   var runMigrations = false
   if not path.fileExists():
@@ -22,10 +25,12 @@ proc initializeDB*(path:string): DbConn =
     if not result.migrate(definition).isOk:
       raise newException(SqliteError, "Failure executing migrations")
 
-proc hash(password: string): string =
+proc hash(password: string): string {.raises: [].} =
   "0x" & toUpper($keccak_256.digest(password))
 
-proc initializeDB*(path, password: string): DbConn =
+proc initializeDB*(path, password: string): DbConn {.raises: [Defect,
+    Exception].} =
+
   createDir path.parentDir()
   var runMigrations = false
   if not path.fileExists():
