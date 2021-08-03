@@ -40,6 +40,11 @@ type
     error*: string
     timestamp*: int64
 
+  CallRpcEvent* = ref object of ClientEvent
+    response*: string
+    error*: string
+    timestamp*: int64
+
   GetCustomTokensEvent* = ref object of ClientEvent
     tokens*: seq[Token]
     error*: string
@@ -95,6 +100,7 @@ type
 const clientEvents* = [
   "AddCustomTokenEvent",
   "AddWalletAccountEvent",
+  "CallRpcEvent",
   "CreateAccountEvent",
   "DeleteCustomTokenEvent",
   "DeleteWalletAccountEvent",

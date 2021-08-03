@@ -411,3 +411,22 @@ proc action*(self: Tui, event: UserMessageEvent) {.async, gcsafe, nimcall.} =
 
     debug "TUI received user message", message, timestamp, username
     self.printMessage(message, timestamp, username, topic)
+
+# CallRpcEvent -----------------------------------------------------------------
+
+proc action*(self: Tui, event: CallRpcEvent) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    trace "Displaying call result"
+
+    let
+      response = event.response
+      timestamp = event.timestamp
+
+    self.printResult(fmt"RPC method response: {response}", timestamp)

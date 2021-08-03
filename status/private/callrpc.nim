@@ -58,36 +58,44 @@ type
     net_listening = "net_listening"
 
 
-proc newWeb3*(settings: Settings): Web3 {.raises: [Defect,
-  Web3Error].} =
+proc getWeb3Conn*(networkName: string, network: Option[Network]):
+  Web3 {.raises: [Defect, Web3Error].} =
 
-  let network = settings.getCurrentNetwork()
   if network.isNone:
-    raise (ref Web3Error)(msg: "config not found for network " & settings.currentNetwork)
+    raise (ref Web3Error)(msg: "config not found for network " & networkName)
 
   if not network.get().config.upstreamConfig.enabled:
-    raise (ref Web3Error)(msg: "network " & settings.currentNetwork & " is not enabled")
+    raise (ref Web3Error)(msg: "network " & networkName & " is not enabled")
 
   try:
-    return waitFor newWeb3(network.get().config.upstreamConfig.url)
+    waitFor newWeb3(network.get().config.upstreamConfig.url)
   except CatchableError as e:
     raise (ref Web3Error)(parent: e, msg: "Error instantiating Web3 object")
 
-proc callRPC*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode):
-  Response {.raises: [Defect, Web3Error].} =
+proc newWeb3*(settings: Settings, networkName: string):
+  Web3 {.raises: [CatchableError, Defect, ref Web3Error].} =
 
+  let network = settings.getNetwork(networkName)
+  getWeb3Conn(networkName, network)
+
+proc newWeb3*(settings: Settings): Web3 {.raises: [CatchableError, Defect,
+  ref Web3Error].} =
+  let network = settings.getCurrentNetwork()
+  getWeb3Conn(settings.currentNetwork, network)
+
+proc callRpc*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode):
+  Future[Response] {.async, raises: [Defect, CatchableError].} =
   const errorMsg = "Error calling RPC method"
-
   try:
-    result = waitFor web3Conn.provider.call($rpcMethod, params)
+    return await web3Conn.provider.call($rpcMethod, params)
   except CatchableError as e:
     raise (ref Web3Error)(parent: e, msg: errorMsg)
   except ValueError as e:
     raise (ref Web3Error)(parent: e, msg: errorMsg)
 
 
-proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response
-  {.raises: [Defect, Web3Error].} =
+proc callRpc*(web3Conn: Web3, rpcMethod: string, params: JsonNode):
+  Future[Response] {.async, raises: [CatchableError, Defect, ref Web3Error].} =
 
   if web3Conn == nil:
     raise (ref Web3Error)(msg: "web3 connection is not available")
@@ -99,7 +107,7 @@ proc callRPC*(web3Conn: Web3, rpcMethod: string, params: JsonNode): Response
 
   const errorMsg = "Error calling RPC method"
   try:
-    result = waitFor web3Conn.provider.call(rpcMethod, params)
+    return await web3Conn.provider.call(rpcMethod, params)
   except CatchableError as e:
     raise (ref Web3Error)(parent: e, msg: errorMsg)
   except ValueError as e:
