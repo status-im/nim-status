@@ -316,7 +316,7 @@ proc addWalletWatchOnly*(address: string,
   var addressParsed: Address
   try:
     addressParsed = address.parseAddress
-  except Exception as e:
+  except CatchableError as e:
     let
       event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
         "account: " & e.msg, timestamp: timestamp)
