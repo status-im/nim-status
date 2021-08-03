@@ -1,5 +1,5 @@
 import # std libs
-  std/[sequtils, strformat, strutils, sugar]
+  std/[json, sequtils, strformat, strutils, sugar]
 
 import # client modules
   ./common, ./macros, ./screen, ./tasks
@@ -721,6 +721,43 @@ proc command*(self: Tui, command: SendMessage) {.async, gcsafe, nimcall.} =
       "client is not online, cannot send message.")
   else:
     asyncSpawn self.client.sendMessage(command.message)
+
+# Call ----------------------------------------------------------------
+
+proc help*(T: type CallRpc): HelpText =
+  let command = "call"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "method", description: "RPC method"),
+    CommandParameter(name: "params", description: "Array of parameters")
+    ], description: "Calls an Ethereum RPC method")
+
+proc new*(T: type CallRpc, args: varargs[string]): T =
+  var rpcMethod = if args.len > 0: args[0] else: ""
+  var params = newJArray()
+  if args.len > 1:
+    try:
+      params = args[1..^1].join(" ").parseJson()
+    except:
+      params = newJNull()
+
+  T(rpcMethod: rpcMethod, params: params)
+
+proc split*(T: type CallRpc, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: Tui, command: CallRpc) {.async, gcsafe,
+  nimcall.} =
+  try:
+    if command.rpcMethod == "":
+      self.wprintFormatError(getTime().toUnix,
+        "method cannot be blank, please provide an input.")
+    elif command.params.kind == JNull:
+      self.wprintFormatError(getTime().toUnix,
+        "params cannot be blank and must be a valid JSON, please provide an input.")
+    else:
+      asyncSpawn self.client.callRpc(command.rpcMethod, command.params)
+  except:
+    self.wprintFormatError(getTime().toUnix, "invalid arguments.")
 
 # Help -------------------------------------------------------------------------
 # Note: although "Help" is not alphabetically last, we need to keep this below

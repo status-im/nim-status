@@ -1,4 +1,4 @@
 import # status modules
-  ./api/[accounts, auth, common, settings, tokens, wallet]
+  ./api/[accounts, auth, common, provider, settings, tokens, wallet]
 
-export accounts, auth, common, settings, tokens, wallet
+export accounts, auth, common, provider, settings, tokens, wallet
