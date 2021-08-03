@@ -26,10 +26,6 @@
 	path = vendor/nim-chronos
 	url = https://github.com/michaelsbradleyjr/nim-chronos.git
 	ignore = untracked
-[submodule "vendor/nim-stew"]
-	path = vendor/nim-stew
-	url = https://github.com/status-im/nim-stew.git
-	ignore = untracked
 [submodule "vendor/nim-json-serialization"]
 	path = vendor/nim-json-serialization
 	url = https://github.com/status-im/nim-json-serialization.git
