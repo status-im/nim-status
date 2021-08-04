@@ -1,12 +1,14 @@
-import # nim libs
-  json, options, os, unittest
+import # std libs
+  std/[json, options, os, unittest]
 
 import # vendor libs
   json_serialization, sqlcipher, stew/byteutils
 
-import # status libs
-  ../status/[conversions, chats, database, messages],
-  ../status/migrations/sql_scripts_app,
+import # status lib
+  ../status/private/[conversions, chats, database, messages,
+                     migrations/sql_scripts_app]
+
+import # test modules
   ./test_helpers
 
 procSuite "messages":

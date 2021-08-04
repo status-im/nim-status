@@ -1,13 +1,14 @@
-import # nim libs
+import # std libs
   std/[os, json, options, tables]
 
 import # vendor libs
-  sqlcipher, json_serialization
+  json_serialization, sqlcipher
 
-import # status libs
-  ../../status/[conversions, callrpc, database, settings, tx_history/types]
+import # status lib
+  ../../status/private/[callrpc, conversions, database, settings,
+                        tx_history/types]
 
-from ../../status/tx_history import nil
+from ../../status/private/tx_history import nil
 
 
 # Initialize db

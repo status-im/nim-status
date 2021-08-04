@@ -3,8 +3,9 @@
 import # std libs
   std/[strutils, typetraits]
 
-import # nim-status libs
-  ../accounts/public_accounts, ./common, ../conversions, ../settings
+import # status modules
+  ../private/[accounts/public_accounts, conversions, settings],
+  ./common
 
 export
   common, conversions, public_accounts, settings

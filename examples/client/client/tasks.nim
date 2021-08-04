@@ -6,12 +6,12 @@ from std/sugar import `=>`, collect
 import # vendor libs
   stew/byteutils
 
-import # status libs
-  ../../status/accounts/[accounts, public_accounts],
-  ../../status/[alias, api, conversions, database, protocol],
-  ../../status/extkeys/types
+import # status lib
+  ../../status/api,
+  ../../status/private/accounts/[accounts, public_accounts],
+  ../../status/private/[alias, conversions, database, extkeys/types, protocol]
 
-import # client libs
+import # client modules
   ./events, ./waku_chat2
 
 export conversions, events

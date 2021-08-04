@@ -6,9 +6,10 @@ import # std libs
 import # vendor libs
   eth/keyfile/uuid, secp256k1, web3/ethtypes
 
-import # nim-status modules
-  ../accounts/accounts, ./auth, ./common, ../conversions,
-  ../extkeys/[paths, types], ../settings
+import # status modules
+  ../private/[accounts/accounts, conversions, settings],
+  ../private/extkeys/[paths, types],
+  ./auth, ./common
 
 export
   accounts, auth, common, conversions, paths, secp256k1, settings, types, uuid
@@ -194,4 +195,3 @@ proc getWalletAccounts*(self: StatusObject): WalletAccountsResult =
     return WalletAccountsResult.ok accounts
   except Exception as e:
     return WalletAccountsResult.err "Error getting wallet accounts: " & e.msg
-

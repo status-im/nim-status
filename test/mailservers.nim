@@ -1,11 +1,13 @@
-import # nim libs
-  json, options, os, unittest
+import # std libs
+  std/[json, options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # status libs
-  ../status/[database, mailservers],
+import # status lib
+  ../status/private/[database, mailservers]
+
+import # test modules
   ./test_helpers
 
 procSuite "mailservers":

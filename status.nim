@@ -1,5 +1,6 @@
-import ./status/[account, accounts, alias, chats, client, identicon, messages,
-                 permissions, util]
+import # status modules
+  ./status/[account, accounts, alias, chats, client, identicon, messages,
+            permissions, util]
 
 export account, accounts, alias, chats, client, identicon, messages,
        permissions, util

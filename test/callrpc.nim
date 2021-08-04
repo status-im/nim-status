@@ -1,13 +1,14 @@
-import # nim libs
+import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, json_serialization/std/options as json_options,
   options, sqlcipher, web3/conversions
 
-import # status libs
-  ../status/[callrpc, database, settings],
-  ../status/migrations/sql_scripts_app,
+import # status lib
+  ../status/private/[callrpc, database, migrations/sql_scripts_app, settings]
+
+import # test modules
   ./test_helpers
 
 procSuite "callrpc":

@@ -3,8 +3,8 @@
 import # vendor libs
   web3/ethtypes
 
-import # nim-status libs
-  ./common, ../tokens
+import # status modules
+  ../private/tokens, ./common
 
 export common, ethtypes, tokens
 

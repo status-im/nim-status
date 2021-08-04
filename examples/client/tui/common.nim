@@ -1,4 +1,4 @@
-import # client libs
+import # client modules
   ../client, ./ncurses_helpers
 
 export client, ncurses_helpers

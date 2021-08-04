@@ -1,7 +1,7 @@
 import # std libs
   std/[sequtils, strformat, strutils, sugar]
 
-import # client libs
+import # client modules
   ./common, ./macros, ./screen, ./tasks
 
 export common, screen, strutils, tasks

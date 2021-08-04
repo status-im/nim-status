@@ -1,12 +1,14 @@
-import # nim libs
-  json, options, os, unittest
+import # std libs
+  std/[json, options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # status libs
-  ../status/[contacts, conversions, database],
-  ../status/migrations/sql_scripts_app,
+import # status lib
+  ../status/private/[contacts, conversions, database,
+                     migrations/sql_scripts_app]
+
+import # test modules
   ./test_helpers
 
 procSuite "contacts":

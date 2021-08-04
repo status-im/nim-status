@@ -1,5 +1,5 @@
-import # nim-status libs
-  ./common, ../settings
+import # status modules
+  ../private/settings, ./common
 
 export
   common, settings

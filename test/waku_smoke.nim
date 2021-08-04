@@ -1,12 +1,16 @@
-import # nim libs
-  unittest
+import # std libs
+  std/unittest
 
 import # vendor libs
-  chronicles, chronos, confutils, stew/[byteutils, results],
-  waku/v2/node/[config, wakunode2], waku/v2/protocol/waku_message
+  chronicles, chronos, confutils,
+  stew/[byteutils, results],
+  waku/v2/node/[config, wakunode2],
+  waku/v2/protocol/waku_message
 
-import # status libs
-  ../status/waku,
+import # status lib
+  ../status/private/waku
+
+import # test modules
   ./test_helpers
 
 # This test suite is essentially a "smoke test" for using nim-waku v2 from

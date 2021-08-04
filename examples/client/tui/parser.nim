@@ -1,4 +1,4 @@
-import # client libs
+import # client modules
   ./commands as cmd, ./macros
 
 export cmd, macros

@@ -4,7 +4,7 @@ import # std libs
 import # vendor libs
   web3/conversions
 
-import # client libs
+import # client modules
   ./parser
 
 export parser
