@@ -7,14 +7,13 @@ import # vendor libs
   stew/byteutils
 
 import # status lib
-  ../../status/api,
-  ../../status/private/accounts/[accounts, public_accounts],
-  ../../status/private/[alias, conversions, database, extkeys/types, protocol]
+  ../../status/api/[tokens, wallet],
+  ../../status/private/protocol
 
 import # client modules
   ./events, ./waku_chat2
 
-export conversions, events
+export events
 
 logScope:
   topics = "client"

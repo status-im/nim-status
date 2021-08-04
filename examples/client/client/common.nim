@@ -5,12 +5,12 @@ import # vendor libs
   task_runner
 
 import # status lib
-  ../../../status/private/accounts/public_accounts
+  ../../../status/api/accounts
 
 import # client modules
   ../config
 
-export config, public_accounts, sets, strformat, strutils, task_runner, times
+export accounts, config, sets, strformat, strutils, task_runner, times
 
 logScope:
   topics = "client"
