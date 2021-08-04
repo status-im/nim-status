@@ -1,6 +1,4 @@
 import # status modules
-  ./status/[account, accounts, alias, chats, client, identicon, messages,
-            permissions, util]
+  ./status/api
 
-export account, accounts, alias, chats, client, identicon, messages,
-       permissions, util
+export api
