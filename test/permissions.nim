@@ -1,11 +1,13 @@
-import # nim libs
-  options, os, unittest
+import # std libs
+  std/[options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # status libs
-  ../status/[database, permissions],
+import # status lib
+  ../status/private/[database, permissions]
+
+import # test modules
   ./test_helpers
 
 procSuite "permissions":

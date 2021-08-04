@@ -1,4 +1,8 @@
-import chronos, unittest
+import # std libs
+  std/unittest
+
+import # vendor libs
+  chronos
 
 template asyncTest*(name, body: untyped) =
   test name:

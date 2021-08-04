@@ -1,11 +1,14 @@
-import # nim libs
+import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # status libs
-  ../status/[conversions, database, pendingtxs], ./test_helpers
+import # status lib
+  ../status/private/[conversions, database, pendingtxs]
+
+import # test modules
+  ./test_helpers
 
 procSuite "pendingtxs":
   asyncTest "pendingtxs":

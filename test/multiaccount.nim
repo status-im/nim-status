@@ -1,11 +1,13 @@
-import # nim libs
+import # std libs
   std/[os, tables, unittest]
 
-import # vednor libs
+import # vendor libs
   chronos, eth/[keys, p2p], stew/byteutils
 
-import # status libs
-  ../status/[accounts/generator/generator, conversions, extkeys/paths],
+import # status lib
+  ../status/private/[accounts/generator/generator, conversions, extkeys/paths]
+
+import # test modules
   ./test_helpers
 
 

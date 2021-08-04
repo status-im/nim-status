@@ -1,11 +1,13 @@
-import # nim libs
-  os, strformat, times, unittest
+import # std libs
+  std/[os, strformat, times, unittest]
 
 import # vendor libs
   chronos, sqlcipher
 
-import # status libs
-  ../status/database,
+import # status lib
+  ../status/private/database
+
+import # test modules
   ./test_helpers
 
 procSuite "db_smoke":

@@ -1,11 +1,13 @@
-import # nim libs
-  json, options, os, unittest
+import # std libs
+  std/[json, options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher, stew/byteutils
 
-import # status libs
-  ../status/[chats, contacts, conversions, database, messages],
+import # status lib
+  ../status/private/[chats, contacts, conversions, database, messages]
+
+import # test modules
   ./test_helpers
 
 procSuite "chats":

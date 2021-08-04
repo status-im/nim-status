@@ -6,9 +6,11 @@ import # std libs
 import # vendor libs
   eth/keyfile/uuid, secp256k1
 
-import # nim-status libs
-  ../alias, ../accounts/[accounts, generator/generator, public_accounts],
-  ./common, ../conversions, ../extkeys/[paths, types], ../identicon, ../settings
+import # status modules
+  ../private/accounts/[accounts, generator/generator, public_accounts],
+  ../private/[alias, conversions, identicon, settings],
+  ../private/extkeys/[paths, types],
+  ./common
 
 export
   accounts, alias, common, conversions, generator, identicon, paths,

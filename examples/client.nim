@@ -4,7 +4,7 @@
 when not(compileOption("threads")):
   {.fatal: "Please compile this program with the --threads:on option!".}
 
-import # client libs
+import # client modules
   ./client/tui
 
 logScope:

@@ -1,11 +1,13 @@
-import # nim libs
-  unittest
+import # std libs
+  std/unittest
 
 import # vendor libs
   chronos, eth/keys, secp256k1, stew/[results]
 
-import # status libs
-  ../status/extkeys/[hdkey, mnemonic, types],
+import # status lib
+  ../status/private/extkeys/[hdkey, mnemonic, types]
+
+import # test modules
   ./test_helpers
 
 procSuite "bip32":

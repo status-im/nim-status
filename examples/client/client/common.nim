@@ -2,14 +2,13 @@ import # std libs
   std/[sets, strformat, strutils, sugar, times]
 
 import # vendor libs
-  # nimcrypto,
   task_runner
 
-import # client libs
-  ../config
+import # status lib
+  ../../../status/private/accounts/public_accounts
 
-import # status libs
-  ../../../status/accounts/public_accounts
+import # client modules
+  ../config
 
 export config, public_accounts, sets, strformat, strutils, task_runner, times
 

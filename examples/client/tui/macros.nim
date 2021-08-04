@@ -1,8 +1,8 @@
 import # std libs
   std/macros
 
-import # client libs
-  ./common, ../client/common as client_common
+import # client modules
+  ./common
 
 export common
 

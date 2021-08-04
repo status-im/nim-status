@@ -1,14 +1,15 @@
-import # nim libs
+import # std libs
   std/[os, strformat, strutils, tables, unittest]
 
-import # vednor libs
-  chronos, eth/keys, eth/keyfile/uuid
+import # vendor libs
+  chronos, eth/[keyfile/uuid, keys]
 
-import # status libs
-  ../../../status/conversions,
-  ../../../status/accounts/generator/generator,
-  ../../../status/extkeys/types, ../../test_helpers
+import # status lib
+  ../../../status/private/[accounts/generator/generator, conversions,
+                           extkeys/types]
 
+import # test modules
+  ../../test_helpers
 
 procSuite "generator":
 

@@ -1,11 +1,14 @@
-import # nim libs
-  strutils, unittest
+import # std libs
+  std/[strutils, unittest]
 
 import # vendor libs
   chronos
 
-import # status libs
-  ../status/extkeys/mnemonic, ./test_helpers
+import # status lib
+  ../status/private/extkeys/mnemonic
+
+import # test modules
+  ./test_helpers
 
 procSuite "mnemonic":
   test "mnemonic":

@@ -1,11 +1,11 @@
 import # vendor libs
   web3/ethtypes
 
-import # client libs
-  ./common
+import # status lib
+  ../../../status/[api, private/tokens]
 
-import # status libs
-  ../../../status/[api, tokens]
+import # client modules
+  ./common
 
 export common
 

@@ -1,4 +1,4 @@
-import # client libs
+import # client modules
   ./tui/events
 
 export events

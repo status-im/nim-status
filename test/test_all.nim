@@ -1,31 +1,18 @@
-import
-  # `test/account.nim` is presently disabled because it relies on
-  # `test/test_utils.nim`, which relies on `status/go/shim.nim`, which has been
-  # removed from this repo
-  # ./account,
-
+import # test modules
   ./accounts/generator/generator,
   ./accounts/accounts,
   ./accounts/public_accounts,
+  ./api,
   ./bip32,
   ./callrpc,
   ./chats,
-  ./api,
   ./contacts,
   ./db_smoke,
-
-  # `test/login_and_logout.nim` is presently disabled because
-  # `status/accounts.nim` uses a global mutable variable for `web3_conn` (which
-  # can't be referenced within a chronos async function, e.g. an `asyncTest`);
-  # it should instead be a property of an init'd Status object (or something
-  # along those lines)
-  # ./login_and_logout,
-
   ./mailservers,
   ./messages,
+  ./migrations,
   ./mnemonic,
   ./multiaccount,
-  ./migrations,
   ./pendingtxs,
   ./permissions,
   ./settings,

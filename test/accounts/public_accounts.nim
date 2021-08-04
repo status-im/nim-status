@@ -1,12 +1,14 @@
-import # nim libs
-  json, options, os, times, unittest
+import # std libs
+  std/[json, options, os, times, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher
 
-import # status libs
-  ../../status/[database, conversions],
-  ../../status/accounts/public_accounts, ../test_helpers
+import # status lib
+  ../../status/private/[accounts/public_accounts, conversions, database]
+
+import # test modules
+  ../test_helpers
 
 procSuite "public accounts":
   asyncTest "saveAccount, updateAccountTimestamp, deleteAccount":

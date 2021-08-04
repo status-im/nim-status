@@ -4,10 +4,10 @@ import # std libs
   std/[os, typetraits]
 
 import # vendor libs
-  stew/results, sqlcipher
+  sqlcipher, stew/results
 
-import # nim-status modules
-  ../accounts/generator/generator, ../database
+import # status modules
+  ../private/[accounts/generator/generator, database]
 
 export database, generator, results, sqlcipher
 

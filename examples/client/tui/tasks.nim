@@ -1,7 +1,7 @@
 import # vendor libs
   stew/byteutils
 
-import # client libs
+import # client modules
   ./common
 
 export common

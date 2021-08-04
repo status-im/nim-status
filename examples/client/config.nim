@@ -4,7 +4,7 @@ import # std libs
 import # vendor libs
   chronicles, confutils, confutils/std/net
 
-import # client libs
+import # client modules
   ./client/waku_chat2
 
 export confutils, net.ValidIpAddress, net.init

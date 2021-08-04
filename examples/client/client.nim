@@ -1,7 +1,7 @@
 import # std libs
   std/sugar
 
-import # client libs
+import # client modules
   ./client/tasks
 
 export tasks

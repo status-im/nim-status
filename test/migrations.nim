@@ -1,12 +1,14 @@
-import # nim libs
-  os, tables, unittest
+import # std libs
+  std/[os, tables, unittest]
 
 import # vendor libs
   chronos, sqlcipher, stew/[byteutils, results]
 
-import # status libs
-  ../status/migration,
-  ../status/migrations/sql_scripts_accounts as migration_accounts,
+import # status lib
+  ../status/private/migration,
+  ../status/private/migrations/sql_scripts_accounts as migration_accounts
+
+import # test modules
   ./test_helpers
 
 procSuite "migrations":

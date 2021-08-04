@@ -1,7 +1,7 @@
 import # std libs
   std/[strformat, strutils]
 
-import # client libs
+import # client modules
   ./common
 
 export common

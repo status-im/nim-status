@@ -1,11 +1,13 @@
-import # nim libs
-  json, options, os, unittest
+import # std libs
+  std/[json, options, os, unittest]
 
 import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions
 
-import # status libs
-  ../status/[database, tokens],
+import # status lib
+  ../status/private/[database, tokens]
+
+import # test modules
   ./test_helpers
 
 procSuite "tokens":
