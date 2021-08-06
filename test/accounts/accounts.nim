@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, secp256k1, sqlcipher, web3/ethtypes
 
 import # status lib
-  ../../status/private/[accounts/accounts, conversions, database, extkeys/types]
+  status/private/[accounts/accounts, conversions, database, extkeys/types]
 
 import # test modules
   ../test_helpers

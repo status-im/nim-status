@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status lib
-  ../status/private/[database, mailservers]
+  status/private/[database, mailservers]
 
 import # test modules
   ./test_helpers

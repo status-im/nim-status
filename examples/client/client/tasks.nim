@@ -7,8 +7,8 @@ import # vendor libs
   stew/byteutils
 
 import # status lib
-  ../../status/api/[tokens, wallet],
-  ../../status/private/protocol
+  status/api/[tokens, wallet],
+  status/private/protocol
 
 import # client modules
   ./events, ./waku_chat2

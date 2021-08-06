@@ -5,8 +5,8 @@ import # vendor libs
   chronos, sqlcipher, stew/[byteutils, results]
 
 import # status lib
-  ../status/private/migration,
-  ../status/private/migrations/sql_scripts_accounts as migration_accounts
+  status/private/migration,
+  status/private/migrations/sql_scripts_accounts as migration_accounts
 
 import # test modules
   ./test_helpers

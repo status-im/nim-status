@@ -5,8 +5,8 @@ import # vendor libs
   json_serialization, sqlcipher, stew/byteutils
 
 import # status lib
-  ../status/private/[conversions, chats, database, messages,
-                     migrations/sql_scripts_app]
+  status/private/[conversions, chats, database, messages,
+                  migrations/sql_scripts_app]
 
 import # test modules
   ./test_helpers

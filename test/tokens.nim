@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions
 
 import # status lib
-  ../status/private/[database, tokens]
+  status/private/[database, tokens]
 
 import # test modules
   ./test_helpers

@@ -6,7 +6,7 @@ import # vendor libs
   options, sqlcipher, web3/conversions
 
 import # status lib
-  ../status/private/[callrpc, database, migrations/sql_scripts_app, settings]
+  status/private/[callrpc, database, migrations/sql_scripts_app, settings]
 
 import # test modules
   ./test_helpers

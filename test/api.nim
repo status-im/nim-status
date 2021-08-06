@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status lib
-  ../status/[api, private/settings]
+  status/[api, private/settings]
 
 import # test modules
   ./test_helpers

@@ -8,7 +8,7 @@ import # vendor libs
   waku/v2/protocol/waku_message
 
 import # status lib
-  ../status/private/waku
+  status/private/waku
 
 import # test modules
   ./test_helpers
