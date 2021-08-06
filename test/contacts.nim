@@ -5,8 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status lib
-  ../status/private/[contacts, conversions, database,
-                     migrations/sql_scripts_app]
+  status/private/[contacts, conversions, database, migrations/sql_scripts_app]
 
 import # test modules
   ./test_helpers

@@ -5,7 +5,7 @@ import # vendor libs
   task_runner
 
 import # status lib
-  ../../../status/api/accounts
+  status/api/accounts
 
 import # client modules
   ../config

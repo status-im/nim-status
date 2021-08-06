@@ -2,7 +2,7 @@ import # vendor libs
   web3/ethtypes
 
 import # status lib
-  ../../../status/api/[tokens, wallet]
+  status/api/[tokens, wallet]
 
 import # client modules
   ./common

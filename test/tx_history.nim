@@ -5,10 +5,9 @@ import # vendor libs
   json_serialization, sqlcipher
 
 import # status lib
-  ../../status/private/[callrpc, conversions, database, settings,
-                        tx_history/types]
+  status/private/[callrpc, conversions, database, settings, tx_history/types]
 
-from ../../status/private/tx_history import nil
+from status/private/tx_history import nil
 
 
 # Initialize db

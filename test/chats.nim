@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher, stew/byteutils
 
 import # status lib
-  ../status/private/[chats, contacts, conversions, database, messages]
+  status/private/[chats, contacts, conversions, database, messages]
 
 import # test modules
   ./test_helpers

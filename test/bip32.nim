@@ -5,7 +5,7 @@ import # vendor libs
   chronos, eth/keys, secp256k1, stew/[results]
 
 import # status lib
-  ../status/private/extkeys/[hdkey, mnemonic, types]
+  status/private/extkeys/[hdkey, mnemonic, types]
 
 import # test modules
   ./test_helpers

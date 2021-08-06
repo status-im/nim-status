@@ -5,8 +5,7 @@ import # vendor libs
   chronos, eth/[keyfile/uuid, keys]
 
 import # status lib
-  ../../../status/private/[accounts/generator/generator, conversions,
-                           extkeys/types]
+  status/private/[accounts/generator/generator, conversions, extkeys/types]
 
 import # test modules
   ../../test_helpers

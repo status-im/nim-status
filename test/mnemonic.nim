@@ -5,7 +5,7 @@ import # vendor libs
   chronos
 
 import # status lib
-  ../status/private/extkeys/mnemonic
+  status/private/extkeys/mnemonic
 
 import # test modules
   ./test_helpers

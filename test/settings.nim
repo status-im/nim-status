@@ -6,8 +6,7 @@ import # vendor libs
   sqlcipher
 
 import # status lib
-  ../status/private/[conversions, database, migrations/sql_scripts_app,
-                     settings]
+  status/private/[conversions, database, migrations/sql_scripts_app, settings]
 
 import # test modules
   ./test_helpers

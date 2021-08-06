@@ -5,7 +5,7 @@ import # vendor libs
   chronos, eth/[keys, p2p], stew/byteutils
 
 import # status lib
-  ../status/private/[accounts/generator/generator, conversions, extkeys/paths]
+  status/private/[accounts/generator/generator, conversions, extkeys/paths]
 
 import # test modules
   ./test_helpers
