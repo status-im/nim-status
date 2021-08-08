@@ -1,22 +1,25 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, options, strutils, times, typetraits]
+  std/[json, marshal, options, strutils, times, typetraits]
 
 import # vendor libs
   chronicles, eth/keys, json_serialization,
-  json_serialization/std/options as json_options, secp256k1, sqlcipher,
-  stew/byteutils,
-  web3/[conversions, ethtypes]
+  json_serialization/std/options as json_options,
+  json_serialization/[reader, writer, lexer], secp256k1, stew/byteutils,
+  sqlcipher, web3/[conversions, ethtypes]
 
 import # status modules
-  ./extkeys/types as key_types
+  ./common, ./chatmessages/common as chatmessages, ./extkeys/types as key_types
 
 from ./tx_history/types as tx_history_types import TxType
 
 # needed because nim-sqlcipher calls toDbValue/fromDbValue which does not have
 # json_serialization/std/options imported
-export conversions, ethtypes, json_options
+export conversions, ethtypes, json_options, secp256k1, reader, writer, lexer
+
+type
+  ConversionError* = object of StatusError
 
 const dtFormat = "yyyy-MM-dd HH:mm:ss fffffffff"
 
@@ -37,6 +40,18 @@ proc fromDbValue*(val: DbValue, T: typedesc[JsonNode]): JsonNode {.raises:
 
 proc fromDbValue*(val: DbValue, T: typedesc[KeyPath]): KeyPath {.raises: [].} =
   KeyPath val.strVal
+
+proc fromDbValue*(val: DbValue, T: typedesc[Message]): Message {.raises:
+  [ConversionError].} =
+
+  const errorMsg = "Error converting DB value in to a Message type"
+  try:
+    Json.decode(string.fromBytes(val.blobVal), Message,
+      allowUnknownFields = true)
+  except ValueError as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
+  except Exception as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
 
 proc fromDbValue*(val: DbValue, T: typedesc[SkPublicKey]): SkPublicKey =
   let pubKeyResult = SkPublicKey.fromRaw(val.blobVal)
@@ -71,6 +86,34 @@ proc parseAddress*(address: string): Address {.raises: [Defect, ValueError].} =
 proc readValue*(r: var JsonReader, T: type KeyPath): T =
   KeyPath r.readValue(string)
 
+proc readValue*(r: var JsonReader, U: type Message): U {.raises: [Defect,
+  ConversionError].} =
+
+  const errorMsg = "Error deserialising string in to a Message type"
+
+  try:
+    # FIXME: this will NOT adhere to the {.serializedFieldName.} metadata
+    # on the Message fields as it uses the std/marshal module to deserialise the
+    # object. At this point, it is unknown how to workaround this
+    # limitation without causing an infinite loop. IOW, it would be great to be
+    # able to call `r.readValue(Message)`, but that would cause this proc to be
+    # called in an infinite loop. HELP WANTED, PLEASE! 🙏
+    # To illustrate the issue, change the value of MessageType.StickerPack to
+    # "stickerPack123". Upon attempting to deserialise using Nim's marshal
+    # module, the field "stickerPack123" will not be found on the Message type.
+    let jsn = r.readValue(JsonNode)
+    return ($jsn).to[:Message]
+  except IOError as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
+  except JsonParsingError as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
+  except OSError as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
+  except Exception as e:
+    raise (ref ConversionError)(parent: e, msg: errorMsg)
+
 proc toAddress*(secretKey: SkSecretKey): Address {.raises: [Defect,
   ValueError].} =
 
@@ -90,6 +133,9 @@ proc toDbValue*(val: JsonNode): DbValue {.raises: [].} =
 
 proc toDbValue*(val: KeyPath): DbValue {.raises: [].} =
   DbValue(kind: sqliteText, strVal: val.string)
+
+proc toDbValue*(val: Message): DbValue =
+  DbValue(kind: sqliteBlob, blobVal: Json.encode(val).toBytes)
 
 proc toDbValue*[T: seq[auto]](val: T): DbValue =
   DbValue(kind: sqliteText, strVal: Json.encode(val))

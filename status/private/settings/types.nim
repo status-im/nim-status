@@ -9,10 +9,9 @@ import # vendor libs
   json_serialization/std/options as json_options, sqlcipher
 
 import # status modules
-  ../conversions, ../networks
+  ../common, ../conversions, ../networks
 
-export networks
-
+export conversions, networks
 
 type
   SettingsError* = object of CatchableError
@@ -172,6 +171,8 @@ type
     wakuEnabled* {.dontSerialize, serializedFieldName($SettingsType.WakuEnabled), dbColumnName($SettingsCol.WakuEnabled).}: Option[bool]
     wakuBloomFilterMode* {.dontSerialize, serializedFieldName($SettingsType.WakuBloomFilterMode), dbColumnName($SettingsCol.WakuBloomFilterMode).}: Option[bool]
     webViewAllowPermissionRequests* {.dontSerialize, serializedFieldName($SettingsType.WebviewAllowPermissionRequests), dbColumnName($SettingsCol.WebviewAllowPermissionRequests).}: Option[bool]
+
+  SettingDbError* = object of StatusError
 
 proc `$`*(self: Settings): string =
   return Json.encode(self)

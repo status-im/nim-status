@@ -1,55 +1,88 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[algorithm, sequtils, strformat, tables]
+  std/[algorithm, options, sequtils, strformat, tables]
 
 import # vendor libs
   chronicles, nimcrypto, sqlcipher,
   stew/[byteutils, results]
 
 import # status modules
-  ./migrations/types
+  ./common, ./migrations/types
 
 export MigrationDefinition
 
-type Migration* {.dbTableName("migrations").} = object
-  name* {.dbColumnName("name").}: string
-  hash* {.dbColumnName("hash").}: string
+type
+  Migration* {.dbTableName("migrations").} = object
+    name* {.dbColumnName("name").}: string
+    hash* {.dbColumnName("hash").}: string
 
-type MigrationResult* = Result[Migration, string]
+  MigrationResult* = Result[Migration, string]
+
+  MigrationError* = object of StatusError
 
 
-proc createMigrationTableIfNotExists*(db: DbConn) {.raises: [Exception].} =
+proc createMigrationTableIfNotExists*(db: DbConn) {.raises: [MigrationError].} =
 
   var migration: Migration
+  const errorMsg = "Error creating migration table if not exists"
   const query = fmt"""CREATE TABLE IF NOT EXISTS {migration.tableName} (
-                          {migration.name.columnName} VARCHAR NOT NULL PRIMARY KEY,
-                          {migration.hash.columnName} VARCHAR NOT NULL
-                        )"""
-  db.execScript(query)
+                        {migration.name.columnName} VARCHAR NOT NULL PRIMARY KEY,
+                        {migration.hash.columnName} VARCHAR NOT NULL
+                      )"""
+  try:
+
+    db.execScript(query)
+
+  except SqliteError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
+  except Exception as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
 
 
-proc getLastMigrationExecuted*(db: DbConn): MigrationResult {.raises: [Defect,
-  Exception].} =
+proc getLastMigrationExecuted*(db: DbConn): MigrationResult {.raises:
+  [AssertionError, MigrationError, UnpackError].} =
 
   var migration: Migration
+  const errorMsg = "Error getting last migration executed"
+
   db.createMigrationTableIfNotExists()
-  const query = fmt"SELECT {migration.name.columnName}, {migration.hash.columnName} FROM {migration.tableName} ORDER BY rowid DESC LIMIT 1"
-  let queryResult = db.one(Migration, query)
-  if not queryResult.isSome:
-    return  MigrationResult.err("No migrations were executed")
-  MigrationResult.ok(queryResult.get())
 
-proc getAllMigrationsExecuted*(db: DbConn): seq[Migration] {.raises: [Defect,
-  Exception].} =
+  const query = fmt"""SELECT    {migration.name.columnName},
+                                {migration.hash.columnName}
+                      FROM      {migration.tableName}
+                      ORDER BY  rowid DESC
+                      LIMIT 1"""
+  try:
 
+    let queryResult = db.one(Migration, query)
+    if not queryResult.isSome:
+      return  MigrationResult.err("No migrations were executed")
+
+    return MigrationResult.ok(queryResult.get())
+
+  except SqliteError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
+
+proc getAllMigrationsExecuted*(db: DbConn): seq[Migration] {.raises:
+  [AssertionError, MigrationError].} =
+
+  const errorMsg = "Error getting all migrations executed"
   db.createMigrationTableIfNotExists()
   var migration: Migration
-  const query = fmt"SELECT {migration.name.columnName}, {migration.hash.columnName} FROM {migration.tableName} ORDER BY rowid ASC;"
-  db.all(Migration, query)
+  const query = fmt"""SELECT    {migration.name.columnName},
+                                {migration.hash.columnName}
+                      FROM      {migration.tableName}
+                      ORDER BY  rowid ASC;"""
+  try:
+
+    return db.all(Migration, query)
+
+  except SqliteError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
 
 proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool
-  {.raises: [Defect, Exception].} =
+  {.raises: [AssertionError, Defect, MigrationError].} =
 
   let allMigrationsExecuted = db.getAllMigrationsExecuted()
   let migrations = toSeq(definition.migrationUp.keys)
@@ -60,27 +93,39 @@ proc checkMigrations*(db: DbConn, definition: MigrationDefinition): bool
     warn "DB version might be greater than source code", migrationsInCode=migrations.len, migrationsExecuted=allMigrationsExecuted.len
     return false
 
+  const errorMsg = "Error checking migration hash for mismatch"
   var i = -1
-  for migration in allMigrationsExecuted:
-    i += 1
-    if migrations[i] != migration.name:
-      warn "Migration order mismatch", migration=migration.name
-      return false
+  try:
 
-    if keccak_256.digest(definition.migrationUp[migration.name]).data.toHex() != migration.hash:
-      warn "Migration hash mismatch", migration=migration.name
-      return false
+    for migration in allMigrationsExecuted:
+      i += 1
+      if migrations[i] != migration.name:
+        warn "Migration order mismatch", migration=migration.name
+        return false
+
+      let hash = keccak_256.digest(definition.migrationUp[migration.name])
+      if hash.data.toHex() != migration.hash:
+        warn "Migration hash mismatch", hashDataToHex=hash.data.toHex, migrationHash=migration.hash
+        warn "Migration hash mismatch", migration=migration.name
+        return false
+
+  except KeyError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg &
+      ", migration not defined")
+  except ValueError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
 
   return true
 
 
 proc isUpToDate*(db: DbConn, definition: MigrationDefinition): bool {.raises:
-  [Defect, Exception].} =
+  [AssertionError, MigrationError, ResultDefect, UnpackError].} =
 
   let lastMigrationExecuted = db.getLastMigrationExecuted()
   if lastMigrationExecuted.isOk:
     # Check what's the latest migration
-    let currentMigration = lastMigrationExecuted.get()
+    var currentMigration: Migration
+    currentMigration = lastMigrationExecuted.get()
 
     var index = 0
     for name in definition.migrationUp.keys:
@@ -90,51 +135,86 @@ proc isUpToDate*(db: DbConn, definition: MigrationDefinition): bool {.raises:
 
   result = false
 
+proc execMigration(db: DbConn, name: string, query: seq[byte]) {.raises:
+  [MigrationError].} =
+
+  debug "Executing migration", name
+  const errorMsg = "Error executing migration"
+  try:
+
+    db.execScript(string.fromBytes(query))
+
+    var migration: Migration
+    let
+      migQuery = fmt"""INSERT INTO  {migration.tableName} (
+                                      {migration.name.columnName},
+                                      {migration.hash.columnName}
+                                    )
+                    VALUES          (?, ?)"""
+      hash = keccak_256.digest(query)
+
+    db.exec(migQuery, name, hash.data.toHex)
+
+  except SqliteError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
+  except Exception as e:
+    raise (ref MigrationError)(parent: e, msg: errorMsg)
 
 proc migrate*(db: DbConn, definition: MigrationDefinition): MigrationResult
-  {.raises: [Defect, Exception].} =
+  {.raises: [].} =
 
-  db.createMigrationTableIfNotExists()
-  if not db.checkMigrations(definition): return MigrationResult.err "db/migration mismatch"
-  var migration: Migration
-  let lastMigrationExecuted = db.getLastMigrationExecuted()
-  if not lastMigrationExecuted.isOk:
-    try:
+  const errorMsg = "Could not execute migration, "
+
+  try:
+
+    db.createMigrationTableIfNotExists()
+
+    if not db.checkMigrations(definition):
+      return MigrationResult.err "db/migration mismatch"
+
+    let lastMigrationExecuted = db.getLastMigrationExecuted()
+    if not lastMigrationExecuted.isOk:
       db.transaction:
         for name, query in definition.migrationUp.pairs:
-          debug "Executing migration", name
-          db.execScript(string.fromBytes(query))
-          db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
-    except SqliteError:
-      let msg = getCurrentExceptionMsg()
-      warn "Could not execute migration", msg
-      return MigrationResult.err "Could not execute migration"
-  else:
-    if db.isUpToDate(definition): return lastMigrationExecuted
+          db.execMigration(name, query)
+    else:
+      if db.isUpToDate(definition):
+        return lastMigrationExecuted
 
-    let allMigrationsExecuted = db.getAllMigrationsExecuted()
-    var index = -1
-    try:
+      let allMigrationsExecuted = db.getAllMigrationsExecuted()
+      var index = -1
       db.transaction:
         for name, query in definition.migrationUp.pairs:
           index += 1
           if index <= (allMigrationsExecuted.len - 1): continue
-          debug "Executing migration", name
-          db.execScript(string.fromBytes(query))
-          db.exec(fmt"INSERT INTO {migration.tableName}({migration.name.columnName}, {migration.hash.columnName}) VALUES(?, ?)", name, keccak_256.digest(query).data.toHex())
-    except SqliteError:
-      let msg = getCurrentExceptionMsg()
-      warn "Could not execute migration", msg
-      return MigrationResult.err "Could not execute migration"
+          db.execMigration(name, query)
 
-  return db.getLastMigrationExecuted()
+    return db.getLastMigrationExecuted()
+
+  except MigrationError as e:
+    warn "Could not execute migration", msg=e.msg
+    return MigrationResult.err errorMsg & e.msg
+  except Exception as e: # comes from db.transaction
+    warn "Could not execute migration", msg=e.msg
+    return MigrationResult.err errorMsg & e.msg
 
 
 proc tearDown*(db: DbConn, definition: MigrationDefinition): bool {.raises:
-  [Defect, Exception].} =
+  [AssertionError].} =
 
-  var migration: Migration
-  var allMigrationsExecuted = db.getAllMigrationsExecuted().reversed()
+  const errorMsg = "Could not rollback migration"
+  var
+    migration: Migration
+    allMigrationsExecuted: seq[Migration]
+
+  try:
+    allMigrationsExecuted = db.getAllMigrationsExecuted().reversed()
+  except MigrationError:
+    warn errorMsg
+    return false
+
   try:
     db.transaction:
       for m in allMigrationsExecuted:
@@ -142,8 +222,12 @@ proc tearDown*(db: DbConn, definition: MigrationDefinition): bool {.raises:
         if definition.migrationDown.hasKey(m.name):
           let script = string.fromBytes(definition.migrationDown[m.name])
           if script != "": db.execScript(script)
-        db.exec(fmt"DELETE FROM {migration.tableName} WHERE {migration.name.columnName} = ?", m.name)
+        db.exec(fmt"""DELETE FROM   {migration.tableName}
+                      WHERE         {migration.name.columnName} = ?""", m.name)
   except SqliteError:
-    warn "Could not rollback migration"
+    warn errorMsg
+    return false
+  except Exception:
+    warn errorMsg
     return false
   return true

@@ -9,7 +9,7 @@ import # vendor libs
   sqlcipher, web3/ethtypes
 
 import # status modules
-  ./conversions
+  ./common, ./conversions
 
 type
   ContactType* {.pure.} = enum
@@ -90,54 +90,73 @@ type
     tributeToTalk* {.serializedFieldName($ContactType.TributeToTalk), dbColumnName($ContactsCol.TributeToTalk).}: Option[string]
     localNickname* {.serializedFieldName($ContactType.LocalNickname), dbColumnName($ContactsCol.LocalNickname).}: Option[string]
 
-proc saveContact*(db: DbConn, contact: Contact) {.raises:[Defect, SqliteError,
-  ref ValueError].} =
+  ContactDbError* = object of StatusError
 
-  let query = fmt"""INSERT INTO contacts(
-                      {$ContactsCol.Id},
-                      {$ContactsCol.Address},
-                      {$ContactsCol.Name},
-                      {$ContactsCol.Alias},
-                      {$ContactsCol.Identicon},
-                      {$ContactsCol.Photo},
-                      {$ContactsCol.LastUpdated},
-                      {$ContactsCol.SystemTags},
-                      {$ContactsCol.DeviceInfo},
-                      {$ContactsCol.EnsVerified},
-                      {$ContactsCol.EnsVerifiedAt},
-                      {$ContactsCol.EnsVerificationRetries},
-                      {$ContactsCol.TributeToTalk},
-                      {$ContactsCol.LocalNickname},
-                      {$ContactsCol.LastEnsClockValue})
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+proc saveContact*(db: DbConn, contact: Contact) {.raises:[ContactDbError,
+  Defect].} =
 
-  db.exec(query,
-          contact.id,
-          contact.address,
-          contact.name,
-          contact.alias,
-          contact.identicon,
-          contact.photo,
-          contact.lastUpdated,
-          contact.systemTags,
-          contact.deviceInfo,
-          contact.ensVerified,
-          contact.ensVerifiedAt,
-          contact.ensVerificationRetries,
-          contact.tributeToTalk,
-          contact.localNickname,
-          contact.lastEnsClockValue)
+  const errorMsg = "Error saving contact to the database"
+
+  try:
+    var tblContact: Contact
+    let query = fmt"""INSERT INTO {tblContact.tableName} (
+                        {ContactsCol.Id},
+                        {ContactsCol.Address},
+                        {ContactsCol.Name},
+                        {ContactsCol.Alias},
+                        {ContactsCol.Identicon},
+                        {ContactsCol.Photo},
+                        {ContactsCol.LastUpdated},
+                        {ContactsCol.SystemTags},
+                        {ContactsCol.DeviceInfo},
+                        {ContactsCol.EnsVerified},
+                        {ContactsCol.EnsVerifiedAt},
+                        {ContactsCol.EnsVerificationRetries},
+                        {ContactsCol.TributeToTalk},
+                        {ContactsCol.LocalNickname},
+                        {ContactsCol.LastEnsClockValue})
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+
+    db.exec(query,
+            contact.id,
+            contact.address,
+            contact.name,
+            contact.alias,
+            contact.identicon,
+            contact.photo,
+            contact.lastUpdated,
+            contact.systemTags,
+            contact.deviceInfo,
+            contact.ensVerified,
+            contact.ensVerifiedAt,
+            contact.ensVerificationRetries,
+            contact.tributeToTalk,
+            contact.localNickname,
+            contact.lastEnsClockValue)
+
+  except SqliteError as e:
+    raise (ref ContactDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ContactDbError)(parent: e, msg: errorMsg)
 
 proc saveContacts*(db: DbConn, contacts: seq[Contact]) {.raises:[Defect,
-  SqliteError, ref ValueError].} =
+  ContactDbError].} =
 
   for contact in contacts:
     db.saveContact(contact)
 
-proc getContacts*(db: DbConn): seq[Contact] {.raises:[Defect, SqliteError,
-  ref ValueError, SerializationError].} =
+proc getContacts*(db: DbConn): seq[Contact] {.raises:[ContactDbError,
+  Defect].} =
 
-  var contact: Contact
-  let query = fmt"""SELECT *
-                    FROM {contact.tableName}"""
-  result = db.all(Contact, query)
+  const errorMsg = "Error getting contacts from the database"
+  try:
+    var contact: Contact
+    let query = fmt"""SELECT *
+                      FROM {contact.tableName}"""
+    result = db.all(Contact, query)
+  except SerializationError as e:
+    raise (ref ContactDbError)(parent: e, msg: errorMsg)
+  except SqliteError as e:
+    raise (ref ContactDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ContactDbError)(parent: e, msg: errorMsg)

@@ -9,8 +9,7 @@ import # vendor libs
   json_serialization, secp256k1, stew/results, web3/ethtypes
 
 import # status modules
-  ../../conversions,
-  ../../extkeys/[hdkey, mnemonic, types],
+  ../../common, ../../conversions, ../../extkeys/[hdkey, mnemonic, types],
   ./account, ./utils
 
 export utils
@@ -39,6 +38,8 @@ type
     seq[GeneratedAndDerivedAccountInfo], string]
 
   GenerateResult = Result[seq[GeneratedAccountInfo], string]
+
+  GeneratorError* = object of StatusError
 
   ImportMnemonicResult* = Result[GeneratedAccountInfo, string]
 
@@ -81,17 +82,18 @@ proc deriveChildAccounts(self: Generator, a: Account,
 
   DeriveChildAccountsResult.ok(derived)
 
-proc findAccount(self: Generator, accountId: UUID): AccountResult {.raises:
-  [Defect, ref KeyError].} =
+proc findAccount(self: Generator, accountId: UUID): AccountResult =
 
   let id = $accountId
   if not self.accounts.hasKey(id):
     return AccountResult.err "Account doesn't exist"
-
-  AccountResult.ok(self.accounts[id])
+  try:
+    return AccountResult.ok(self.accounts[id])
+  except KeyError as e:
+    return AccountResult.err "Error finding account: " & e.msg
 
 proc deriveAddresses*(self: Generator, accountId: UUID,
-  paths: seq[KeyPath]): DeriveAddressesResult {.raises: [Defect, KeyError].} =
+  paths: seq[KeyPath]): DeriveAddressesResult =
 
   let
     acc = ?self.findAccount(accountId)
@@ -105,12 +107,17 @@ proc deriveAddresses*(self: Generator, accountId: UUID,
   DeriveAddressesResult.ok(derived)
 
 proc importMnemonic*(self: Generator, mnemonic: Mnemonic,
-  bip39Passphrase: string): ImportMnemonicResult {.raises: [Defect,
-  ValueError].} =
+  bip39Passphrase: string): ImportMnemonicResult =
+
+  let seed = mnemonic.mnemonicSeed(bip39Passphrase)
+  var masterExtKeyResult: ExtendedPrivKeyResult
+  try:
+    masterExtKeyResult = seed.newMaster()
+  except HdKeyError as e:
+    return ImportMnemonicResult.err "Error importing mnemonic: " & e.msg
 
   let
-    seed = mnemonic.mnemonicSeed(bip39Passphrase)
-    masterExtKey = ?seed.newMaster()
+    masterExtKey = ?masterExtKeyResult
     account = Account(secretKey: masterExtKey.secretKey,
       extendedKey: masterExtKey)
     id = ?self.addAccount(account)
@@ -137,21 +144,23 @@ proc importPrivateKey*(self: Generator,
   ImportPrivateKeyResult.ok account.toIdentifiedAccountInfo(id)
 
 proc generate*(self: Generator, mnemonicPhraseLength: int, n: int,
-  bip39Passphrase: string): GenerateResult {.raises: [Defect, ValueError].} =
+  bip39Passphrase: string): GenerateResult =
 
   var generated: seq[GeneratedAccountInfo] = @[]
 
-  for i in 0..n-1:
-    let entropyStrength = mnemonicPhraseLengthToEntropyStrength(mnemonicPhraseLength)
-    let phrase = mnemonicPhrase(entropyStrength, Language.English)
-    generated.add ?self.importMnemonic(phrase, bip39Passphrase)
+  try:
+    for i in 0..n-1:
+      let entropyStrength = mnemonicPhraseLengthToEntropyStrength(mnemonicPhraseLength)
+      let phrase = mnemonicPhrase(entropyStrength, Language.English)
+      generated.add ?self.importMnemonic(phrase, bip39Passphrase)
+  except MnemonicError as e:
+    return GenerateResult.err "Error generating accounts: " & e.msg
 
-  GenerateResult.ok(generated)
+  return GenerateResult.ok(generated)
 
 proc generateAndDeriveAddresses*(self: Generator, mnemonicPhraseLength: int,
   n: int, bip39Passphrase: string,
-  paths: seq[KeyPath]): GenerateAndDeriveAddressesResult {.raises: [Defect,
-  ValueError].} =
+  paths: seq[KeyPath]): GenerateAndDeriveAddressesResult =
 
   let masterAccounts = ?self.generate(mnemonicPhraseLength, n, bip39Passphrase)
 
@@ -167,42 +176,58 @@ proc generateAndDeriveAddresses*(self: Generator, mnemonicPhraseLength: int,
   GenerateAndDeriveAddressesResult.ok(generatedAndDerived)
 
 proc findKeyFile(self: Generator, address: Address,
-  dir: string): FindKeyFileResult {.raises: [Defect, ref OSError].} =
+  dir: string): FindKeyFileResult =
 
-  let strAddress = $address
+  try:
+    let strAddress = $address
 
-  var found: seq[(PathComponent, string)] = @[]
-  for kind, path in dir.walkDir:
-    if kind == PathComponent.pcFile and path.endsWith(strAddress.strip0xPrefix):
-      found.add (kind, path)
+    var found: seq[(PathComponent, string)] = @[]
+    try:
+      for kind, path in dir.walkDir:
+        if kind == PathComponent.pcFile and path.endsWith(strAddress.strip0xPrefix):
+          found.add (kind, path)
+    except OSError as e:
+      return FindKeyFileResult.err "Error finding keystore file: " & e.msg
 
-  if found.len == 0:
-    return FindKeyFileResult.err "Could not find key file for address " &
-      strAddress
-  if found.len > 1:
-    return FindKeyFileResult.err "Found more than one key file for address " &
-      strAddress
+    if found.len == 0:
+      return FindKeyFileResult.err "Could not find key file for address " &
+        strAddress
+    if found.len > 1:
+      return FindKeyFileResult.err "Found more than one key file for address " &
+        strAddress
 
-  let (_, path) = found[0]
-  FindKeyFileResult.ok path
+    let (_, path) = found[0]
+    return FindKeyFileResult.ok path
+  except ValueError as e:
+    return FindKeyFileResult.err "Error finding key file: " & e.msg
 
 proc deleteKeyFile*(self: Generator, address: Address, password: string,
-  dir: string): DeleteKeyFileResult {.raises: [Defect, Exception].} =
+  dir: string): DeleteKeyFileResult =
 
   let findKeyFileResult = self.findKeyFile(address, dir)
 
   if findKeyFileResult.isErr:
-    return DeleteKeyFileResult.err fmt"Key file for address {address} not " &
-      "found"
+    return DeleteKeyFileResult.err "Key file for address " & $address &
+      " not found"
 
+  var json: JsonNode
+  const errorMsg = "Error parsing key file: "
   let
     path = findKeyFileResult.get
+  try:
     json = parseFile(path)
-    privateKeyResult = decodeKeyFileJson(json, password)
+  except IOError as e:
+    return DeleteKeyFileResult.err errorMsg & e.msg
+  except ValueError as e:
+    return DeleteKeyFileResult.err errorMsg & e.msg
+  except Exception  as e:
+    return DeleteKeyFileResult.err errorMsg & e.msg
+
+  let privateKeyResult = decodeKeyFileJson(json, password)
 
   if privateKeyResult.isErr:
-    return DeleteKeyFileResult.err fmt"Error decoding key file for {address}. " &
-      "Wrong password?"
+    return DeleteKeyFileResult.err "Error decoding key file for " & $address &
+      ". Wrong password?"
 
   try:
     path.removeFile()
@@ -212,16 +237,25 @@ proc deleteKeyFile*(self: Generator, address: Address, password: string,
   DeleteKeyFileResult.ok
 
 proc loadAccount*(self: Generator, address: Address, password: string,
-  dir: string = ""): LoadAccountResult {.raises: [Defect, Exception].} =
+  dir: string = ""): LoadAccountResult =
 
-  let
-    path = ?self.findKeyFile(address, dir)
+  let path = ?self.findKeyFile(address, dir)
+  var json: JsonNode
+  const errorMsg = "Error parsing key file: "
+  try:
     json = parseFile(path)
-    privateKeyResult = decodeKeyFileJson(json, password)
+  except IOError as e:
+    return LoadAccountResult.err errorMsg & e.msg
+  except ValueError as e:
+    return LoadAccountResult.err errorMsg & e.msg
+  except Exception  as e:
+    return LoadAccountResult.err errorMsg & e.msg
+
+  let privateKeyResult = decodeKeyFileJson(json, password)
 
   if privateKeyResult.isErr:
-    return LoadAccountResult.err fmt"Error decoding key file for {address}. " &
-      "Wrong password?"
+    return LoadAccountResult.err "Error decoding key file for " & $address &
+      ". Wrong password?"
 
   # TODO: Add ValidateKeystoreExtendedKey
   # https://github.com/status-im/status-go/blob/e0eb96a992fea9d52d16ae9413b1198827360278/accounts/generator/generator.go#L213-L215
@@ -277,21 +311,30 @@ proc storeKeyFile*(self: Generator, secretKey: SkSecretKey, password: string,
 proc storeDerivedAccounts*(self: Generator, accountId: UUID, paths: seq[KeyPath],
   password: string, dir: string = "", version: int = 3,
   cryptkind: CryptKind = AES128CTR, kdfkind: KdfKind = PBKDF2,
-  workfactor: int = 0): StoreDerivedAccountsResult {.raises: [Defect, IOError,
-  KeyError, OSError, ValueError].} =
+  workfactor: int = 0): StoreDerivedAccountsResult =
 
-  let
-    acc = ?self.findAccount(accountId)
-    derived = ?self.deriveChildAccounts(acc, paths)
+  const errorMsg = "Error deriving and storing derived accounts: "
+  try:
+    let
+      acc = ?self.findAccount(accountId)
+      derived = ?self.deriveChildAccounts(acc, paths)
 
-  var accounts = initTable[KeyPath, AccountInfo]()
+    var accounts = initTable[KeyPath, AccountInfo]()
 
-  for path, account in derived.pairs:
-    let accountInfo = account.toAccountInfo
+    for path, account in derived.pairs:
+      let accountInfo = account.toAccountInfo
 
-    discard ?self.storeKeyFile(account.secretKey, password, dir,
-      version, cryptkind, kdfkind, workfactor)
+      discard ?self.storeKeyFile(account.secretKey, password, dir,
+        version, cryptkind, kdfkind, workfactor)
 
-    accounts[path] = accountInfo
+      accounts[path] = accountInfo
 
-  StoreDerivedAccountsResult.ok(accounts)
+    return StoreDerivedAccountsResult.ok(accounts)
+  except IOError as e:
+    return StoreDerivedAccountsResult.err errorMsg & e.msg
+  except KeyError as e:
+    return StoreDerivedAccountsResult.err errorMsg & e.msg
+  except OSError as e:
+    return StoreDerivedAccountsResult.err errorMsg & e.msg
+  except ValueError as e:
+    return StoreDerivedAccountsResult.err errorMsg & e.msg

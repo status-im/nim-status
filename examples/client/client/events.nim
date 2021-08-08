@@ -66,6 +66,7 @@ type
 
   ListAccountsEvent* = ref object of ClientEvent
     accounts*: seq[PublicAccount]
+    error*: string
     timestamp*: int64
 
   ListWalletAccountsEvent* = ref object of ClientEvent

@@ -9,7 +9,7 @@ import # vendor libs
   secp256k1, sqlcipher
 
 import # status modules
-  ../conversions, ../database, ../extkeys/types, ../settings
+  ../conversions, ../common, ../database, ../extkeys/types, ../settings
 
 type
   Account* {.dbTableName("accounts").} = object
@@ -31,156 +31,229 @@ type
     Seed      = "seed",
     Watch     = "watch"
 
+  AccountDbError* = object of StatusError
+
 const STORAGE_ON_DEVICE* = "This device"
 
 proc createAccount*(db: DbConn, account: Account) {.raises: [Defect,
-  SqliteError, ref ValueError].} =
+  AccountDbError].} =
 
-  var tblAccounts: Account
-  let query = fmt"""
-    INSERT OR REPLACE INTO  {tblAccounts.tableName} (
-                            {tblAccounts.address.columnName},
-                            {tblAccounts.wallet.columnName},
-                            {tblAccounts.chat.columnName},
-                            {tblAccounts.`type`.columnName},
-                            {tblAccounts.storage.columnName},
-                            {tblAccounts.path.columnName},
-                            {tblAccounts.publicKey.columnName},
-                            {tblAccounts.name.columnName},
-                            {tblAccounts.color.columnName},
-                            {tblAccounts.createdAt.columnName},
-                            {tblAccounts.updatedAt.columnName})
-    VALUES                  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+  const errorMsg = "Error inserting account in database"
 
-  let now = now()
-  db.exec(query, account.address, account.wallet, account.chat,
-    account.`type`, account.storage, account.path, account.publicKey,
-    account.name, account.color, now, now)
+  try:
+
+    var tblAccounts: Account
+    let query = fmt"""
+      INSERT OR REPLACE INTO  {tblAccounts.tableName} (
+                              {tblAccounts.address.columnName},
+                              {tblAccounts.wallet.columnName},
+                              {tblAccounts.chat.columnName},
+                              {tblAccounts.`type`.columnName},
+                              {tblAccounts.storage.columnName},
+                              {tblAccounts.path.columnName},
+                              {tblAccounts.publicKey.columnName},
+                              {tblAccounts.name.columnName},
+                              {tblAccounts.color.columnName},
+                              {tblAccounts.createdAt.columnName},
+                              {tblAccounts.updatedAt.columnName})
+      VALUES                  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+
+    let now = now()
+    db.exec(query, account.address, account.wallet, account.chat,
+      account.`type`, account.storage, account.path, account.publicKey,
+      account.name, account.color, now, now)
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
 
 proc deleteAccount*(db: DbConn, address: Address) {.raises: [Defect,
-  SqliteError, ref ValueError].} =
+  AccountDbError].} =
 
-  var tblAccounts: Account
-  let query = fmt"""DELETE FROM {tblAccounts.tableName}
-                    WHERE       {tblAccounts.address.columnName} = ?"""
+  const errorMsg = "Error deleting account from database"
 
-  db.exec(query, address)
+  try:
 
-proc getWalletAccount*(db: DbConn, address: Address): Option[Account] {.raises:
-  [Defect, SqliteError, ref ValueError].} =
-  # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
-  # status-go enforces only one account to have wallet = 1 (using a unique
-  # constraint in the db)
-  var tblAccounts: Account
-  let query = fmt"""SELECT    {tblAccounts.address.columnName},
-                              {tblAccounts.wallet.columnName},
-                              {tblAccounts.chat.columnName},
-                              {tblAccounts.`type`.columnName},
-                              {tblAccounts.storage.columnName},
-                              {tblAccounts.path.columnName},
-                              {tblAccounts.publicKey.columnName},
-                              {tblAccounts.name.columnName},
-                              {tblAccounts.color.columnName},
-                              {tblAccounts.createdAt.columnName},
-                              {tblAccounts.updatedAt.columnName}
-                    FROM      {tblAccounts.tableName}
-                    WHERE     {tblAccounts.address.columnName} = '{address}'
-                              AND wallet = 0"""
-  db.one(Account, query)
-
-proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account]
-  {.raises: [Defect, SqliteError, ValueError].} =
-
-  var tblAccounts: Account
-  let account = db.getWalletAccount(address)
-  if account.isSome:
+    var tblAccounts: Account
     let query = fmt"""DELETE FROM {tblAccounts.tableName}
-                      WHERE       {tblAccounts.address.columnName} = ?
-                                  AND wallet = 0"""
-    # NOTE: Prevent deletion of the default created account.
-    # We're relying on the default wallet account being the only account
-    # that has wallet = 1. There is a unique DB constraint that enforces this.
+                      WHERE       {tblAccounts.address.columnName} = ?"""
 
     db.exec(query, address)
-  return account
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+
+proc getWalletAccount*(db: DbConn, address: Address): Option[Account] {.raises:
+  [AccountDbError, AssertionError, Defect].} =
+
+  const errorMsg = "Error getting wallet account from database"
+  try:
+
+    var tblAccounts: Account
+    # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
+    # status-go enforces only one account to have wallet = 1 (using a unique
+    # constraint in the db)
+    let query = fmt"""SELECT    {tblAccounts.address.columnName},
+                                {tblAccounts.wallet.columnName},
+                                {tblAccounts.chat.columnName},
+                                {tblAccounts.`type`.columnName},
+                                {tblAccounts.storage.columnName},
+                                {tblAccounts.path.columnName},
+                                {tblAccounts.publicKey.columnName},
+                                {tblAccounts.name.columnName},
+                                {tblAccounts.color.columnName},
+                                {tblAccounts.createdAt.columnName},
+                                {tblAccounts.updatedAt.columnName}
+                      FROM      {tblAccounts.tableName}
+                      WHERE     {tblAccounts.address.columnName} = '{address}'
+                                AND wallet = 0"""
+    db.one(Account, query)
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+
+proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account]
+  {.raises: [Defect, AccountDbError].} =
+
+  const errorMsg = "Error deleting wallet account from database"
+
+  try:
+
+    var tblAccounts: Account
+    let account = db.getWalletAccount(address)
+    if account.isSome:
+      let query = fmt"""DELETE FROM {tblAccounts.tableName}
+                        WHERE       {tblAccounts.address.columnName} = ?
+                                    AND wallet = 0"""
+      # NOTE: Prevent deletion of the default created account.
+      # We're relying on the default wallet account being the only account
+      # that has wallet = 1. There is a unique DB constraint that enforces this.
+
+      db.exec(query, address)
+    return account
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
 
 proc getAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
-  SqliteError, ref ValueError].} =
+  AccountDbError].} =
 
-  var tblAccounts: Account
-  let query = fmt"""SELECT    {tblAccounts.address.columnName},
-                              {tblAccounts.wallet.columnName},
-                              {tblAccounts.chat.columnName},
-                              {tblAccounts.`type`.columnName},
-                              {tblAccounts.storage.columnName},
-                              {tblAccounts.path.columnName},
-                              {tblAccounts.publicKey.columnName},
-                              {tblAccounts.name.columnName},
-                              {tblAccounts.color.columnName},
-                              {tblAccounts.createdAt.columnName},
-                              {tblAccounts.updatedAt.columnName}
-                    FROM      {tblAccounts.tableName}
-                    ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
-  result = db.all(Account, query)
+  const errorMsg = "Error getting accounts from database"
 
-proc getChatAccount*(db: DbConn): Account {.raises: [Defect, SqliteError,
-  ref ValueError].} =
+  try:
 
-  var tblAccounts: Account
-  let query = fmt"""SELECT    {tblAccounts.address.columnName},
-                              {tblAccounts.wallet.columnName},
-                              {tblAccounts.chat.columnName},
-                              {tblAccounts.`type`.columnName},
-                              {tblAccounts.storage.columnName},
-                              {tblAccounts.path.columnName},
-                              {tblAccounts.publicKey.columnName},
-                              {tblAccounts.name.columnName},
-                              {tblAccounts.color.columnName},
-                              {tblAccounts.createdAt.columnName},
-                              {tblAccounts.updatedAt.columnName}
-                    FROM      {tblAccounts.tableName}
-                    WHERE     {tblAccounts.chat.columnName} = TRUE"""
-  result = db.one(Account, query).get
+    var tblAccounts: Account
+    let query = fmt"""SELECT    {tblAccounts.address.columnName},
+                                {tblAccounts.wallet.columnName},
+                                {tblAccounts.chat.columnName},
+                                {tblAccounts.`type`.columnName},
+                                {tblAccounts.storage.columnName},
+                                {tblAccounts.path.columnName},
+                                {tblAccounts.publicKey.columnName},
+                                {tblAccounts.name.columnName},
+                                {tblAccounts.color.columnName},
+                                {tblAccounts.createdAt.columnName},
+                                {tblAccounts.updatedAt.columnName}
+                      FROM      {tblAccounts.tableName}
+                      ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
+    result = db.all(Account, query)
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+
+proc getChatAccount*(db: DbConn): Account {.raises: [Defect, AccountDbError].} =
+
+  const errorMsg = "Error getting chat account from database"
+
+  try:
+
+    var tblAccounts: Account
+    let query = fmt"""SELECT    {tblAccounts.address.columnName},
+                                {tblAccounts.wallet.columnName},
+                                {tblAccounts.chat.columnName},
+                                {tblAccounts.`type`.columnName},
+                                {tblAccounts.storage.columnName},
+                                {tblAccounts.path.columnName},
+                                {tblAccounts.publicKey.columnName},
+                                {tblAccounts.name.columnName},
+                                {tblAccounts.color.columnName},
+                                {tblAccounts.createdAt.columnName},
+                                {tblAccounts.updatedAt.columnName}
+                      FROM      {tblAccounts.tableName}
+                      WHERE     {tblAccounts.chat.columnName} = TRUE"""
+    result = db.one(Account, query).get
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
 
 proc getWalletAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
-  SqliteError, ref ValueError].} =
+  AccountDbError].} =
 
-  # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
-  # status-go enforces only one account to have wallet = 1 (using a unique
-  # constraint in the db)
-  var tblAccounts: Account
-  let query = fmt"""SELECT    {tblAccounts.address.columnName},
-                              {tblAccounts.wallet.columnName},
-                              {tblAccounts.chat.columnName},
-                              {tblAccounts.`type`.columnName},
-                              {tblAccounts.storage.columnName},
-                              {tblAccounts.path.columnName},
-                              {tblAccounts.publicKey.columnName},
-                              {tblAccounts.name.columnName},
-                              {tblAccounts.color.columnName},
-                              {tblAccounts.createdAt.columnName},
-                              {tblAccounts.updatedAt.columnName}
-                    FROM      {tblAccounts.tableName}
-                    WHERE     {tblAccounts.chat.columnName} = 0
-                    ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
-  result = db.all(Account, query)
+  const errorMsg = "Error getting chat account from database"
+
+  try:
+
+    # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
+    # status-go enforces only one account to have wallet = 1 (using a unique
+    # constraint in the db)
+    var tblAccounts: Account
+    let query = fmt"""SELECT    {tblAccounts.address.columnName},
+                                {tblAccounts.wallet.columnName},
+                                {tblAccounts.chat.columnName},
+                                {tblAccounts.`type`.columnName},
+                                {tblAccounts.storage.columnName},
+                                {tblAccounts.path.columnName},
+                                {tblAccounts.publicKey.columnName},
+                                {tblAccounts.name.columnName},
+                                {tblAccounts.color.columnName},
+                                {tblAccounts.createdAt.columnName},
+                                {tblAccounts.updatedAt.columnName}
+                      FROM      {tblAccounts.tableName}
+                      WHERE     {tblAccounts.chat.columnName} = 0
+                      ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
+    result = db.all(Account, query)
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
 
 proc updateAccount*(db: DbConn, account: Account) {.raises: [Defect,
-  SqliteError, ref ValueError].} =
+  AccountDbError].} =
 
-  var tblAccounts: Account
-  let query = fmt"""UPDATE  {tblAccounts.tableName}
-                    SET     {tblAccounts.wallet.columnName} = ?,
-                            {tblAccounts.chat.columnName} = ?,
-                            {tblAccounts.`type`.columnName} = ?,
-                            {tblAccounts.storage.columnName} = ?,
-                            {tblAccounts.path.columnName} = ?,
-                            {tblAccounts.publicKey.columnName} = ?,
-                            {tblAccounts.name.columnName} = ?,
-                            {tblAccounts.color.columnName} = ?,
-                            {tblAccounts.updatedAt.columnName} = ?
-                    WHERE   {tblAccounts.address.columnName}= ?"""
+  const errorMsg = "Error getting chat account from database"
 
-  db.exec(query, account.wallet, account.chat, account.`type`, account.storage,
-    account.path, account.publicKey, account.name, account.color, now(),
-    account.address)
+  try:
+
+    var tblAccounts: Account
+    let query = fmt"""UPDATE  {tblAccounts.tableName}
+                      SET     {tblAccounts.wallet.columnName} = ?,
+                              {tblAccounts.chat.columnName} = ?,
+                              {tblAccounts.`type`.columnName} = ?,
+                              {tblAccounts.storage.columnName} = ?,
+                              {tblAccounts.path.columnName} = ?,
+                              {tblAccounts.publicKey.columnName} = ?,
+                              {tblAccounts.name.columnName} = ?,
+                              {tblAccounts.color.columnName} = ?,
+                              {tblAccounts.updatedAt.columnName} = ?
+                      WHERE   {tblAccounts.address.columnName}= ?"""
+
+    db.exec(query, account.wallet, account.chat, account.`type`, account.storage,
+      account.path, account.publicKey, account.name, account.color, now(),
+      account.address)
+
+  except SqliteError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref AccountDbError)(parent: e, msg: errorMsg)
