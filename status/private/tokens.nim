@@ -9,11 +9,9 @@ import # vendor libs
   sqlcipher, web3/ethtypes
 
 import # status modules
-  ./conversions
+  ./common, ./conversions
 
 type
-  TokenError* = object of CatchableError
-
   TokenType* {.pure.} = enum
     NetworkId = "networkId",
     Address = "address",
@@ -38,23 +36,53 @@ type
     color* {.serializedFieldName($TokenType.Color), dbColumnName($TokenCol.Color).}: string
     decimals* {.serializedFieldName($TokenType.Decimals), dbColumnName($TokenCol.Decimals).}: uint
 
-proc addCustomToken*(db: DbConn, token: Token) {.raises: [Defect,
-  SqliteError].} =
+  TokenDbError* = object of StatusError
 
-  const query = fmt"""INSERT OR REPLACE INTO TOKENS ({$TokenCol.NetworkId}, {$TokenCol.Address}, {$TokenCol.Name}, {$TokenCol.Symbol}, {$TokenCol.Decimals}, {$TokenCol.Color}) VALUES (?, ?, ?, ?, ?, ?)"""
-  # TODO: get network id
-  db.exec(query, 1, $token.address, token.name, token.symbol, token.decimals, token.color)
+proc addCustomToken*(db: DbConn, token: Token) {.raises: [Defect,
+  TokenDbError].} =
+
+  try:
+    var tblToken: Token
+    const query = fmt"""INSERT OR REPLACE INTO  {tblToken.tableName} (
+                                                  {TokenCol.NetworkId},
+                                                  {TokenCol.Address},
+                                                  {TokenCol.Name},
+                                                  {TokenCol.Symbol},
+                                                  {TokenCol.Decimals},
+                                                  {TokenCol.Color}
+                                                )
+                        VALUES                  (?, ?, ?, ?, ?, ?)"""
+    # TODO: get network id
+    db.exec(query, 1, $token.address, token.name, token.symbol, token.decimals,
+      token.color)
+  except SqliteError as e:
+    raise (ref TokenDbError)(parent: e, msg: "Error inserting custom token in " &
+      "to the database")
 
 proc getCustomTokens*(db: DbConn): seq[Token] {.raises: [Defect,
-  SqliteError, ValueError].} =
+  TokenDbError].} =
 
-  var token: Token
-  const query = fmt"""SELECT * FROM {token.tableName} ORDER BY {token.symbol.columnName}, {token.networkId.columnName}"""
-  result = db.all(Token, query)
+  const errorMsg = "Error getting custom tokena from the database"
+  try:
+    var token: Token
+    const query = fmt"""SELECT      *
+                        FROM        {token.tableName}
+                        ORDER BY    {token.symbol.columnName},
+                                    {token.networkId.columnName}"""
+    result = db.all(Token, query)
+  except SqliteError as e:
+    raise (ref TokenDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref TokenDbError)(parent: e, msg: errorMsg)
 
 proc deleteCustomToken*(db: DbConn, address: Address) {.raises: [Defect,
-  SqliteError].} =
+  TokenDbError].} =
 
-  var token: Token
-  const query = fmt"""DELETE FROM {token.tableName} WHERE {$TokenCol.Address} = ?"""
-  db.exec(query, $address)
+  try:
+    var token: Token
+    const query = fmt"""DELETE FROM   {token.tableName}
+                        WHERE         {TokenCol.Address} = ?"""
+    db.exec(query, $address)
+  except SqliteError as e:
+    raise (ref TokenDbError)(parent: e, msg: "Error getting custom tokens " &
+      "from the database")

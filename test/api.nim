@@ -29,38 +29,36 @@ procSuite "api":
       keyUid: "0x1234"
     )
 
-    statusObj.saveAccount(account)
+    discard statusObj.saveAccount(account)
     statusObj.accountsDb.updateAccountTimestamp(1, "0x1234")
-    let accounts = statusObj.getPublicAccounts()
+    let accountsResult = statusObj.getPublicAccounts()
+    echo (%accountsResult.get).pretty
     check:
-      accounts[0].keyUid == "0x1234"
-      accounts[0].loginTimestamp == 1.int64.some
+      accountsResult.isOk
+      accountsResult.get[0].keyUid == "0x1234"
+      accountsResult.get[0].loginTimestamp == 1.int64.some
 
-    let password = "qwerty"
-    let settingsStr = """{
-      "address": "0x1122334455667788990011223344556677889900",
-      "chaos-mode": true,
-      "networks/current-network": "mainnet",
-      "dapps-address": "0x1122334455667788990011223344556677889900",
-      "eip1581-address": "0x1122334455667788990011223344556677889900",
-      "installation-id": "ABC-DEF-GHI",
-      "key-uid": "XYZ",
-      "latest-derived-path": 0,
-      "networks/networks": [{"id":"mainnet_rpc","etherscan-link":"https://etherscan.io/address/","name":"Mainnet with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/mainnet_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://mainnet.infura.io/ws/v3/7230123556ec4a8aac8d89ccd0dd74d7"}}}],
-      "name": "test",
-      "photo-path": "ABXYZC",
-      "preview-privacy?": false,
-      "public-key": "0x123",
-      "signing-phrase": "ABC DEF GHI",
-      "wallet-root-address": "0x1122334455667788990011223344556677889900"
-    }"""
     let
+      password = "qwerty"
+      settingsStr = """{
+        "address": "0x1122334455667788990011223344556677889900",
+        "chaos-mode": true,
+        "networks/current-network": "mainnet",
+        "dapps-address": "0x1122334455667788990011223344556677889900",
+        "eip1581-address": "0x1122334455667788990011223344556677889900",
+        "installation-id": "ABC-DEF-GHI",
+        "key-uid": "XYZ",
+        "latest-derived-path": 0,
+        "networks/networks": [{"id":"mainnet_rpc","etherscan-link":"https://etherscan.io/address/","name":"Mainnet with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/mainnet_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://mainnet.infura.io/ws/v3/7230123556ec4a8aac8d89ccd0dd74d7"}}}],
+        "name": "test",
+        "photo-path": "ABXYZC",
+        "preview-privacy?": false,
+        "public-key": "0x123",
+        "signing-phrase": "ABC DEF GHI",
+        "wallet-root-address": "0x1122334455667788990011223344556677889900"
+      }"""
       settingsObj = Json.decode(settingsStr, Settings, allowUnknownFields = true)
       nodeConfig = %* {"config": 1}
-
-    expect UserDbError:
-      statusObj.userDb.createSettings(settingsObj, nodeConfig)
-      # should not be able to create settings when logged out
 
     var logoutResult = statusObj.logout()
     check:

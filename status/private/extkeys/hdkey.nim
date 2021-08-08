@@ -8,7 +8,10 @@ import # vendor libs
   stew/[byteutils, results]
 
 import # status modules
-  ./paths, ./types, ./utils
+  ../common, ./paths, ./types, ./utils
+
+type
+  HdKeyError* = object of StatusError
 
 const
   masterSecret*: string = "Bitcoin seed"
@@ -55,17 +58,20 @@ proc derive*(k: ExtendedPrivKey, path: KeyPath): ExtendedPrivKeyResult =
   ok(extKey)
 
 proc newMaster*(seed: Keyseed): ExtendedPrivKeyResult {.raises: [Defect,
-  ValueError].} =
+  HdKeyError].} =
 
-  # NewMaster creates new master node, root of HD chain/tree.
-  # Both master and child nodes are of ExtendedKey type, and all the children derive from the root node.
-  let lseed = openArray[byte](seed).len
-  if lseed < MIN_SEED_BYTES or lseed > MAX_SEED_BYTES:
-    return ExtendedPrivKeyResult.err(
-      fmt"the recommended size of seed is {MIN_SEED_BYTES}-{MAX_SEED_BYTES} bits"
-    )
+  try:
+    # NewMaster creates new master node, root of HD chain/tree.
+    # Both master and child nodes are of ExtendedKey type, and all the children derive from the root node.
+    let lseed = openArray[byte](seed).len
+    if lseed < MIN_SEED_BYTES or lseed > MAX_SEED_BYTES:
+      return ExtendedPrivKeyResult.err(
+        fmt"the recommended size of seed is {MIN_SEED_BYTES}-{MAX_SEED_BYTES} bits"
+      )
 
-  splitHMAC(string.fromBytes(openArray[byte](seed)), masterSecret)
+    splitHMAC(string.fromBytes(openArray[byte](seed)), masterSecret)
+  except ValueError as e:
+    raise (ref HdKeyError)(parent: e, msg: "Error generating a new master key")
 
 proc toExtendedKey*(secretKey: SkSecretKey): ExtendedPrivKeyResult
   {.raises: [].} =

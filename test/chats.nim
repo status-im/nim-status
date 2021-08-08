@@ -2,7 +2,7 @@ import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
-  chronos, json_serialization, sqlcipher, stew/byteutils
+  chronos, json_serialization, secp256k1, sqlcipher, stew/byteutils
 
 import # status lib
   status/private/[chats, contacts, conversions, database, messages]
@@ -12,10 +12,23 @@ import # test modules
 
 procSuite "chats":
   asyncTest "chats":
-    let password = "qwerty"
-    let path = currentSourcePath.parentDir() & "/build/my.db"
+    let
+      password = "qwerty"
+      path = currentSourcePath.parentDir() & "/build/my.db"
+      bip44PublicKey = SkPublicKey.fromHex(
+        "0x03ddb90a4f67a81adf534bc19ed06d1546a3cad16a3b2995e18e3d7af823fe5c9a").get
     removeFile(path)
-    let db = initializeDB(path, password)
+    var db: DbConn
+    try:
+      db = initializeDB(path, password)
+    except DbError as e:
+      echo "error initing db: " & e.msg
+
+    let
+      message = Message(
+        id: "test",
+        whisperTimestamp: 123
+      )
 
     var chat = Chat(
       id: "ContactId",
@@ -25,10 +38,10 @@ procSuite "chats":
       active: true,
       timestamp: 25,
       deletedAtClockValue: 15,
-      publicKey: "public-key".toBytes(),
+      publicKey: bip44PublicKey.some,
       unviewedMessageCount: 3,
       lastClockValue: 18,
-      lastMessage: some("lastMessage".toBytes()),
+      lastMessage: message.some,
       members: "members".toBytes(),
       membershipUpdates: "membershipUpdates".toBytes(),
       profile: "profile",
@@ -42,6 +55,7 @@ procSuite "chats":
     # getChats
     chat.id = "ContactId1"
     db.saveChat(chat)
+
     var dbChats = db.getChats()
 
     check:
@@ -51,9 +65,9 @@ procSuite "chats":
     var dbChat = db.getChatById("ContactId").get()
 
     check:
-      dbChat.active == true and
-        dbChat.publicKey == "public-key".toBytes() and
-        dbChat.unviewedMessageCount == 3
+      dbChat.active == true
+      dbChat.publicKey.get == bip44PublicKey
+      dbChat.unviewedMessageCount == 3
 
     # [mute/unmute]Chat
     db.muteChat("ContactId")
@@ -86,6 +100,7 @@ procSuite "chats":
       tributeToTalk: some("ABC1"),
       localNickname: some("ABC1")
     )
+
     db.saveContact(contact)
 
     var msg = Message(

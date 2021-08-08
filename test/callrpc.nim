@@ -2,11 +2,11 @@ import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
-  chronos, json_serialization, json_serialization/std/options as json_options,
+  chronos, json_serialization,
   options, sqlcipher, web3/conversions
 
 import # status lib
-  status/private/[callrpc, database, migrations/sql_scripts_app, settings]
+  status/private/[callrpc, database, settings]
 
 import # test modules
   ./test_helpers

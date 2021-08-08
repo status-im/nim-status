@@ -7,8 +7,8 @@ import # vendor libs
   stew/byteutils
 
 import # status lib
-  status/api/[tokens, wallet],
-  status/private/protocol
+  status/api/[auth, tokens, wallet],
+  status/private/[alias, protocol]
 
 import # client modules
   ./events, ./waku_chat2
@@ -504,9 +504,19 @@ proc leaveTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
+  let accountsResult = status.getPublicAccounts()
+  if accountsResult.isErr:
+    let
+      event = ListAccountsEvent(error: "Error listing accounts: " &
+        accountsResult.error, timestamp: getTime().toUnix)
+      eventEnc = event.encode
+      task = taskArg.taskName
+    trace "task sent error event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+
   let
-    accounts = status.getPublicAccounts()
-    event = ListAccountsEvent(accounts: accounts, timestamp: getTime().toUnix)
+    event = ListAccountsEvent(accounts: accountsResult.get,
+      timestamp: getTime().toUnix)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -542,13 +552,25 @@ proc login*(account: int, password: string) {.
   if statusState != StatusState.loggedout: return
   statusState = StatusState.loggingin
 
-  let allAccounts = status.getPublicAccounts()
+  let allAccountsResult = status.getPublicAccounts()
+  if allAccountsResult.isErr:
+    statusState = StatusState.loggedout
+    let
+      event = LoginEvent(error: allAccountsResult.error)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
 
   var
     event: LoginEvent
     eventEnc: string
     numberedAccount: PublicAccount
     keyUid: string
+
+  let allAccounts = allAccountsResult.get
 
   if account < 1 or account > allAccounts.len:
     statusState = StatusState.loggedout
@@ -560,36 +582,36 @@ proc login*(account: int, password: string) {.
     numberedAccount = allAccounts[account - 1]
     keyUid = numberedAccount.keyUid
 
-    try:
-      let loginResult = status.login(keyUid, password)
-      if loginResult.isErr:
-        statusState = StatusState.loggedout
-        event = LoginEvent(error: loginResult.error, loggedin: false)
-        eventEnc = event.encode
-
-        trace "task sent event to host", event=eventEnc, task
-        asyncSpawn chanSendToHost.send(eventEnc.safe)
-        return
-
-      chatAccount = status.getChatAccount()
-      identity = @(chatAccount.publicKey.get.toRaw)
-      publicAccount = loginResult.get
-
-      statusState = StatusState.loggedin
-
-      event = LoginEvent(account: publicAccount, error: "", loggedin: true)
-      eventEnc = event.encode
-
-    except SqliteError as e:
-      error "task encountered a database error", error=e.msg, task
-
+    let loginResult = status.login(keyUid, password)
+    if loginResult.isErr:
       statusState = StatusState.loggedout
-
-      event = LoginEvent(
-        error: "login failed with database error, maybe wrong password?",
+      event = LoginEvent(error: "Login failed: " & loginResult.error,
         loggedin: false)
-
       eventEnc = event.encode
+
+      trace "task sent error event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+
+    let chatAccountResult = status.getChatAccount()
+    if chatAccountResult.isErr:
+      statusState = StatusState.loggedout
+      event = LoginEvent(
+        error: "Login failed getting chat account: " &
+          chatAccountResult.error, loggedin: false)
+      eventEnc = event.encode
+      trace "task sent error event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+
+    chatAccount = chatAccountResult.get
+    identity = @(chatAccount.publicKey.get.toRaw)
+    publicAccount = loginResult.get
+
+    statusState = StatusState.loggedin
+
+    event = LoginEvent(account: publicAccount, error: "", loggedin: true)
+    eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)

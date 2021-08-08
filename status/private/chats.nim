@@ -1,186 +1,205 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, marshal, options, strformat]
+  std/[json, marshal, options, sequtils, strformat]
 
 import # vendor libs
-  json_serialization,
-  json_serialization/[lexer, reader, writer],
-  sqlcipher, stew/byteutils
+  sqlcipher
 
 import # status modules
-  ./contacts, ./messages
+  ./chatmessages/common, ./contacts, ./conversions, ./messages
 
-type
-  ChatType* {.pure.} = enum
-    Id = "id",
-    Name = "name",
-    Color = "color",
-    ChatType = "chatType",
-    Active = "active",
-    Timestamp = "timestamp",
-    DeletedAtClockValue = "deletedAtClockValue",
-    PublicKey = "publicKey",
-    UnviewedMessageCount = "unviewedMessageCount",
-    LastClockValue = "lastClockValue",
-    LastMessage = "lastMessage",
-    Members = "members",
-    MembershipUpdates = "membershipUpdates"
-    Profile = "profile",
-    InvitationAdmin = "invitationAdmin",
-    Muted = "muted"
+export common
 
-  ChatCol* {.pure.} = enum
-    Id = "id",
-    Name = "name",
-    Color = "color",
-    ChatType = "type",
-    Active = "active",
-    Timestamp = "timestamp",
-    DeletedAtClockValue = "deleted_at_clock_value",
-    PublicKey = "public_key",
-    UnviewedMessageCount = "unviewed_message_count",
-    LastClockValue = "last_clock_value",
-    LastMessage = "last_message",
-    Members = "members",
-    MembershipUpdates = "membership_updates"
-    Profile = "profile",
-    InvitationAdmin = "invitation_admin",
-    Muted = "muted"
+proc getChats*(db: DbConn): seq[Chat] {.raises: [AssertionError, ChatDbError,
+  Defect].} =
 
+  const errorMsg = "Error getting chats from database"
 
-  Chat* = object
-    id* {.serializedFieldName($ChatType.Id), dbColumnName($ChatCol.Id).}: string
-    name* {.serializedFieldName($ChatType.Name), dbColumnName($ChatCol.Name).}: string
-    color* {.serializedFieldName($ChatType.Color), dbColumnName($ChatCol.Color).}: string
-    chatType* {.serializedFieldName($ChatType.ChatType), dbColumnName($ChatCol.ChatType).}: int
-    active* {.serializedFieldName($ChatType.Active), dbColumnName($ChatCol.Active).}: bool
-    timestamp* {.serializedFieldName($ChatType.Timestamp), dbColumnName($ChatCol.Timestamp).}: int
-    deletedAtClockValue* {.serializedFieldName($ChatType.DeletedAtClockValue), dbColumnName($ChatCol.DeletedAtClockValue).}: int
-    publicKey* {.serializedFieldName($ChatType.PublicKey), dbColumnName($ChatCol.PublicKey).}: seq[byte]
-    unviewedMessageCount* {.serializedFieldName($ChatType.UnviewedMessageCount), dbColumnName($ChatCol.UnviewedMessageCount).}: int
-    lastClockValue* {.serializedFieldName($ChatType.LastClockValue), dbColumnName($ChatCol.LastClockValue).}: int
-    lastMessage* {.serializedFieldName($ChatType.LastMessage), dbColumnName($ChatCol.LastMessage).}: Option[seq[byte]]
-    members* {.serializedFieldName($ChatType.Members), dbColumnName($ChatCol.Members).}: seq[byte]
-    membershipUpdates* {.serializedFieldName($ChatType.MembershipUpdates), dbColumnName($ChatCol.MembershipUpdates).}: seq[byte]
-    profile* {.serializedFieldName($ChatType.Profile), dbColumnName($ChatCol.Profile).}: string
-    invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
-    muted* {.serializedFieldName($ChatType.Muted), dbColumnName($ChatCol.Muted).}: bool
+  try:
+    var chat: Chat
+    let query = fmt"""SELECT   *
+                      FROM     {chat.tableName}"""
+    result = db.all(Chat, query)
+  except ConversionError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-proc getChats*(db: DbConn): seq[Chat] {.raises: [Defect, SqliteError,
-  ref ValueError].} =
+proc getChatById*(db: DbConn, id: string): Option[Chat] {.raises:
+  [AssertionError, ChatDbError, Defect].} =
 
-  let query = """SELECT * from chats"""
+  const errorMsg = "Error getting chat by id from database"
 
-  result = db.all(Chat, query)
+  try:
+    var chat: Chat
+    let query = fmt"""SELECT   *
+                      FROM     {chat.tableName}
+                      WHERE    {ChatCol.Id} = ?"""
+    result = db.one(Chat, query, id)
+  except ConversionError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-proc getChatById*(db: DbConn, id: string): Option[Chat] {.raises: [Defect,
-  SqliteError, ref ValueError].} =
+proc saveChat*(db: DbConn, chat: Chat) {.raises: [Defect, ChatDbError].} =
+  const errorMsg = "Error saving chat to database"
 
-  let query = """SELECT * from chats where id = ?"""
+  try:
 
-  result = db.one(Chat, query, id)
+    let query = fmt"""INSERT INTO chats(
+      {ChatCol.Id},
+      {ChatCol.Name},
+      {ChatCol.Color},
+      {ChatCol.ChatType},
+      {ChatCol.Active},
+      {ChatCol.Timestamp},
+      {ChatCol.DeletedAtClockValue},
+      {ChatCol.PublicKey},
+      {ChatCol.UnviewedMessageCount},
+      {ChatCol.LastClockValue},
+      {ChatCol.LastMessage},
+      {ChatCol.Members},
+      {ChatCol.MembershipUpdates},
+      {ChatCol.Profile},
+      {ChatCol.InvitationAdmin},
+      {ChatCol.Muted})
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """
+    db.exec(query,
+      chat.id,
+      chat.name,
+      chat.color,
+      chat.chatType,
+      chat.active,
+      chat.timestamp,
+      chat.deletedAtClockValue,
+      chat.publicKey,
+      chat.unviewedMessageCount,
+      chat.lastClockValue,
+      chat.lastMessage,
+      chat.members,
+      chat.membershipUpdates,
+      chat.profile,
+      chat.invitationAdmin,
+      chat.muted)
 
-proc saveChat*(db: DbConn, chat: Chat) {.raises: [Defect, SqliteError,
-  ref ValueError].} =
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-  let query = fmt"""INSERT INTO chats(
-    {$ChatCol.Id},
-    {$ChatCol.Name},
-    {$ChatCol.Color},
-    {$ChatCol.ChatType},
-    {$ChatCol.Active},
-    {$ChatCol.Timestamp},
-    {$ChatCol.DeletedAtClockValue},
-    {$ChatCol.PublicKey},
-    {$ChatCol.UnviewedMessageCount},
-    {$ChatCol.LastClockValue},
-    {$ChatCol.LastMessage},
-    {$ChatCol.Members},
-    {$ChatCol.MembershipUpdates},
-    {$ChatCol.Profile},
-    {$ChatCol.InvitationAdmin},
-    {$ChatCol.Muted})
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  """
-  db.exec(query,
-    chat.id,
-    chat.name,
-    chat.color,
-    chat.chatType,
-    chat.active,
-    chat.timestamp,
-    chat.deletedAtClockValue,
-    chat.publicKey,
-    chat.unviewedMessageCount,
-    chat.lastClockValue,
-    chat.lastMessage,
-    chat.members,
-    chat.membershipUpdates,
-    chat.profile,
-    chat.invitationAdmin,
-    chat.muted)
+proc muteChat*(db: DbConn, chatId: string) {.raises: [ChatDbError].} =
+  const errorMsg = "Error updating chat to muted in the database"
+  try:
+    var chat: Chat
+    let query = fmt"""UPDATE  {chat.tableName}
+                      SET     {ChatCol.Muted} = 1
+                      WHERE   {ChatCol.Id} = ?"""
+    db.exec(query, chatId)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-proc muteChat*(db: DbConn, chatId: string) {.raises: [SqliteError].} =
+proc unmuteChat*(db: DbConn, chatId: string) {.raises: [ChatDbError].} =
+  const errorMsg = "Error updating chat to unmuted in the database"
+  try:
+    var chat: Chat
+    let query = fmt"""UPDATE  {chat.tableName}
+                      SET     {ChatCol.Muted} = 0
+                      WHERE   {ChatCol.Id} = ?"""
+    db.exec(query, chatId)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-  let query = fmt"""UPDATE chats SET muted = 1 WHERE id = ?"""
+proc deleteChat*(db: DbConn, chat: Chat) {.raises: [ChatDbError].} =
+  const errorMsg = "Error deleting chat from the database"
+  try:
+    var tblChat: Chat
+    let query = fmt"""DELETE FROM {tblChat.tableName}
+                      WHERE       {ChatCol.Id} = ?"""
+    db.exec(query, chat.id)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-  db.exec(query, chatId)
-
-proc unmuteChat*(db: DbConn, chatId: string) {.raises: [SqliteError].} =
-
-  let query = fmt"""UPDATE chats SET muted = 0 WHERE id = ?"""
-
-  db.exec(query, chatId)
-
-proc deleteChat*(db: DbConn, chat: Chat) {.raises: [SqliteError].} =
-  let query = fmt"""DELETE FROM chats where id = ?"""
-
-  db.exec(query, chat.id)
-
-# BlockContact updates a contact, deletes all the messages and 1-to-1 chat, updates the unread messages count and returns a map with the new count
-proc blockContact*(db: DbConn, contact: Contact): seq[Chat] {.raises: [Defect,
-  IOError, OSError, SqliteError, ref ValueError].} =
-
-  var chats:seq[Chat] = @[]
-  # Delete messages
-  var query = fmt"""DELETE
-     FROM user_messages
-     WHERE source = ?"""
-
-  db.exec(query, contact.id)
-
-  # Update contact
-  saveContact(db, contact)
-
+proc deleteOneToOneChat*(db: DbConn, contactId: string) {.raises:
+  [ChatDbError].} =
   # Delete one-to-one chat
-  query = fmt"""DELETE FROM chats WHERE id = ?"""
 
-  db.exec(query, contact.id)
+  const errorMsg = "Error deleting one-to-one chat from the database"
+  try:
+    var chat: Chat
+    let query = fmt"""DELETE
+                      FROM    {chat.tableName}
+                      WHERE   id = ?"""
+    db.exec(query, contactId)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-  # Recalculate denormalized fields
-  query = fmt"""UPDATE chats
-    SET unviewed_message_count = (SELECT COUNT(1)
-                                  FROM user_messages WHERE seen = 0
-                                  AND local_chat_id = chats.id)"""
-  db.exec(query)
+proc updateLastMessage*(db: DbConn, chatId: string,
+  lastMessage: Option[Message]) {.raises: [ChatDbError, Defect, UnpackError].} =
+  # Updates the last message for a chat
 
-  # return the updated chats
-  chats = getChats(db)
-  for chat in chats:
-    query = fmt"""SELECT * FROM user_messages WHERE local_chat_id = ? ORDER BY clock_value DESC LIMIT 1"""
-    var c = chat
-    let lastMessages = db.one(Message, query, c.id)
-    if lastMessages.isNone:
-      # Reset LastMessage
-      query = fmt"""UPDATE chats SET last_message = NULL WHERE id = ?"""
-      db.exec(query, c.id)
-      c.lastMessage = none(seq[byte])
-    else:
-      let lastMessage = lastMessages.get
-      let encodedMessage = $$lastMessage
-      query = fmt"""UPDATE chats SET last_message = ? WHERE id = ?"""
-      db.exec(query, encodedMessage, c.id)
-      c.lastMessage = some(encodedMessage.toBytes())
+  const errorMsg = "Error updating the last message for a chat in the database"
+  try:
+    var chat: Chat
+    let query = fmt"""UPDATE  {chat.tableName}
+                      SET     {ChatCol.LastMessage} = ?
+                      WHERE   {ChatCol.Id} = ?"""
+    db.exec(query, lastMessage, chatId)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
 
-  chats
+proc blockContact*(db: DbConn, contact: Contact): seq[Chat] {.raises:
+  [ChatDbError, ContactDbError, Defect].} =
+  # BlockContact updates a contact, deletes all the messages and 1-to-1 chat,
+  # updates the unread messages count and returns a map with the new count
+
+  const errorMsg = "Error blocking contact in the database"
+  try:
+
+    # Delete messages
+    db.deleteContactMessages(contact.id)
+
+    # Update contact
+    db.saveContact(contact)
+
+    # Delete one-to-one chat
+    db.deleteOneToOneChat(contact.id)
+
+    # Recalculate denormalized fields
+    db.updateAllUnviewedMessageCounts()
+
+    # update last message for all chats
+    var chats = getChats(db)
+    chats.apply(proc (c: var Chat) =
+      c.lastMessage = db.getLastMessage(c.id)
+      db.updateLastMessage(c.id, c.lastMessage)
+    )
+
+    # return the updated chats
+    return chats
+
+  except ChatDbError as e:
+    raise e
+  except ContactDbError as e:
+    raise e
+  except MessageDbError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except SqliteError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except ValueError as e:
+    raise (ref ChatDbError)(parent: e, msg: errorMsg)

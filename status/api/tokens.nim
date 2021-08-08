@@ -4,9 +4,11 @@ import # vendor libs
   web3/ethtypes
 
 import # status modules
-  ../private/tokens, ./common
+  ../private/tokens,
+  ./common
 
-export common, ethtypes, tokens
+export
+  common, tokens
 
 type
   AddCustomTokenResult* = Result[Token, string]
@@ -25,10 +27,13 @@ proc addCustomToken*(self: StatusObject, address: Address, name, symbol,
   let token = Token(address: address, name: name, symbol: symbol, color: color,
     decimals: decimals)
 
+  const errorMsg = "Error adding a custom token: "
   try:
     self.userDb.addCustomToken(token)
-  except CatchableError as e:
-    return AddCustomTokenResult.err "Error adding a custom token: " & e.msg
+  except StatusApiError as e:
+    return AddCustomTokenResult.err errorMsg & e.msg
+  except TokenDbError as e:
+    return AddCustomTokenResult.err errorMsg & e.msg
 
   AddCustomTokenResult.ok(token)
 
@@ -39,10 +44,13 @@ proc deleteCustomToken*(self: StatusObject, address: Address):
     return DeleteCustomTokenResult.err "Not logged in. You must be logged in " &
       "to delete a custom token."
 
+  const errorMsg = "Error deleting a custom token: "
   try:
     self.userDb.deleteCustomToken(address)
-  except CatchableError as e:
-    return DeleteCustomTokenResult.err "Error deleting a custom token: " & e.msg
+  except StatusApiError as e:
+    return DeleteCustomTokenResult.err errorMsg & e.msg
+  except TokenDbError as e:
+    return DeleteCustomTokenResult.err errorMsg & e.msg
 
   DeleteCustomTokenResult.ok address
 
@@ -50,8 +58,12 @@ proc getCustomTokens*(self: StatusObject): CustomTokensResult =
   if not self.isLoggedIn:
     return CustomTokensResult.err "Not logged in. Must be logged in to get " &
       "custom tokens."
+
+  const errorMsg = "Error getting wallet accounts: "
   try:
     let tokens = self.userDb.getCustomTokens()
     return CustomTokensResult.ok tokens
-  except CatchableError as e:
-    return CustomTokensResult.err "Error getting wallet accounts: " & e.msg
+  except StatusApiError as e:
+    return CustomTokensResult.err errorMsg & e.msg
+  except TokenDbError as e:
+    return CustomTokensResult.err errorMsg & e.msg

@@ -1,5 +1,4 @@
 {.push raises: [Defect].}
-
 import # std libs
   std/strutils
 
@@ -24,23 +23,26 @@ proc isNonHardened*(self: PathLevel): bool {.raises: [].} =
   (self.uint32 and HARDENED_INDEX) == 0
 
 func parse(T: type PathLevel, value: string): PathLevelResult {.raises:
-  [ValueError].} =
+  [].} =
 
   var child: string
   var mask: uint32
 
-  if value.endsWith("'"):
-    child = value[0..^2]
-    mask = HARDENED_INDEX
-  else:
-    child = value
-    mask = 0
+  try:
+    if value.endsWith("'"):
+      child = value[0..^2]
+      mask = HARDENED_INDEX
+    else:
+      child = value
+      mask = 0
 
-  let index: uint32 = parseUInt(child).uint32
-  if (index and HARDENED_INDEX) == 0:
-    PathLevelResult.ok(PathLevel (index or mask))
-  else:
-    PathLevelResult.err("Invalid index number")
+    let index: uint32 = parseUInt(child).uint32
+    if (index and HARDENED_INDEX) == 0:
+      return PathLevelResult.ok(PathLevel (index or mask))
+    else:
+      return PathLevelResult.err("Invalid index number")
+  except ValueError as e:
+    return PathLevelResult.err "Error parsing path level: " & e.msg
 
 proc toBEBytes*(x: PathLevel): array[4, byte] {.raises: [].} =
   # BigEndian

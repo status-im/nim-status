@@ -84,7 +84,10 @@ procSuite "public accounts":
       accountList[0].keyUid == account.keyUid
 
     # check that we can delete accounts
-    db.deleteAccount(account.keyUid)
+    try:
+      db.deleteAccount(account.keyUid)
+    except PublicAccountDbError as e:
+      echo repr e
     accountList = db.getPublicAccounts()
 
     check:

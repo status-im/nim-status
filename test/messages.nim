@@ -2,7 +2,7 @@ import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
-  json_serialization, sqlcipher, stew/byteutils
+  json_serialization, secp256k1, sqlcipher, stew/byteutils
 
 import # status lib
   status/private/[conversions, chats, database, messages,
@@ -82,6 +82,13 @@ procSuite "messages":
     # markMessagesSeen
     msg.id = "msg2"
     db.saveMessage(msg)
+    let
+      bip44PublicKey = SkPublicKey.fromHex(
+        "0x03ddb90a4f67a81adf534bc19ed06d1546a3cad16a3b2995e18e3d7af823fe5c9a").get
+      message = Message(
+        id: "test",
+        whisperTimestamp: 123
+      )
 
     var chat = Chat(
       id: "local-chat-id",
@@ -91,10 +98,10 @@ procSuite "messages":
       active: true,
       timestamp: 25,
       deletedAtClockValue: 15,
-      publicKey: "public-key".toBytes(),
+      publicKey: bip44PublicKey.some,
       unviewedMessageCount: 3,
       lastClockValue: 18,
-      lastMessage: some("lastMessage".toBytes()),
+      lastMessage: message.some,
       members: "members".toBytes(),
       membershipUpdates: "membershipUpdates".toBytes(),
       profile: "profile",
