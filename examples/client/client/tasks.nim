@@ -7,7 +7,7 @@ import # vendor libs
   stew/byteutils
 
 import # status lib
-  status/api/[auth, provider, tokens, wallet],
+  status/api/[auth, opensea, provider, tokens, wallet],
   status/private/[alias, protocol]
 
 import # client modules
@@ -926,6 +926,29 @@ proc publishWakuChat*(message: string) {.task(kind=no_rts, stoppable=false).} =
 
         else:
           asyncSpawn wakuNode.publish(DefaultTopic, wakuMessage, conf.rlnRelay)
+
+proc getAssets*(owner: Address) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+  let assets = await status.getOpenseaAssets(owner)
+
+  if assets.isErr:
+    let
+      event = GetAssetsEvent(error: assets.error)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    event = GetAssetsEvent(assets: assets.get,
+      timestamp: getTime().toUnix)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc getCustomTokens*() {.task(kind=no_rts, stoppable=false).} =
   let timestamp = getTime().toUnix

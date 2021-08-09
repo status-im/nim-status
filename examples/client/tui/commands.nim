@@ -438,6 +438,35 @@ proc command*(self: Tui, command: Disconnect) {.async, gcsafe, nimcall.} =
   else:
     self.wprintFormatError(getTime().toUnix, "client is not online.")
 
+# GetAssets -----------------------------------------------------------------
+
+proc help*(T: type GetAssets): HelpText =
+  let command = "getassets"
+  HelpText(command: command, aliases: aliased[command], parameters: @[
+    CommandParameter(name: "owner", description: "Address of the owner")
+  ], description: "Lists all assets of the owner")
+
+proc new*(T: type GetAssets, args: varargs[string]): T =
+  var owner = ""
+
+  if args.len >= 1: owner = args[0]
+
+  T(owner: owner)
+
+proc split*(T: type GetAssets, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: Tui, command: GetAssets) {.async, gcsafe, nimcall.} =
+  var parsedOwner: Address
+  try:
+    parsedOwner = command.owner.parseAddress
+  except:
+    self.wprintFormatError(getTime().toUnix,
+      "Could not parse address, please provide an address in proper format.")
+    return
+
+  asyncSpawn self.client.getAssets(parsedOwner)
+
 # GetCustomTokens -----------------------------------------------------------------
 
 proc help*(T: type GetCustomTokens): HelpText =
@@ -722,7 +751,7 @@ proc command*(self: Tui, command: SendMessage) {.async, gcsafe, nimcall.} =
   else:
     asyncSpawn self.client.sendMessage(command.message)
 
-# Call ----------------------------------------------------------------
+# CallRpc ----------------------------------------------------------------------
 
 proc help*(T: type CallRpc): HelpText =
   let command = "call"
