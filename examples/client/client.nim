@@ -110,6 +110,9 @@ proc logout*(self: Client) {.async.} =
 proc sendMessage*(self: Client, message: string) {.async.} =
   asyncSpawn publishWakuChat(self.taskRunner, status, message)
 
+proc getAssets*(self: Client, owner: Address) {.async.} =
+  asyncSpawn getAssets(self.taskRunner, status, owner)
+
 proc getCustomTokens*(self: Client) {.async.} =
   asyncSpawn getCustomTokens(self.taskRunner, status)
 

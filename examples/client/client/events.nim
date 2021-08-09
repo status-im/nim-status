@@ -2,7 +2,7 @@ import # vendor libs
   web3/ethtypes
 
 import # status lib
-  status/api/[tokens, wallet]
+  status/api/[opensea, tokens, wallet]
 
 import # client modules
   ./common
@@ -42,6 +42,11 @@ type
 
   CallRpcEvent* = ref object of ClientEvent
     response*: string
+    error*: string
+    timestamp*: int64
+
+  GetAssetsEvent* = ref object of ClientEvent
+    assets*: seq[Asset]
     error*: string
     timestamp*: int64
 
@@ -105,6 +110,7 @@ const clientEvents* = [
   "DeleteCustomTokenEvent",
   "DeleteWalletAccountEvent",
   "GetCustomTokensEvent",
+  "GetAssetsEvent",
   "ImportMnemonicEvent",
   "JoinTopicEvent",
   "LeaveTopicEvent",

@@ -85,6 +85,9 @@ type
 
   Disconnect* = ref object of Command
 
+  GetAssets* = ref object of Command
+    owner*: string
+
   GetCustomTokens* = ref object of Command
 
   Help* = ref object of Command
@@ -150,6 +153,7 @@ const
     "deletecustomtoken": "DeleteCustomToken",
     "deletewalletaccount": "DeleteWalletAccount",
     "disconnect": "Disconnect",
+    "getassets": "GetAssets",
     "getcustomtokens": "GetCustomTokens",
     "help": "Help",
     "importmnemonic": "ImportMnemonic",
@@ -170,6 +174,7 @@ const
     "addseed": "addwalletseed",
     "addtoken": "addcustomtoken",
     "addwatch": "addwalletwatch",
+    "assets": "getassets",
     "create": "createaccount",
     "delete": "deletewalletaccount",
     "deletetoken": "deletecustomtoken",
@@ -202,6 +207,7 @@ const
     "createaccount": @["create"],
     "deletecustomtoken": @["deletetoken"],
     "deletewalletaccount": @["delete"],
+    "getassets": @["assets"],
     "getcustomtokens": @["gettokens"],
     "importmnemonic": @["import"],
     "help": @["?"],

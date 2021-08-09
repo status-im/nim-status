@@ -1,8 +1,11 @@
 import # std libs
-  std/[strformat, strutils]
+  std/[strformat, strutils, tables]
 
 import # vendor libs
   web3/conversions
+
+import # status lib
+  status/api/opensea
 
 import # client modules
   ./parser
@@ -164,11 +167,48 @@ proc action*(self: Tui, event: DeleteWalletAccountEvent) {.async, gcsafe,
     self.printResult("Deleted wallet account:", timestamp)
     self.printResult(fmt"{2.indent()}{address}", timestamp)
 
+# GetAssetsEvent ---------------------------------------------------------------
+
+proc action*(self: Tui, event: GetAssetsEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let assets = event.assets
+    let timestamp = event.timestamp
+    trace "TUI showing assets", assets=(%assets)
+
+    if assets.len > 0:
+      self.printResult("Assets:", timestamp)
+      var assetsIndexed: Table[string, seq[Asset]] = initTable[string, seq[Asset]]()
+      for asset in assets:
+        if not assetsIndexed.hasKey(asset.collection.name):
+          assetsIndexed[asset.collection.name] = @[]
+
+        assetsIndexed[asset.collection.name].add(asset)
+
+      var i = 1
+      for collectionName, items in assetsIndexed.pairs:
+        self.printResult(fmt"{2.indent()}{i}. {collectionName}", timestamp)
+        var j = 1
+        for item in items:
+          let
+            name = item.name
+            address = item.contract.address
+
+          self.printResult(fmt"{4.indent()}{j}. {name} @ {address}", timestamp)
+          j += 1
+
+        i += 1
+    else:
+      self.printResult("No assets found.", timestamp)
+
 # GetCustomTokensEvent ---------------------------------------------------------
 
 proc action*(self: Tui, event: GetCustomTokensEvent) {.async, gcsafe,
   nimcall.} =
-  discard
 
   # if TUI is not ready for output then ignore it
   if self.outputReady:
