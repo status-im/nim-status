@@ -1,20 +1,18 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, strutils]
+  std/[json, strformat, strutils]
 
 import # vendor libs
-  chronicles, chronos,
+  chronos, chronicles,
   eth/common as eth_common,
   eth/[common/transaction, keys],
-  json_rpc/client, web3  
+  json_rpc/client, json_serialization, web3
 
 import # status modules
-  ./common, ./settings
+  ./common, ./settings, ./util
 
 type
-  Web3Error* = object of StatusError
-
   # remoteMethods contains methods that should be routed to
   # the upstream node; the rest is considered to be routed to
   # the local node.
@@ -62,57 +60,76 @@ type
 
 
 proc getWeb3Conn*(networkName: string, network: Option[Network]):
-  Web3 {.raises: [Defect, Web3Error].} =
+  Web3Result[Web3] =
 
   if network.isNone:
-    raise (ref Web3Error)(msg: "config not found for network " & networkName)
+    return err Web3Error(kind: web3Internal,
+      internalError: InitFailureNetSettings)
 
   if not network.get().config.upstreamConfig.enabled:
-    raise (ref Web3Error)(msg: "network " & networkName & " is not enabled")
+    return err Web3Error(kind: web3Internal,
+      internalError: InitFailureNetSettings)
 
   try:
-    waitFor newWeb3(network.get().config.upstreamConfig.url)
-  except CatchableError as e:
-    raise (ref Web3Error)(parent: e, msg: "Error instantiating Web3 object")
+    # TODO: this proc should be async instead of using `waitFor`
+    ok waitFor newWeb3(network.get().config.upstreamConfig.url)
+  except CatchableError: err Web3Error(kind: web3Internal,
+      internalError: InitFailureBadUrlScheme)
 
-proc newWeb3*(settings: Settings, networkName: string):
-  Web3 {.raises: [CatchableError, Defect, ref Web3Error].} =
-
+proc newWeb3*(settings: Settings, networkName: string): Web3Result[Web3] =
   let network = settings.getNetwork(networkName)
   getWeb3Conn(networkName, network)
 
-proc newWeb3*(settings: Settings): Web3 {.raises: [CatchableError, Defect,
-  ref Web3Error].} =
+proc newWeb3*(settings: Settings): Web3Result[Web3] =
   let network = settings.getCurrentNetwork()
   getWeb3Conn(settings.currentNetwork, network)
 
 proc callRpc*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode):
-  Future[Response] {.async, raises: [Defect, CatchableError].} =
-  try:
-    return await web3Conn.provider.call($rpcMethod, params)
-  except CatchableError as e:
-    raise (ref Web3Error)(parent: e, msg: e.msg)
-  except ValueError as e:
-    raise (ref Web3Error)(parent: e, msg: e.msg)
+  Future[Web3Result[Response]] {.async.} =
 
+  try:
+    let resp = await web3Conn.provider.call($rpcMethod, params)
+    return ok resp
+  except ValueError as e:
+    try:
+      let rpcError = Json.decode(e.msg, RpcError, allowUnknownFields = true)
+      return err Web3Error(kind: web3Rpc, rpcError: rpcError)
+    except:
+      return err Web3Error(kind: web3Internal,
+        internalError: ParseRpcResponseError)
+  except CatchableError:
+    return err Web3Error(kind: web3Internal, internalError: UnknownRpcError)
 
 proc callRpc*(web3Conn: Web3, rpcMethod: string, params: JsonNode):
-  Future[Response] {.async, raises: [CatchableError, Defect, ref Web3Error].} =
+  Future[Web3Result[Response]] {.async.} =
 
   if web3Conn == nil:
-    raise (ref Web3Error)(msg: "web3 connection is not available")
+    return err Web3Error(kind: web3Internal,
+      internalError: Web3ValueError)
 
+  var rpcMethodParsed: RemoteMethod
   try:
-    discard parseEnum[RemoteMethod](rpcMethod)
+    rpcMethodParsed = parseEnum[RemoteMethod](rpcMethod)
   except:
-    return %* {"code": -32601, "message": "the method " & rpcMethod & " does not exist/is not available"}
+    let rpcError = RpcError(
+      code: -32601,
+      message: fmt(static("the method {rpcMethod} does not exist/is ")) &
+        "not available"
+    )
+    return err(Web3Error(kind: web3Rpc, rpcError: rpcError))
 
   try:
-    return await web3Conn.provider.call(rpcMethod, params)
-  except CatchableError as e:
-    raise (ref Web3Error)(parent: e, msg: e.msg)
+    let resp = await web3Conn.provider.call($rpcMethod, params)
+    return ok resp
   except ValueError as e:
-    raise (ref Web3Error)(parent: e, msg: e.msg)
+    try:
+      let rpcError = Json.decode(e.msg, RpcError, allowUnknownFields = true)
+      return err Web3Error(kind: web3Rpc, rpcError: rpcError)
+    except:
+      return err Web3Error(kind: web3Internal,
+        internalError: ParseRpcResponseError)
+  except CatchableError:
+    return err Web3Error(kind: web3Internal, internalError: UnknownRpcError)
 
 proc signTransaction*(tr: var Transaction, pk: PrivateKey) =
   let h = tr.txHashNoSignature

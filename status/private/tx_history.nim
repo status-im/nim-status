@@ -9,11 +9,19 @@ import # vendor libs
 from nimcrypto import digest, keccak_256
 
 import # status modules
-  ./callrpc, ./common, ./conversions, ./tx_history/types
+  ./callrpc, ./common, ./conversions, ./tx_history/types, ./util
 
 type
-  TxHistoryError* = object of StatusError
-  TxHistoryDbError* = object of StatusError
+  TxHistoryError* = enum
+    DbWriteError      = "txhistory: error writing to db"
+    FetchDbDataError  = "txhistory: error fetching db data"
+    LogKeyError       = "txhistory: error getting log for specified key"
+    ParseHexDataError = "txhistory: error parsing data as hex"
+    ParseJsonError    = "txhistory: error parsing json"
+    RpcError          = "txhistory: error calling rpc method"
+    UnknownError      = "txhistory: unknown error occurred"
+
+  TxHistoryResult*[T] = Result[T, TxHistoryError]
 
 const txsPerPage = 20
 const ethTransferType = "eth"
@@ -30,97 +38,77 @@ proc setDbConn*(dbConn: DbConn) =
 
 # blockNumber can be either "earliest", "latest", "pending", or hex-encoding int
 proc getValueForBlock*(address: types.Address, blockNumber: string,
-  methodName: RemoteMethod): Future[int] {.async, raises: [Defect,
-  TxHistoryError].} =
+  methodName: RemoteMethod): Future[TxHistoryResult[int]] {.async.} =
 
-  const errorMsg = "Error getting value for block"
-  try:
-    let
-      jsonNode =  try: parseJson(fmt"""["{address}", "{blockNumber}"]""")
-                  except Exception as e:
-                    raise (ref TxHistoryError)(parent: e, msg: "Error " &
-                      "parsing json with address and block number")
-      resp = await callRpc(web3Obj, methodName, jsonNode)
-    return fromHex[int](resp.getStr)
-  except IOError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except OSError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except Web3Error as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  # try:
+  let
+    jsonNode =  try: parseJson(fmt"""["{address}", "{blockNumber}"]""")
+                except Exception:
+                  return err ParseJsonError
+    respResult = await callRpc(web3Obj, methodName, jsonNode)
+  if respResult.isErr: return err RpcError
+  let hex = fromHex[int](respResult.get.getStr)
+  return ok hex
 
-proc getLastBlockNumber*(): Future[int] {.async, raises: [Defect,
-  TxHistoryError].} =
+proc getLastBlockNumber*(): Future[TxHistoryResult[int]] {.async.} =
 
-  const errorMsg = "Error getting value for block"
-  try:
-    let
-      jsonNode =  try: parseJSON("""[]""")
-                  except Exception as e:
-                    raise (ref TxHistoryError)(parent: e, msg: "Error " &
-                      "parsing json")
-      resp = await callRpc(web3Obj, RemoteMethod.eth_blockNumber, jsonNode)
-    return fromHex[int](resp.getStr)
-  except IOError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except OSError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except Web3Error as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  # try:
+  let
+    jsonNode =  try: parseJSON("""[]""")
+                except Exception:
+                  return err ParseJsonError
+    respResult = await callRpc(web3Obj, RemoteMethod.eth_blockNumber, jsonNode)
+  if respResult.isErr: return err RpcError
+  let hex = fromHex[int](respResult.get.getStr)
+  return ok hex
 
 # Find lowest block number for which a condition
 # procPtr(address, blockNumber) >= targetValue holds
 proc findLowestBlockNumber*(address: types.Address, blockRange: BlockRange,
-  methodName: RemoteMethod, targetValue: int): Future[int] {.async,
-  raises: [Defect, TxHistoryError].} =
+  methodName: RemoteMethod, targetValue: int): Future[TxHistoryResult[int]]
+  {.async.} =
 
-  const errorMsg = "Error finding lowest block number"
-  try:
-    var fromBlock = blockRange[0]
-    var toBlock = blockRange[1]
-    var blockNumber = fromBlock
-    while toBlock != fromBlock:
-      blockNumber = (toBlock + fromBlock) /% 2
-      let blockNumberHex: string = intToHex(blockNumber)
-      let value = await getValueForBlock(address, blockNumberHex, methodName)
-      if value >= targetValue:
-        toBlock = blockNumber
-      else:
-        fromBlock = blockNumber + 1
+  var fromBlock = blockRange[0]
+  var toBlock = blockRange[1]
+  var blockNumber = fromBlock
+  while toBlock != fromBlock:
+    blockNumber = (toBlock + fromBlock) /% 2
+    let blockNumberHex: string = intToHex(blockNumber)
+    let valueResult = await getValueForBlock(address, blockNumberHex, methodName)
+    if valueResult.isErr: return err valueResult.error
+    if valueResult.get >= targetValue:
+      toBlock = blockNumber
+    else:
+      fromBlock = blockNumber + 1
 
-    return fromBlock
-  except IOError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  return ok fromBlock
 
 # Find a block range with minimum txsPerPage transactions
 proc txBinarySearch*(address: types.Address, toBlock: int):
-  Future[BlockRange] {.async, raises: [Defect, TxHistoryError].} =
+  Future[TxHistoryResult[BlockRange]] {.async.} =
 
-  try:
-    let totalTxCount = await getValueForBlock(address, intToHex(toBlock),
-      RemoteMethod.eth_getTransactionCount)
-    if totalTxCount == 0:
-      return [0, 0]
+  # try:
+  let totalTxCountResult = await getValueForBlock(address, intToHex(toBlock),
+    RemoteMethod.eth_getTransactionCount)
+  if totalTxCountResult.isErr: return err totalTxCountResult.error
+  let totalTxCount = totalTxCountResult.get
+  if totalTxCount == 0:
+    return ok [0, 0]
 
-    var leftBlock = 0
-    if totalTxCount > txsPerPage:
-      # Find lower bound (number of the block containing lowerTxBound txs
-      # This means finding lowest block number containing lowerTxBound txs
-      let lowerTxBound = totalTxCount - 19
-      leftBlock = await findLowestBlockNumber(address, [0, toBlock],
-        RemoteMethod.eth_getTransactionCount, lowerTxBound)
-    #else:
-      # No need to restrict block range, as there can be incoming transactions
-      # anywhere inside the whole range
+  var leftBlock = 0
+  if totalTxCount > txsPerPage:
+    # Find lower bound (number of the block containing lowerTxBound txs
+    # This means finding lowest block number containing lowerTxBound txs
+    let lowerTxBound = totalTxCount - 19
+    let leftBlockResult = await findLowestBlockNumber(address, [0, toBlock],
+      RemoteMethod.eth_getTransactionCount, lowerTxBound)
+    if leftBlockResult.isErr: return err leftBlockResult.error
+    leftBlock = leftBlockResult.get
+  #else:
+    # No need to restrict block range, as there can be incoming transactions
+    # anywhere inside the whole range
 
-    return [leftBlock, toBlock]
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: "Error doing transaction " &
-      "binary search")
+  return ok [leftBlock, toBlock]
 
 
 # First, we find a lowest block number with balance
@@ -128,123 +116,123 @@ proc txBinarySearch*(address: types.Address, toBlock: int):
 # Then we check if there were any outgoing txs between it and the last block,
 # as it could've happened that several txs balanced themselves out
 proc findBlockWithBalanceChange(address: types.Address, blockRange: BlockRange):
-  Future[int] {.async, raises: [Defect, TxHistoryError].} =
+  Future[TxHistoryResult[int]] {.async.} =
 
-  try:
-    var fromBlock = blockRange[0]
-    var toBlock = blockRange[1]
-    var blockNumber = toBlock
-    let targetBalance = await getValueForBlock(address, intToHex(toBlock),
+  # try:
+  var fromBlock = blockRange[0]
+  var toBlock = blockRange[1]
+  var blockNumber = toBlock
+  let targetBalanceResult = await getValueForBlock(address, intToHex(toBlock),
+    RemoteMethod.eth_getBalance)
+  if targetBalanceResult.isErr: return err targetBalanceResult.error
+  let targetBalance = targetBalanceResult.get
+  var blockNumberResult = await findLowestBlockNumber(address,
+    [fromBlock, toBlock], RemoteMethod.eth_getBalance, targetBalance)
+  if blockNumberResult.isErr: return err blockNumberResult.error
+  blockNumber = blockNumberResult.get
+
+  # Check if there were no txs in [blockNumber, toBlock]
+  # Note that eth_getTransactionCount only counts outgoing transactions
+  let txCount1Result = await getValueForBlock(address, intToHex(blockNumber),
+    RemoteMethod.eth_getTransactionCount)
+  if txCount1Result.isErr: return err txCount1Result.error
+  let txCount1 = txCount1Result.get
+  let txCount2Result = await getValueForBlock(address, intToHex(toBlock),
+    RemoteMethod.eth_getTransactionCount)
+  if txCount2Result.isErr: return err txCount2Result.error
+  let txCount2 = txCount2Result.get
+  if txCount1 == txCount2:
+    # No txs occurred in between [blockNumber, toBlock]
+    return ok blockNumber
+  else:
+    # At least several txs occurred, so we find the number
+    # of the lowest block containing txCount2
+    blockNumberResult = await findLowestBlockNumber(address, [fromBlock, toBlock],
+      RemoteMethod.eth_getTransactionCount, txCount2)
+    if blockNumberResult.isErr: return err blockNumberResult.error
+    blockNumber = blockNumberResult.get
+    let balance = await getValueForBlock(address, intToHex(blockNumber),
       RemoteMethod.eth_getBalance)
-    blockNumber = await findLowestBlockNumber(address, [fromBlock, toBlock],
-      RemoteMethod.eth_getBalance, targetBalance)
-
-    # Check if there were no txs in [blockNumber, toBlock]
-    # Note that eth_getTransactionCount only counts outgoing transactions
-    let txCount1 = await getValueForBlock(address, intToHex(blockNumber),
-      RemoteMethod.eth_getTransactionCount)
-    let txCount2 = await getValueForBlock(address, intToHex(toBlock),
-      RemoteMethod.eth_getTransactionCount)
-    if txCount1 == txCount2:
-      # No txs occurred in between [blockNumber, toBlock]
-      result = blockNumber
+    if balance.isErr: return err balance.error
+    if balance.get == targetBalance:
+      # This was the tx setting targetbalance
+      return ok blockNumber
     else:
-      # At least several txs occurred, so we find the number
-      # of the lowest block containing txCount2
-      blockNumber = await findLowestBlockNumber(address, [fromBlock, toBlock],
-        RemoteMethod.eth_getTransactionCount, txCount2)
-      let balance = await getValueForBlock(address, intToHex(blockNumber),
-        RemoteMethod.eth_getBalance)
-      if balance == targetBalance:
-        # This was the tx setting targetbalance
-        result = blockNumber
-      else:
-        # This means there must have been an incoming tx inside [blockNumber,
-        # toBlock]
-        result = await findLowestBlockNumber(address, [blockNumber, toBlock],
-          RemoteMethod.eth_getBalance, targetBalance)
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: "Error finding block with " &
-      "balance change")
+      # This means there must have been an incoming tx inside [blockNumber,
+      # toBlock]
+      let lowestBlockResult = await findLowestBlockNumber(address,
+        [blockNumber, toBlock], RemoteMethod.eth_getBalance, targetBalance)
+      if lowestBlockResult.isErr: return err lowestBlockResult.error
+      return lowestBlockResult
 
 
 # We need to find exact block numbers containing balance changes
 proc balanceBinarySearch*(address: types.Address, blockRange: BlockRange):
-  Future[BlockSeq] {.async, raises: [Defect, TxHistoryError].} =
+  Future[TxHistoryResult[BlockSeq]] {.async.} =
 
-  const errorMsg = "Error finding blocks with balance changes"
-  try:
-    var blockNumbers: BlockSeq = @[]
-    var fromBlock = blockRange[0]
-    var toBlock = blockRange[1]
-    while fromBlock < toBlock and len(blockNumbers) < txsPerPage:
-      let blockNumber = await findBlockWithBalanceChange(address, [fromBlock, toBlock])
-      blockNumbers.add(blockNumber)
+  var blockNumbers: BlockSeq = @[]
+  var fromBlock = blockRange[0]
+  var toBlock = blockRange[1]
+  while fromBlock < toBlock and len(blockNumbers) < txsPerPage:
+    let blockNumberResult = await findBlockWithBalanceChange(address,
+      [fromBlock, toBlock])
+    if blockNumberResult.isErr: return err blockNumberResult.error
+    let blockNumber = blockNumberResult.get
+    blockNumbers.add(blockNumber)
 
-      toBlock = blockNumber - 1
+    toBlock = blockNumber - 1
 
-    result = blockNumbers
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  return ok blockNumbers
 
 proc filterTxsForAddress*(address: types.Address, blockNumbers: BlockSeq,
-  txToData: var TransferMap) {.async, raises: [Defect, TxHistoryError].} =
+  txToData: var TransferMap): Future[TxHistoryResult[void]] {.async.} =
 
-  const errorMsg = "Error filtering transactions by address"
-  try:
-    for n in items(blockNumbers):
-      let
-        blockNumber = intToHex(n)
-        jsonNode =  try: parseJSON(fmt"""["{blockNumber}", true]""")
-                    except Exception as e:
-                      raise (ref TxHistoryError)(parent: e, msg: "Error " &
-                        "parsing json with block number")
-        resp = await callRpc(web3Obj, RemoteMethod.eth_getBlockByNumber,
-          jsonNode)
-        blockHash = resp["hash"].getStr
-        timestamp = fromHex[int](resp["timestamp"].getStr)
-      for tx in items(resp["transactions"]):
-        if cmpIgnoreCase(tx["from"].getStr, address) == 0 or
-          cmpIgnoreCase(tx["to"].getStr, address) == 0:
-          let txHash = tx["hash"].getStr
-          let trView = Transfer(
-            txType: TxType.eth,
-            address: address,
-            blockNumber: n,
-            blockHash: blockHash,
-            timestamp: timestamp,
-            txHash: txHash)
-          txToData[txHash] = trView
-  except IOError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except OSError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except Web3Error as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  # try:
+  for n in items(blockNumbers):
+    let
+      blockNumber = intToHex(n)
+      jsonNode =  try: parseJSON(fmt"""["{blockNumber}", true]""")
+                  except Exception as e:
+                    return err ParseJsonError
+      respResult = await callRpc(web3Obj, RemoteMethod.eth_getBlockByNumber,
+        jsonNode)
+    if respResult.isErr: return err RpcError
+    let
+      resp = respResult.get
+      blockHash = resp["hash"].getStr
+      timestamp = fromHex[int](resp["timestamp"].getStr)
+    for tx in items(resp["transactions"]):
+      if cmpIgnoreCase(tx["from"].getStr, address) == 0 or
+        cmpIgnoreCase(tx["to"].getStr, address) == 0:
+        let txHash = tx["hash"].getStr
+        let trView = Transfer(
+          txType: TxType.eth,
+          address: address,
+          blockNumber: n,
+          blockHash: blockHash,
+          timestamp: timestamp,
+          txHash: txHash)
+        txToData[txHash] = trView
+  return ok()
 
 
 # Find blocks with balance changes and extract tx hashes from info
 # fetched via eth_getBlockByNumber
 proc fetchEthTxHashes(address: types.Address, txBlockRange: BlockRange,
-  txToData: var TransferMap) {.async, raises: [Defect, TxHistoryError].} =
+  txToData: var TransferMap): Future[TxHistoryResult[void]] {.async.} =
 
-  const errorMsg = "Error fetching transaction hashes"
+  # Find block numbers containing balance changes
+  let blockNumbersResult = await balanceBinarySearch(address,
+    txBlockRange)
+  if blockNumbersResult.isErr: return err blockNumbersResult.error
+  let blockNumbers = blockNumbersResult.get
 
-  try:
-    # Find block numbers containing balance changes
-    var blockNumbers: BlockSeq = await balanceBinarySearch(address,
-      txBlockRange)
-
-    # Get block info and extract txs pertaining to given address
-    await filterTxsForAddress(address, blockNumbers, txToData)
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  # Get block info and extract txs pertaining to given address
+  return await filterTxsForAddress(address, blockNumbers, txToData)
 
 # Parse log entry in order to fetch fromAddr, toAddr, and value
-proc parseLog(log: JsonNode): tuple[fromAddr: types.Address,
-  toAddr: types.Address, value: int] {.raises: [TxHistoryError].} =
+proc parseLog(log: JsonNode): TxHistoryResult[tuple[fromAddr: types.Address,
+  toAddr: types.Address, value: int]] {.raises: [].} =
 
   const errorMsg = "Error parsing log"
 
@@ -272,20 +260,15 @@ proc parseLog(log: JsonNode): tuple[fromAddr: types.Address,
     let fromAddr = "0x" & topic2[26..<66]
     let toAddr = "0x" & topic3[26..<66]
 
-    return (fromAddr, toAddr, value)
-  except KeyError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+    return ok (fromAddr, toAddr, value)
+  except KeyError: return err LogKeyError
+  except ValueError: return err ParseHexDataError
 
 # We have to invoke eth_getLogs twice for both
 # incoming and outgoing ERC-20 transfers
 # TODO: check if this {.gcsafe.} is needed!
 proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange,
-  txToData: var TransferMap) {.async, gcsafe, raises: [Defect,
-  TxHistoryError].} =
-
-  const errorMsg = "Error fetching ERC-20 logs"
+  txToData: var TransferMap): Future[TxHistoryResult[void]] {.async, gcsafe.} =
 
   try:
     let transferEventSignatureHash = "0x" &
@@ -302,16 +285,20 @@ proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange,
       "toBlock": "{toBlock}",
       "topics": ["{transferEventSignatureHash}", null, "{addressPadded}"]}}]""")
 
-    var incomingLogs = await callRpc(web3Obj, RemoteMethod.eth_getLogs,
+    let incomingLogsResult = await callRpc(web3Obj, RemoteMethod.eth_getLogs,
       jsonNode)
+    if incomingLogsResult.isErr: return err RpcError
+    var incomingLogs = incomingLogsResult.get
     #echo "incomingLogs: ", incomingLogs
     jsonNode = parseJson(fmt"""[{{
       "fromBlock": "{fromBlock}",
       "toBlock": "{toBlock}",
       "topics": ["{transferEventSignatureHash}", "{addressPadded}", null]}}]""")
 
-    var outgoingLogs = await callRpc(web3Obj, RemoteMethod.eth_getLogs,
+    let outgoingLogsResult = await callRpc(web3Obj, RemoteMethod.eth_getLogs,
       jsonNode)
+    if outgoingLogsResult.isErr: return err RpcError
+    var outgoingLogs = outgoingLogsResult.get
     #echo "outgoingLogs: ", outgoingLogs
 
     var logs: seq[JsonNode] = concat(incomingLogs.getElems, outgoingLogs.getElems)
@@ -319,7 +306,9 @@ proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange,
       let txHash = obj["transactionHash"].getStr
       let blockNumber = fromHex[int](obj["blockNumber"].getStr)
       let blockHash = obj["blockHash"].getStr
-      let parsedLog = parseLog(obj)
+      let parsedLogResult = parseLog(obj)
+      if parsedLogResult.isErr: return err parsedLogResult.error
+      let parsedLog = parsedLogResult.get
       let trView = Transfer(
         txType: TxType.erc20,
         address: address,
@@ -332,68 +321,53 @@ proc fetchErc20Logs*(address: types.Address, blockRange: BlockRange,
         contract: obj["address"].getStr
         )
       txToData[txHash] = trView
-  except IOError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except KeyError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except OSError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except Web3Error as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
   except Exception as e: # raised by parseJson
-      raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+    return err ParseJsonError
 
 
-proc fetchTxDetails*(address: types.Address, txToData: var TransferMap)
-  {.async, raises: [Defect, TxHistoryError].} =
+proc fetchTxDetails*(address: types.Address, txToData: var TransferMap):
+  Future[TxHistoryResult[void]] {.async.} =
 
-  const errorMsg = "Error fetching transaction details"
-  try:
-    for tx in txToData.keys:
-      let
-        jsonNode =  try: parseJSON(fmt"""["{tx}"]""")
-                    except Exception as e:
-                      raise (ref TxHistoryError)(parent: e, msg: "Error " &
-                        "parsing json with transaction key")
-        txInfo = await callRpc(web3Obj, RemoteMethod.eth_getTransactionByHash,
-          jsonNode)
-        txReceipt = await callRpc(web3Obj,
-          RemoteMethod.eth_getTransactionReceipt, jsonNode)
+  # try:
+  for tx in txToData.keys:
+    let
+      jsonNode =  try: parseJSON(fmt"""["{tx}"]""")
+                  except Exception as e:
+                    return err ParseJsonError
+      txInfoResult = await callRpc(web3Obj, RemoteMethod.eth_getTransactionByHash,
+        jsonNode)
+    if txInfoResult.isErr: return err RpcError
+    let
+      txInfo = txInfoResult.get
+      txReceiptResult = await callRpc(web3Obj,
+        RemoteMethod.eth_getTransactionReceipt, jsonNode)
+    if txReceiptResult.isErr: return err RpcError
+    let txReceipt = txReceiptResult.get
 
-      echo "fetchTxDetails txInfo: ", txInfo
+    echo "fetchTxDetails txInfo: ", txInfo
 
-      echo "fetchTxDetails txReceipt: ", txReceipt
+    echo "fetchTxDetails txReceipt: ", txReceipt
 
-      var trView = txToData[tx]
-      trView.gasPrice = fromHex[int](txInfo["gasPrice"].getStr)
-      trView.gasLimit = fromHex[int](txInfo["gas"].getStr)
-      trView.gasUsed = fromHex[int](txReceipt["gasUsed"].getStr)
-      trView.nonce = fromHex[int](txInfo["nonce"].getStr)
-      trView.txStatus = fromHex[int](txReceipt["status"].getStr)
-      trView.input = txInfo["input"].getStr
-      if trView.txType == eth:
-        trView.contract = txReceipt["contractAddress"].getStr
-        trView.value = fromHex[int](txInfo["value"].getStr)
-        trView.fromAddr = txInfo["from"].getStr
-        trView.toAddr = txInfo["to"].getStr
+    var trView = txToData[tx]
+    trView.gasPrice = fromHex[int](txInfo["gasPrice"].getStr)
+    trView.gasLimit = fromHex[int](txInfo["gas"].getStr)
+    trView.gasUsed = fromHex[int](txReceipt["gasUsed"].getStr)
+    trView.nonce = fromHex[int](txInfo["nonce"].getStr)
+    trView.txStatus = fromHex[int](txReceipt["status"].getStr)
+    trView.input = txInfo["input"].getStr
+    if trView.txType == eth:
+      trView.contract = txReceipt["contractAddress"].getStr
+      trView.value = fromHex[int](txInfo["value"].getStr)
+      trView.fromAddr = txInfo["from"].getStr
+      trView.toAddr = txInfo["to"].getStr
 
-      echo "gasLimit, ", fromHex[int](txInfo["gas"].getStr)
-      echo "trView.gasLimit, ", trView.gasLimit
-      txToData[tx] = trView
-  except IOError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except OSError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except Web3Error as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+    echo "gasLimit, ", fromHex[int](txInfo["gas"].getStr)
+    echo "trView.gasLimit, ", trView.gasLimit
+    txToData[tx] = trView
 
 
-proc fetchDbData*(address: types.Address): TxDbData {.raises:
-  [Defect, TxHistoryDbError].} =
+proc fetchDbData*(address: types.Address): DbResult[TxDbData] =
 
-  const errorMsg = "Error fetching transaction data from the database"
   try:
     var
       dbData = TxDbData()
@@ -418,16 +392,13 @@ proc fetchDbData*(address: types.Address): TxDbData {.raises:
       for t in items(transfers):
         dbData.txToData.add(t.txHash, t)
 
-    return dbData
-  except SqliteError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
+    ok dbData
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveTransferInfo*(transferInfo: TransferInfo) {.raises:
-  [TxHistoryDbError].} =
+proc saveTransferInfo*(transferInfo: TransferInfo): DbResult[void] {.raises:
+  [].} =
 
-  const errorMsg = "Error saving transfer info"
   try:
     var tblTxHistoryInfo: TransferInfo
     let query = fmt"""
@@ -444,14 +415,11 @@ proc saveTransferInfo*(transferInfo: TransferInfo) {.raises:
             transferInfo.balance,
             transferInfo.blockNumber,
             transferInfo.txCount)
-  except SqliteError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveTransfer*(transfer: Transfer) {.raises: [TxHistoryDbError].} =
-
-  const errorMsg = "Error saving transfer in the database"
+proc saveTransfer*(transfer: Transfer): DbResult[void] {.raises: [].} =
 
   try:
     var txHistory: Transfer
@@ -497,23 +465,21 @@ proc saveTransfer*(transfer: Transfer) {.raises: [TxHistoryDbError].} =
             transfer.toAddr,
             transfer.contract,
             transfer.networkID)
-  except SqliteError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc writeToDb(dbData: TxDbData) {.raises: [TxHistoryDbError].} =
+proc writeToDb(dbData: TxDbData): DbResult[void] {.raises: [].} =
 
-  const errorMsg = "Error writing transaction data to the database"
   try:
     echo "writeToDb"
-    saveTransferInfo(dbData.info)
+    ?saveTransferInfo(dbData.info)
     for transfer in dbData.txToData.values:
-      saveTransfer(transfer)
-  except SqliteError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryDbError)(parent: e, msg: errorMsg)
+      ?saveTransfer(transfer)
+
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
 # Used for passing address strings to scheduler thread
 # bool parameter stands for addedOrRemoved flag
@@ -526,8 +492,7 @@ var fetchLock: RLock
 let schedulerInterval = 2 * 60 * 1000
 
 # Main history fetching proc
-proc scheduler() {.async, raises: [Defect, TxHistoryError].} =
-  const errorMsg = "Error with transaction history scheduler"
+proc scheduler(): Future[TxHistoryResult[void]] {.async.} =
   try:
     while true:
       withRLock(fetchLock):
@@ -547,7 +512,9 @@ proc scheduler() {.async, raises: [Defect, TxHistoryError].} =
 
         # Update history for each address
         for address in items(addresses):
-          var dbData = fetchDbData(address)
+          let dbDataResult = fetchDbData(address)
+          if dbDataResult.isErr: return err FetchDbDataError
+          let dbData = dbDataResult.get
 
           let dbBlockNumber = dbData.info.blockNumber
           let dbTxCount = dbData.info.txCount
@@ -555,32 +522,43 @@ proc scheduler() {.async, raises: [Defect, TxHistoryError].} =
 
           # If this is an initial wallet scan, all of [dbBlockNumber, dbTxCount, dbBalance]
           # will be zero
-          var lastBlockNumber = await getLastBlockNumber()
+          let lastBlockNumberResult = await getLastBlockNumber()
+          if lastBlockNumberResult.isErr: return err lastBlockNumberResult.error
+          var lastBlockNumber = lastBlockNumberResult.get
           if lastBlockNumber > dbBlockNumber:
             # There are new blocks, check if outgoing tx count or balance changed
-            let
-              txCount = await getValueForBlock(address,
-                intToHex(lastBlockNumber), RemoteMethod.eth_getTransactionCount)
-              balance = await getValueForBlock(address,
-                intToHex(lastBlockNumber), RemoteMethod.eth_getBalance)
-
+            let txCountResult = await getValueForBlock(address,
+              intToHex(lastBlockNumber), RemoteMethod.eth_getTransactionCount)
+            if txCountResult.isErr: return err txCountResult.error
+            let txCount = txCountResult.get
+            let balanceResult = await getValueForBlock(address,
+              intToHex(lastBlockNumber), RemoteMethod.eth_getBalance)
+            if balanceResult.isErr: return err balanceResult.error
+            let balance = balanceResult.get
 
             var txBlockRange: BlockRange
             if dbBlockNumber == 0:
-              txBlockRange = await txBinarySearch(address, lastBlockNumber)
+              let txBlockRangeResult = await txBinarySearch(address,
+                lastBlockNumber)
+              if txBlockRangeResult.isErr: return err txBlockRangeResult.error
+              txBlockRange = txBlockRangeResult.get
             else:
               txBlockRange = [dbBlockNumber + 1, lastBlockNumber]
             var txToData = TransferMap()
 
             # Only fetch eth transfers if tx count or balance changed
             if dbTxCount != txCount or dbBalance != balance:
-              await fetchEthTxHashes(address, txBlockRange, txToData)
+              let fetchTxHashes = await fetchEthTxHashes(address,
+                txBlockRange, txToData)
+              if fetchTxHashes.isErr: return err fetchTxHashes.error
 
             # ERC-20 logs should be checked anyways
-            await fetchErc20Logs(address, txBlockRange, txToData)
+            let fetchLogs = await fetchErc20Logs(address, txBlockRange, txToData)
+            if fetchLogs.isErr: return err fetchLogs.error
 
             if len(txToData) > 0:
-              await fetchTxDetails(address, txToData)
+              let txDetails = await fetchTxDetails(address, txToData)
+              if txDetails.isErr: return err txDetails.error
 
             let transferInfo = TransferInfo(
               address: address,
@@ -588,72 +566,74 @@ proc scheduler() {.async, raises: [Defect, TxHistoryError].} =
               blockNumber: lastBlockNumber,
               txCount: txCount)
 
-            writeToDb(TxDbData(info: transferInfo, txToData: txToData))
+            let writeResult = writeToDb(TxDbData(info: transferInfo,
+              txToData: txToData))
+            if writeResult.isErr: return err DbWriteError
 
       await sleepAsync(schedulerInterval)
+      return ok()
 
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except TxHistoryDbError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
   except Exception as e: # raised by channel.recv()
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+    return err UnknownError
 
-proc schedulerProc() {.raises: [CatchableError, Defect], thread.} =
-  waitFor scheduler()
+proc schedulerProc() {.thread, raises: [Defect,
+  CatchableError].} =
+
+  let schedulerResult = waitFor scheduler()
+  if schedulerResult.isErr:
+    raise newException(CatchableError, "Error executing scheduler")
 
 proc fetchTxHistory*(address: types.Address, toBlock: int):
-  Future[TransferMap] {.async, raises: [Defect, TxHistoryError].} =
+  Future[TxHistoryResult[TransferMap]] {.async.} =
 
-  const errorMsg = "Error fetching transaction history"
-  try:
-    var txToData = TransferMap()
+  # try:
+  var txToData = TransferMap()
 
-    # Find block range that we will search for balance changes
-    let txBlockRange: BlockRange = await txBinarySearch(address, toBlock)
-    if txBlockRange == [0, 0]:
-      # No txs found
-      return txToData
+  # Find block range that we will search for balance changes
+  let txBlockRangeResult = await txBinarySearch(address, toBlock)
+  if txBlockRangeResult.isErr: return err txBlockRangeResult.error
+  let txBlockRange = txBlockRangeResult.get
+  if txBlockRange == [0, 0]:
+    # No txs found
+    return ok txToData
 
-    await fetchEthTxHashes(address, txBlockRange, txToData)
-    await fetchErc20Logs(address, txBlockRange, txToData)
+  let fetchTxHashes = await fetchEthTxHashes(address, txBlockRange, txToData)
+  if fetchTxHashes.isErr: return err fetchTxHashes.error
+  let fetchLogs = await fetchErc20Logs(address, txBlockRange, txToData)
+  if fetchLogs.isErr: return err fetchLogs.error
 
-    await fetchTxDetails(address, txToData)
-    for transfer in txToData.values:
-      saveTransfer(transfer)
+  let fetchTxDetails = await fetchTxDetails(address, txToData)
+  if fetchTxDetails.isErr: return err fetchTxDetails.error
+  for transfer in txToData.values:
+    let saveResult = saveTransfer(transfer)
+    if saveResult.isErr: return err DbWriteError
 
-    return txToData
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except TxHistoryDbError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+  return ok txToData
 
 proc getTransfersByAddress*(address: types.Address, toBlock: int):
-  Future[TransferMap] {.async, raises: [Defect, TxHistoryError].} =
+  Future[TxHistoryResult[TransferMap]] {.async.} =
 
-  const errorMsg = "Error getting transfers by address"
+  # try:
+  var dbDataResult = fetchDbData(address)
+  if dbDataResult.isErr: return err FetchDbDataError
+  var dbData = dbDataResult.get
+  if dbData.info.blockNumber == 0:
+    # Nothing has been fetched yet, wait for
+    # schedulerProc to fetch it
+    withRLock(fetchLock):
+      dbDataResult = fetchDbData(address)
+      if dbDataResult.isErr: return err FetchDbDataError
+      dbData = dbDataResult.get
+  elif dbData.info.blockNumber > toBlock:
+    # Fetch a previous range
+    let transferMapResult = await fetchTxHistory(address, toBlock)
+    if transferMapResult.isErr: return err transferMapResult.error
+    let transferMap = transferMapResult.get
+    dbData.txToData = transferMap
 
-  try:
-    var dbData = fetchDbData(address)
-    if dbData.info.blockNumber == 0:
-      # Nothing has been fetched yet, wait for
-      # schedulerProc to fetch it
-      withRLock(fetchLock):
-        dbData = fetchDbData(address)
-    elif dbData.info.blockNumber > toBlock:
-      # Fetch a previous range
-      let transferMap = await fetchTxHistory(address, toBlock)
-      dbData.txToData = transferMap
+  return ok dbData.txToData
 
-    return dbData.txToData
-  except TxHistoryError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-  except TxHistoryDbError as e:
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
-
-proc init*(addresses: seq[types.Address]) {.raises: [Defect, TxHistoryError].} =
+proc init*(addresses: seq[types.Address]): TxHistoryResult[void] =
 
   const errorMsg = "Error initializing the transaction history scheduler"
 
@@ -668,5 +648,7 @@ proc init*(addresses: seq[types.Address]) {.raises: [Defect, TxHistoryError].} =
     # Run the scheduler thread
     var schedulerThread: Thread[void]
     createThread(schedulerThread, schedulerProc)
+    ok()
+  except CatchableError: err UnknownError
   except Exception as e: # raised by channel.send()
-    raise (ref TxHistoryError)(parent: e, msg: errorMsg)
+    err UnknownError

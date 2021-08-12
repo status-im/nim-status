@@ -20,13 +20,17 @@ export conversions, ethtypes, json_options, secp256k1, reader, writer, lexer
 
 type
   ConversionError* = object of StatusError
+  ConversionError2* = enum
+    InvalidAddress = "cnv: unable to parse address, invalid address string"
+
+  ConversionResult*[T] = Result[T, ConversionError2]
 
 const dtFormat = "yyyy-MM-dd HH:mm:ss fffffffff"
 
 proc fromDbValue*(val: DbValue, T: typedesc[Address]): Address {.raises:
   [Defect, ValueError].} =
 
-  val.strVal.parseAddress
+  Address.fromHex(val.strVal)
 
 proc fromDbValue*(val: DbValue, T: typedesc[DateTime]): DateTime {.raises:
   [Defect, TimeParseError].} =
@@ -80,8 +84,11 @@ proc intToHex*(n: int): string {.raises: [].} =
   s.removePrefix({'0'})
   result = "0x" & s
 
-proc parseAddress*(address: string): Address {.raises: [Defect, ValueError].} =
-  Address.fromHex(address)
+proc parseAddress*(address: string): ConversionResult[Address] =
+  try:
+    ok Address.fromHex(address)
+  except ValueError:
+    err InvalidAddress
 
 proc readValue*(r: var JsonReader, T: type KeyPath): T =
   KeyPath r.readValue(string)
@@ -114,8 +121,7 @@ proc readValue*(r: var JsonReader, U: type Message): U {.raises: [Defect,
   except Exception as e:
     raise (ref ConversionError)(parent: e, msg: errorMsg)
 
-proc toAddress*(secretKey: SkSecretKey): Address {.raises: [Defect,
-  ValueError].} =
+proc toAddress*(secretKey: SkSecretKey): ConversionResult[Address] =
 
   let
     publicKey = secretKey.toPublicKey

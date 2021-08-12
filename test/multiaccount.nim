@@ -58,12 +58,18 @@ procSuite "multiaccount":
     let
       storeDerivedAccs = storeDerivedAccsResult.get
       chatAddress = storeDerivedAccs[paths[2]].address.parseAddress
-      loadAccResult = gntr.loadAccount(chatAddress, password, dir)
+    assert chatAddress.isOk, "failed to parse chat address hex"
+    
+    let
+      loadAccResult = gntr.loadAccount(chatAddress.get, password, dir)
 
     assert loadAccResult.isOk, "failed loading account"
 
-    let loadAcc = loadAccResult.get
+    let
+      loadAcc = loadAccResult.get
+      loadAccAddress = loadAcc.address.parseAddress
 
-    assert loadAcc.address.parseAddress == chatAddress
+    assert loadAccAddress.isOk, "failed to parse loaded account address hex"
+    assert loadAccAddress.get == chatAddress.get, "loaded account address doesn't match chat address"
 
     removeDir(dir)

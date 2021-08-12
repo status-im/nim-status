@@ -85,7 +85,8 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   # previous comment
   nodekeyGenerated = false
 
-  status = StatusObject.new(conf.dataDir)
+  status = StatusObject.new(conf.dataDir).expect(
+    "StatusObject init should never fail")
   # threadvar `statusState` is currently out of scope re: "resetting the
   # context"; the relevant code/logic can be reconsidered in the future, was
   # originally implemented in context of `startWakuChat` and `stopWakuChat`
@@ -150,7 +151,7 @@ proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
           message = chatMsg.text
           timestamp = chatMsg.timestamp.int64
           username = generateAlias(
-            "0x" & byteutils.toHex(protoMsg.bundles[0].identity))
+            "0x" & byteutils.toHex(protoMsg.bundles[0].identity)).get("error")
 
           fallback = false
 
@@ -193,7 +194,7 @@ proc addWalletAccount*(name: string,
   if walletAccountResult.isErr:
     let
       event = AddWalletAccountEvent(error: "Error creating wallet account, " &
-        "error: " & walletAccountResult.error, timestamp: timestamp)
+        "error: " & $walletAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
@@ -236,7 +237,7 @@ proc addWalletPrivateKey*(name: string, privateKey: string, password: string)
   if walletAccountResult.isErr:
     let
       event = AddWalletAccountEvent(error: "Error adding wallet account, " &
-        "error: " & walletAccountResult.error, timestamp: timestamp)
+        "error: " & $walletAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
@@ -279,7 +280,7 @@ proc addWalletSeed*(name: string, mnemonic: string, password: string,
   if walletAccountResult.isErr:
     let
       event = AddWalletAccountEvent(error: "Error adding wallet account, " &
-        "error: " & walletAccountResult.error, timestamp: timestamp)
+        "error: " & $walletAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
@@ -314,25 +315,23 @@ proc addWalletWatchOnly*(address: string,
     asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
     return
 
-  var addressParsed: Address
-  try:
-    addressParsed = address.parseAddress
-  except CatchableError as e:
+  let addressParsed = address.parseAddress
+  if addressParsed.isErr:
     let
       event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
-        "account: " & e.msg, timestamp: timestamp)
+        "account: " & $addressParsed.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
     return
 
-  let walletAccountResult = status.addWalletWatchOnly(addressParsed, name)
+  let walletAccountResult = status.addWalletWatchOnly(addressParsed.get, name)
 
   if walletAccountResult.isErr:
     let
       event = AddWalletAccountEvent(error: "Error adding watch-only wallet " &
-        "account: " & walletAccountResult.error, timestamp: timestamp)
+        "account: " & $walletAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
@@ -374,7 +373,7 @@ proc createAccount*(password: string) {.task(kind=no_rts, stoppable=false).} =
   if publicAccountResult.isErr:
     let
       event = CreateAccountEvent(error: "Error creating account, error: " &
-        publicAccountResult.error, timestamp: timestamp)
+        $publicAccountResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
@@ -417,7 +416,7 @@ proc deleteWalletAccount*(index: int, password: string) {.task(kind=no_rts,
   let allAccounts = status.getWalletAccounts()
   if allAccounts.isErr:
     event = DeleteWalletAccountEvent(error: "error getting wallet accounts: " &
-      allAccounts.error)
+      $allAccounts.error)
 
   elif index < 1 or index > allAccounts.get.len:
     event = DeleteWalletAccountEvent(error: "bad account index number")
@@ -437,7 +436,7 @@ proc deleteWalletAccount*(index: int, password: string) {.task(kind=no_rts,
           address: $wallet.address, timestamp: timestamp)
       else:
         event = DeleteWalletAccountEvent(error: "Error deleting wallet " &
-          "account: " & walletResult.error, timestamp: timestamp)
+          "account: " & $walletResult.error, timestamp: timestamp)
 
     except Exception as e:
       event = DeleteWalletAccountEvent(error: "Error deleting wallet " &
@@ -459,7 +458,7 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
   if importedResult.isErr:
     let
       event = ImportMnemonicEvent(error: "Error importing mnemonic: " &
-        importedResult.error, timestamp: timestamp)
+        $importedResult.error, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent event with error to host", event=eventEnc, task
@@ -510,7 +509,7 @@ proc listAccounts*() {.task(kind=no_rts, stoppable=false).} =
   if accountsResult.isErr:
     let
       event = ListAccountsEvent(error: "Error listing accounts: " &
-        accountsResult.error, timestamp: getTime().toUnix)
+        $accountsResult.error, timestamp: getTime().toUnix)
       eventEnc = event.encode
       task = taskArg.taskName
     trace "task sent error event to host", event=eventEnc, task
@@ -529,7 +528,7 @@ proc listWalletAccounts*() {.task(kind=no_rts, stoppable=false).} =
   let accounts = status.getWalletAccounts()
   if accounts.isErr:
     let
-      event = ListWalletAccountsEvent(error: accounts.error)
+      event = ListWalletAccountsEvent(error: $accounts.error)
       eventEnc = event.encode
       task = taskArg.taskName
 
@@ -558,7 +557,7 @@ proc login*(account: int, password: string) {.
   if allAccountsResult.isErr:
     statusState = StatusState.loggedout
     let
-      event = LoginEvent(error: allAccountsResult.error)
+      event = LoginEvent(error: $allAccountsResult.error)
       eventEnc = event.encode
       task = taskArg.taskName
 
@@ -587,7 +586,7 @@ proc login*(account: int, password: string) {.
     let loginResult = status.login(keyUid, password)
     if loginResult.isErr:
       statusState = StatusState.loggedout
-      event = LoginEvent(error: "Login failed: " & loginResult.error,
+      event = LoginEvent(error: "Login failed: " & $loginResult.error,
         loggedin: false)
       eventEnc = event.encode
 
@@ -600,7 +599,7 @@ proc login*(account: int, password: string) {.
       statusState = StatusState.loggedout
       event = LoginEvent(
         error: "Login failed getting chat account: " &
-          chatAccountResult.error, loggedin: false)
+          $chatAccountResult.error, loggedin: false)
       eventEnc = event.encode
       trace "task sent error event to host", event=eventEnc, task
       asyncSpawn chanSendToHost.send(eventEnc.safe)
@@ -628,34 +627,23 @@ proc logout*() {.task(kind=no_rts, stoppable=false).} =
     event: LogoutEvent
     eventEnc: string
 
-  try:
-    let logoutResult = status.logout()
-    if logoutResult.isErr:
-      statusState = StatusState.loggedin
-      event = LogoutEvent(error: logoutResult.error, loggedin: true)
-      eventEnc = event.encode
-
-      trace "task sent event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-
-    chatAccount = Account()
-    identity.setLen(0)
-    publicAccount = PublicAccount()
-    statusState = StatusState.loggedout
-
-    event = LogoutEvent(error: "", loggedin: false)
-    eventEnc = event.encode
-
-  except SqliteError as e:
-    error "task encountered a database error", error=e.msg, task
-
+  let logoutResult = status.logout()
+  if logoutResult.isErr:
     statusState = StatusState.loggedin
-
-    event = LogoutEvent(error: "logout failed with database error.",
-      loggedin: true)
-
+    event = LogoutEvent(error: $logoutResult.error, loggedin: true)
     eventEnc = event.encode
+
+    trace "task sent event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  chatAccount = Account()
+  identity.setLen(0)
+  publicAccount = PublicAccount()
+  statusState = StatusState.loggedout
+
+  event = LogoutEvent(error: "", loggedin: false)
+  eventEnc = event.encode
 
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
@@ -935,7 +923,7 @@ proc getAssets*(owner: Address) {.task(kind=no_rts, stoppable=false).} =
 
   if assets.isErr:
     let
-      event = GetAssetsEvent(error: assets.error)
+      event = GetAssetsEvent(error: $assets.error)
       eventEnc = event.encode
       task = taskArg.taskName
 
@@ -945,7 +933,7 @@ proc getAssets*(owner: Address) {.task(kind=no_rts, stoppable=false).} =
 
   let
     event = GetAssetsEvent(assets: assets.get,
-      timestamp: getTime().toUnix)
+      timestamp: timestamp)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -971,7 +959,7 @@ proc getCustomTokens*() {.task(kind=no_rts, stoppable=false).} =
   let tokens = status.getCustomTokens()
   if tokens.isErr:
     let
-      event = GetCustomTokensEvent(error: tokens.error)
+      event = GetCustomTokensEvent(error: $tokens.error)
       eventEnc = event.encode
       task = taskArg.taskName
 
@@ -1003,37 +991,28 @@ proc addCustomToken*(address: Address, name: string, symbol: string, color: stri
     asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
     return
 
-  try:
-    let addResult = status.addCustomToken(address, name, symbol, color, decimals)
+  let addResult = status.addCustomToken(address, name, symbol, color, decimals)
 
-    if addResult.isErr:
-      let
-        event = AddCustomTokenEvent(error: addResult.error,
-          timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent errored event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-    else:
-      let
-        token = addResult.get
-        event = AddCustomTokenEvent(address: $token.address,
-          name: token.name, symbol: token.symbol, color: token.color,
-          decimals: token.decimals, timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-  except CatchableError as e:
+  if addResult.isErr:
     let
-      event = AddCustomTokenEvent(error: "Error adding a custom token, " &
-        "error: " & e.msg, timestamp: timestamp)
+      event = AddCustomTokenEvent(error: $addResult.error,
+        timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
-    trace "task sent event with error to host", event=eventEnc, task
+
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+  else:
+    let
+      token = addResult.get
+      event = AddCustomTokenEvent(address: $token.address,
+        name: token.name, symbol: token.symbol, color: token.color,
+        decimals: token.decimals, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 
@@ -1069,7 +1048,7 @@ proc deleteCustomToken*(index: int) {.task(kind=no_rts, stoppable=false).} =
 
     if deleteResult.isErr:
       let
-        event = DeleteCustomTokenEvent(error: deleteResult.error,
+        event = DeleteCustomTokenEvent(error: $deleteResult.error,
           timestamp: timestamp)
         eventEnc = event.encode
         task = taskArg.taskName
@@ -1113,7 +1092,12 @@ proc callRpc*(rpcMethod: string, params: JsonNode) {.task(kind=no_rts, stoppable
     let callResult = await status.callRpc(rpcMethod, params)
     if callResult.isErr:
       let
-        event = CallRpcEvent(error: callResult.error, timestamp: timestamp)
+        error = callResult.error
+        errorMsg =  if error.kind == pRpc:
+                      error.rpcError.message
+                    else:
+                      $error.apiError
+        event = CallRpcEvent(error: errorMsg, timestamp: timestamp)
         eventEnc = event.encode
         task = taskArg.taskName
 
@@ -1140,14 +1124,17 @@ proc callRpc*(rpcMethod: string, params: JsonNode) {.task(kind=no_rts, stoppable
     asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 
-proc sendTransaction*(fromAddress: eth_common.EthAddress, transaction: eth_common.Transaction, password: string) {.task(kind=no_rts, stoppable=false).} =
+proc sendTransaction*(fromAddress: eth_common.EthAddress,
+  transaction: eth_common.Transaction, password: string)
+  {.task(kind=no_rts, stoppable=false).} =
+
   let timestamp = getTime().toUnix
 
   if statusState != StatusState.loggedin:
     let
       eventNotLoggedIn = SendTransactionEvent(error: "Not logged in, " &
-        "cannot send transactions.",
-        timestamp: timestamp)
+        "cannot send transactions.", timestamp: timestamp)
+
       eventNotLoggedInEnc = eventNotLoggedIn.encode
       task = taskArg.taskName
 
@@ -1157,16 +1144,24 @@ proc sendTransaction*(fromAddress: eth_common.EthAddress, transaction: eth_commo
 
   try:
     let dir = status.dataDir / "keystore"
-    let sendTransactionResult = await status.sendTransaction(fromAddress, transaction, password, dir)
+    let sendTransactionResult = await status.sendTransaction(fromAddress,
+      transaction, password, dir)
+
     if sendTransactionResult.isErr:
       let
-        event = SendTransactionEvent(error: sendTransactionResult.error, timestamp: timestamp)
+        error = sendTransactionResult.error
+        errorMsg =  if error.kind == pRpc:
+                      error.rpcError.message
+                    else:
+                      $error.apiError
+        event = SendTransactionEvent(error: errorMsg, timestamp: timestamp)
         eventEnc = event.encode
         task = taskArg.taskName
 
       trace "task sent errored event to host", event=eventEnc, task
       asyncSpawn chanSendToHost.send(eventEnc.safe)
       return
+
     else:
       let
         response = sendTransactionResult.get
@@ -1176,10 +1171,12 @@ proc sendTransaction*(fromAddress: eth_common.EthAddress, transaction: eth_commo
 
       trace "task sent event to host", event=eventEnc, task
       asyncSpawn chanSendToHost.send(eventEnc.safe)
+
   except CatchableError as e:
     let
       event = SendTransactionEvent(error: "Error sending transaction, " &
         "error: " & e.msg, timestamp: timestamp)
+
       eventEnc = event.encode
       task = taskArg.taskName
 

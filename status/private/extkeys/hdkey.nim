@@ -1,26 +1,19 @@
 {.push raises: [Defect].}
 
-import # std libs
-  std/strformat
-
 import # vendor libs
   eth/keys, nimcrypto/hmac, secp256k1,
   stew/[byteutils, results]
 
 import # status modules
-  ../common, ./paths, ./types, ./utils
-
-type
-  HdKeyError* = object of StatusError
+  ../common, ../util,
+  ./paths, ./types, ./utils
 
 const
   masterSecret*: string = "Bitcoin seed"
-  MIN_SEED_BYTES = 16 # 128 bits
-      # MinSeedBytes is the minimum number of bytes allowed for a seed to a master node.
-  MAX_SEED_BYTES = 64 # 512 bits
-    # MaxSeedBytes is the maximum number of bytes allowed for a seed to a master node.
 
-proc child(self: ExtendedPrivKey, child: PathLevel): ExtendedPrivKeyResult =
+proc child(self: ExtendedPrivKey, child: PathLevel): ExtKeyResult[
+  ExtendedPrivKey] =
+
   var hctx: HMAC[sha512]
   hctx.init(self.chainCode)
   if child.isNonHardened():
@@ -34,47 +27,36 @@ proc child(self: ExtendedPrivKey, child: PathLevel): ExtendedPrivKeyResult =
   var secretKey = hmacResult.data[0..31]
   let chainCode = hmacResult.data[32..63]
 
-  var pk = self.secretKey.toRaw()[0..^1]
-  var sk = SkSecretKey.fromRaw(secretKey)
-  if sk.isOk:
-    let tweakResult = tweakAdd(sk.get(), pk)
-    if tweakResult.isErr: return err($tweakResult.error())
-    return ok(ExtendedPrivKey(
-      secretKey: sk.get(),
-      chainCode: chainCode
-    ))
+  var
+    pk = self.secretKey.toRaw()[0..^1]
+    sk = ? SkSecretKey.fromRaw(secretKey).mapErrTo(InvalidPrivateKey)
 
-  err($sk.error())
+  ? sk.tweakAdd(pk).mapErrTo(InvalidPrivateKey)
 
-proc derive*(k: ExtendedPrivKey, path: KeyPath): ExtendedPrivKeyResult =
+  ok ExtendedPrivKey(
+    secretKey: sk,
+    chainCode: chainCode
+  )
+
+proc derive*(k: ExtendedPrivKey, path: KeyPath): ExtKeyResult[ExtendedPrivKey] =
   var extKey = k
   for child in path.pathNodes:
-    if child.isErr(): return ExtendedPrivKeyResult.err(child.error())
+    extKey = ?extKey.child(?child)
 
-    let childResult = extKey.child(child.get)
-    if childResult.isErr(): return ExtendedPrivKeyResult.err(childResult.error())
-    extKey = childResult.get
+  ok extKey
 
-  ok(extKey)
+proc newMaster*(seed: Keyseed): ExtKeyResult[ExtendedPrivKey] =
 
-proc newMaster*(seed: Keyseed): ExtendedPrivKeyResult {.raises: [Defect,
-  HdKeyError].} =
+  # NewMaster creates new master node, root of HD chain/tree.
+  # Both master and child nodes are of ExtendedKey type, and all the children
+  # derive from the root node.
+  let lseed = openArray[byte](seed).len
+  if lseed < MIN_SEED_BYTES or lseed > MAX_SEED_BYTES:
+    return err InvalidSeedLength
 
-  try:
-    # NewMaster creates new master node, root of HD chain/tree.
-    # Both master and child nodes are of ExtendedKey type, and all the children derive from the root node.
-    let lseed = openArray[byte](seed).len
-    if lseed < MIN_SEED_BYTES or lseed > MAX_SEED_BYTES:
-      return ExtendedPrivKeyResult.err(
-        fmt"the recommended size of seed is {MIN_SEED_BYTES}-{MAX_SEED_BYTES} bits"
-      )
+  splitHMAC(string.fromBytes(openArray[byte](seed)), masterSecret)
 
-    splitHMAC(string.fromBytes(openArray[byte](seed)), masterSecret)
-  except ValueError as e:
-    raise (ref HdKeyError)(parent: e, msg: "Error generating a new master key")
-
-proc toExtendedKey*(secretKey: SkSecretKey): ExtendedPrivKeyResult
+proc toExtendedKey*(secretKey: SkSecretKey): ExtendedPrivKey
   {.raises: [].} =
 
-  let extPrivKey = ExtendedPrivKey(secretKey: secretKey)
-  ExtendedPrivKeyResult.ok(extPrivKey)
+  ExtendedPrivKey(secretKey: secretKey)

@@ -4,66 +4,52 @@ import # vendor libs
   web3/ethtypes
 
 import # status modules
-  ../private/tokens,
+  ../private/[util, tokens],
   ./common
 
 export
   common, tokens
 
 type
-  AddCustomTokenResult* = Result[Token, string]
+  CustomTokenError* = enum
+    AddFailure      = "ct: failed to add custom token due a database error"
+    DeleteFailure   = "ct: failed to delete custom token due a database error"
+    GetFailure      = "ct: failed to get custom tokens due a database error"
+    MustBeLoggedIn  = "ct: operation not permitted, must be logged in"
+    UserDbError     = "ct: user db error, must be logged in"
 
-  DeleteCustomTokenResult* = Result[Address, string]
-
-  CustomTokensResult = Result[seq[Token], string]
+  CustomTokenResult*[T] = Result[T, CustomTokenError]
 
 proc addCustomToken*(self: StatusObject, address: Address, name, symbol,
-  color: string, decimals: uint): AddCustomTokenResult =
+  color: string, decimals: uint): CustomTokenResult[Token] =
 
   if not self.isLoggedIn:
-    return AddCustomTokenResult.err "Not logged in. You must be logged in to " &
-      "add a new custom token."
+    return err MustBeLoggedIn
 
   let token = Token(address: address, name: name, symbol: symbol, color: color,
     decimals: decimals)
 
-  const errorMsg = "Error adding a custom token: "
-  try:
-    self.userDb.addCustomToken(token)
-  except StatusApiError as e:
-    return AddCustomTokenResult.err errorMsg & e.msg
-  except TokenDbError as e:
-    return AddCustomTokenResult.err errorMsg & e.msg
+  let userDb = ?self.userDb.mapErrTo(UserDbError)
+  ?userDb.addCustomToken(token).mapErrTo(AddFailure)
 
-  AddCustomTokenResult.ok(token)
+  ok token
 
 proc deleteCustomToken*(self: StatusObject, address: Address):
-  DeleteCustomTokenResult =
+  CustomTokenResult[Address] =
 
   if not self.isLoggedIn:
-    return DeleteCustomTokenResult.err "Not logged in. You must be logged in " &
-      "to delete a custom token."
+    return err MustBeLoggedIn
 
-  const errorMsg = "Error deleting a custom token: "
-  try:
-    self.userDb.deleteCustomToken(address)
-  except StatusApiError as e:
-    return DeleteCustomTokenResult.err errorMsg & e.msg
-  except TokenDbError as e:
-    return DeleteCustomTokenResult.err errorMsg & e.msg
+  let userDb = ?self.userDb.mapErrTo(UserDbError)
+  ?userDb.deleteCustomToken(address).mapErrTo(DeleteFailure)
 
-  DeleteCustomTokenResult.ok address
+  ok address
 
-proc getCustomTokens*(self: StatusObject): CustomTokensResult =
+proc getCustomTokens*(self: StatusObject): CustomTokenResult[seq[Token]] =
   if not self.isLoggedIn:
-    return CustomTokensResult.err "Not logged in. Must be logged in to get " &
-      "custom tokens."
+    return err MustBeLoggedIn
 
-  const errorMsg = "Error getting wallet accounts: "
-  try:
-    let tokens = self.userDb.getCustomTokens()
-    return CustomTokensResult.ok tokens
-  except StatusApiError as e:
-    return CustomTokensResult.err errorMsg & e.msg
-  except TokenDbError as e:
-    return CustomTokensResult.err errorMsg & e.msg
+  let
+    userDb = ?self.userDb.mapErrTo(UserDbError)
+    tokens = ?userDb.getCustomTokens().mapErrTo(GetFailure)
+  ok tokens

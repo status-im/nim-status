@@ -1,7 +1,7 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, options, sequtils, strutils, strformat, sugar]
+  std/[options, sequtils, strformat, strutils, sugar]
 
 import # vendor libs
   json_serialization,
@@ -9,28 +9,23 @@ import # vendor libs
   sqlcipher
 
 import # status modules
-  ./chatmessages/common, ./conversions
+  ./chatmessages/common as chatmessages, ./common, ./conversions
 
-export common
+export chatmessages, common
 
-proc getMessageById*(db: DbConn, id: string): Option[Message] {.raises: [Defect,
-  MessageDbError].} =
+proc getMessageById*(db: DbConn, id: string): DbResult[Option[Message]] =
 
-  const errorMsg = "Error getting message by id from the database"
   try:
     var tblMessages: Message
     let query = fmt"""SELECT   *
                       FROM     {tblMessages.tableName}
                       WHERE    {MessageCol.Id} = ?"""
-    result = db.one(Message, query, id)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
+    ok db.one(Message, query, id)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveMessage*(db: DbConn, message: Message) {.raises: [MessageDbError].} =
-
-  const errorMsg = "Error saving message in the database"
+proc saveMessage*(db: DbConn, message: Message): DbResult[void]
+  {.raises: [].} =
 
   try:
     var tblMessages: Message
@@ -119,15 +114,13 @@ proc saveMessage*(db: DbConn, message: Message) {.raises: [MessageDbError].} =
       message.imagePayload,
       message.imageType,
       message.imageBase64)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteContactMessages*(db: DbConn, contactId: string) {.raises:
-  [MessageDbError].} =
+proc deleteContactMessages*(db: DbConn, contactId: string): DbResult[void]
+  {.raises: [].} =
 
-  const errorMsg = "Error deleting contact messages"
   try:
     var message: Message
     let query = fmt"""DELETE
@@ -135,12 +128,12 @@ proc deleteContactMessages*(db: DbConn, contactId: string) {.raises:
                       WHERE   {MessageCol.Source} = ?"""
 
     db.exec(query, contactId)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteMessage*(db: DbConn, message: Message) {.raises: [MessageDbError].} =
+proc deleteMessage*(db: DbConn, message: Message): DbResult[void]
+  {.raises: [].} =
 
   try:
     var tblMessage: Message
@@ -149,14 +142,13 @@ proc deleteMessage*(db: DbConn, message: Message) {.raises: [MessageDbError].} =
                       WHERE   {MessageCol.Id} = ?"""
 
     db.exec(query, message.id)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: "Error deleting message")
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: "Error deleting message")
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc markAllRead*(db: DbConn, chatId: string) {.raises: [MessageDbError].} =
+proc markAllRead*(db: DbConn, chatId: string): DbResult[void]
+  {.raises: [].} =
 
-  const errorMsg = "Error marking all messages as read"
   try:
     var message: Message
     let query = fmt"""UPDATE  {message.tableName}
@@ -165,18 +157,14 @@ proc markAllRead*(db: DbConn, chatId: string) {.raises: [MessageDbError].} =
                               {MessageCol.Seen} != 1"""
     db.exec(query, chatId)
 
-    db.resetUnviewedMessageCount(chatId)
-  except ChatDbError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
+    ?db.resetUnviewedMessageCount(chatId)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc markMessagesSeen*(db: DbConn, chatId: string, messageIds: seq[string])
-  {.raises: [MessageDbError].} =
+proc markMessagesSeen*(db: DbConn, chatId: string, messageIds: seq[string]):
+  DbResult[void] {.raises: [].} =
 
-  var errorMsg = "Error marking messages seen"
   try:
     var message: Message
     let
@@ -187,10 +175,7 @@ proc markMessagesSeen*(db: DbConn, chatId: string, messageIds: seq[string])
 
     db.exec(query)
 
-    db.updateUnviewedMessageCount(chatId)
-  except ChatDbError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
+    ?db.updateUnviewedMessageCount(chatId)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

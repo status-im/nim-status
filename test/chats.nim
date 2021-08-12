@@ -18,13 +18,11 @@ procSuite "chats":
       bip44PublicKey = SkPublicKey.fromHex(
         "0x03ddb90a4f67a81adf534bc19ed06d1546a3cad16a3b2995e18e3d7af823fe5c9a").get
     removeFile(path)
-    var db: DbConn
-    try:
-      db = initializeDB(path, password)
-    except DbError as e:
-      echo "error initing db: " & e.msg
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
 
     let
+      db = dbResult.get
       message = Message(
         id: "test",
         whisperTimestamp: 123
@@ -50,42 +48,56 @@ procSuite "chats":
     )
 
     # saveChat
-    db.saveChat(chat)
+    check db.saveChat(chat).isOk
 
     # getChats
     chat.id = "ContactId1"
-    db.saveChat(chat)
+    check db.saveChat(chat).isOk
 
     var dbChats = db.getChats()
 
     check:
-      len(dbChats) == 2
+      dbChats.isOk
+      len(dbChats.get) == 2
 
     # getChatById
-    var dbChat = db.getChatById("ContactId").get()
+    var dbChatResult = db.getChatById("ContactId")
 
+    check:
+      dbChatResult.isOk
+      dbChatResult.get.isSome
+
+    var dbChat = dbChatResult.get.get
     check:
       dbChat.active == true
       dbChat.publicKey.get == bip44PublicKey
       dbChat.unviewedMessageCount == 3
 
     # [mute/unmute]Chat
-    db.muteChat("ContactId")
-    dbChat = db.getChatById("ContactId").get()
+    check db.muteChat("ContactId").isOk
+    dbChatResult = db.getChatById("ContactId")
 
     check:
-      dbChat.muted == true
+      dbChatResult.isOk
+      dbChatResult.get.isSome
+      dbChatResult.get.get.muted == true
 
-    db.unmuteChat("ContactId")
-    dbChat = db.getChatById("ContactId").get()
+    check db.unmuteChat("ContactId").isOk
+
+    dbChatResult = db.getChatById("ContactId")
 
     check:
-      dbChat.muted == false
+      dbChatResult.isOk
+      dbChatResult.get.isSome
+      dbChatResult.get.get.muted == false
 
     # blockContact
+    let address = "0xdeadbeefdeadbeefdeadbeefdeadbeef11111111".parseAddress
+    check address.isOk
+
     let contact = Contact(
       id: "ContactId",
-      address: some("0xdeadbeefdeadbeefdeadbeefdeadbeef11111111".parseAddress),
+      address: some(address.get),
       name: some("TheUsername1"),
       ensVerified: true,
       ensVerifiedAt: 11111,
@@ -101,7 +113,7 @@ procSuite "chats":
       localNickname: some("ABC1")
     )
 
-    db.saveContact(contact)
+    check db.saveContact(contact).isOk
 
     var msg = Message(
       id: "msg1",
@@ -145,21 +157,31 @@ procSuite "chats":
       imageType: "type",
       imageBase64: "sdfsdfsdf"
     )
-    db.saveMessage(msg)
+    check db.saveMessage(msg).isOk
     msg.id = "msg2"
     msg.source = "ContactId1"
     msg.localChatId = "ContactId1"
-    db.saveMessage(msg)
+    check db.saveMessage(msg).isOk
 
-    let chatsAfterBlocking = db.blockContact(contact)
+    let chatsAfterBlockingResult = db.blockContact(contact)
 
+    check chatsAfterBlockingResult.isOk
+
+    let chatsAfterBlocking = chatsAfterBlockingResult.get
+    # Assert there is 1 unviewed message from ContactId1
+    check chatsAfterBlocking.len == 1
+
+    let
+      msgAfterBlock {.used.} = db.getMessageById("msg1")
+      chatAfterBlock  {.used.} = db.getChatById("ContactId")
     check:
+      msgAfterBlock.isOk
       # Assert that blockContact deleted entry from user_messages
-      db.getMessageById("msg1").isNone()
+      msgAfterBlock.get.isNone
+      chatAfterBlock.isOk
       # Assert that blockContact deleted entry from chats
-      db.getChatById("ContactId").isNone()
-      # Assert there is 1 unviewed message from ContactId1
-      len(chatsAfterBlocking) == 1
+      chatAfterBlock.get.isNone
+
 
     let chatEntry = chatsAfterBlocking[0]
     echo "chatEntry"
@@ -169,12 +191,13 @@ procSuite "chats":
       chatEntry.unviewedMessageCount == 1
 
     # deleteChat
-    db.deleteChat(chat)
+    check db.deleteChat(chat).isOk
     dbChats = db.getChats()
 
     check:
+      dbChats.isOk
       # Chat with id=ContactId was deleted by blockContact
-      len(dbChats) == 0
+      len(dbChats.get) == 0
 
     db.close()
     removeFile(path)

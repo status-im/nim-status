@@ -1,61 +1,133 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, sequtils, sugar]
+  std/json
 
 import # vendor libs
-  chronicles, chronos,
-  eth/common as eth_common,
-  eth/[common/transaction, keys, rlp],
+  chronicles, chronos, eth/common as eth_common,
+  eth/[keys, rlp],
   stew/byteutils
 
 import # status modules
-  ../private/[accounts/accounts, accounts/generator/generator, callrpc, settings],
+  ../private/[accounts/accounts, accounts/generator/generator, callrpc,
+              settings],
   ./common
 
 type
-  CallRpcResult* = Result[JsonNode, string]
+  ProviderApiError* = enum
+    AccountLoadError   = "provider: error loading account"
+    AccountNotLoaded   = "provider: account cannot be found because it is " &
+                           "not loaded"
+    GetNetworkFailure  = "provider: could not determine current network"
+    GetSettingsFailure = "provider: failed to get settings"
+    GetWeb3Error       = "provider: error getting web3 provider"
+    InternalRpcError   = "provider: RPC error"
+    MustBeLoggedIn     = "provider: operation not permitted, must be logged in"
+    UserDbError        = "provider: user DB error, must be logged in"
+    WalletError        = "provider: wallet address not found"
 
-  SendTransactionResult* = Result[JsonNode, string]
+  pErrorKind* = enum
+    ## Web3 Error Kinds
+    pApi,
+    pRpc
+
+  ProviderError* = object
+    case kind*: pErrorKind
+    of pApi:
+      apiError*: ProviderApiError
+    of pRpc:
+      rpcError*: RpcError
+
+  RpcError* = object
+    code*: int
+    message*: string
+
+  ProviderResult*[T] = Result[T, ProviderError]
 
 proc callRpc*(self: StatusObject, rpcMethod: string, params: JsonNode):
-  Future[CallRpcResult] {.async.} =
+  Future[ProviderResult[JsonNode]] {.async.} =
 
   if not self.isLoggedIn:
-    return CallRpcResult.err "Not logged in. Must be logged in"
+    return err ProviderError(kind: pApi, apiError: MustBeLoggedIn)
 
-  try:
-    return CallRpcResult.ok await self.web3.callRpc(rpcMethod, params)
-  except CatchableError as e:
-    return CallRpcResult.err e.msg
+  let web3Result = self.web3
+  if web3Result.isErr:
+    return err ProviderError(kind: pApi, apiError: GetWeb3Error)
 
-proc sendTransaction*(self: StatusObject, fromAddress: EthAddress, transaction: Transaction, password: string, dir: string):
-  Future[SendTransactionResult] {.async.} =
+  let
+    web3 = web3Result.get
+    respResult = await web3.callRpc(rpcMethod, params)
+  if respResult.isErr:
+    let error = respResult.error
+    if error.kind == web3Internal:
+      return err ProviderError(kind: pApi, apiError: InternalRpcError)
+    else:
+      let
+        ogRpcError = error.rpcError
+        rpcError = RpcError(code: ogRpcError.code, message: ogRpcError.message)
+      return err ProviderError(kind: pRpc, rpcError: rpcError)
+  return ok(respResult.get)
+
+proc sendTransaction*(self: StatusObject, fromAddress: EthAddress,
+  transaction: Transaction, password: string, dir: string):
+  Future[ProviderResult[JsonNode]] {.async.} =
+
   if not self.isLoggedIn:
-    return SendTransactionResult.err "Not logged in. Must be logged in"
+    return err ProviderError(kind: pApi, apiError: MustBeLoggedIn)
 
-  try:
-    let account = self.userDb.getWalletAccount(Address(fromAddress))
-    if account.isNone:
-      return SendTransactionResult.err "Wallet address not found"
+  let db = self.userDb()
+  if db.isErr:
+    return err ProviderError(kind: pApi, apiError: UserDbError)
 
-    let loadAccountResult = self.accountsGenerator.loadAccount(account.get.address, password,dir)
-    if loadAccountResult.isErr:
-      return SendTransactionResult.err loadAccountResult.error
+  let account = db.get.getWalletAccount(Address(fromAddress))
+  if account.isErr:
+    return err ProviderError(kind: pApi, apiError: WalletError)
 
-    let accountResult = self.accountsGenerator.findAccount(loadAccountResult.get.id)
-    if accountResult.isErr:
-      return SendTransactionResult.err accountResult.error
+  if account.get.isNone:
+    return err ProviderError(kind: pApi, apiError: WalletError)
 
-    let
-      settings = self.userDb.getSettings()
-      network = settings.getCurrentNetwork()
+  let loadAccountResult = self.accountsGenerator.loadAccount(
+    account.get.get.address, password, dir)
+  if loadAccountResult.isErr:
+    return err ProviderError(kind: pApi, apiError: AccountLoadError)
 
-    var trx = transaction
-    trx.chainId = ChainId(network.get.config.networkId)
-    signTransaction(trx, PrivateKey(accountResult.get.secretKey))
-    let rawTransaction = "0x" & rlp.encode(trx).toHex
+  let accountResult = self.accountsGenerator.findAccount(
+    loadAccountResult.get.id)
+  if accountResult.isErr:
+    return err ProviderError(kind: pApi, apiError: AccountNotLoaded)
 
-    return SendTransactionResult.ok await self.web3.callRpc(RemoteMethod.eth_sendRawTransaction, %*[rawTransaction])
-  except CatchableError as e:
-    return SendTransactionResult.err e.msg
+  let settings = db.get.getSettings()
+  if settings.isErr:
+    return err ProviderError(kind: pApi, apiError: GetSettingsFailure)
+
+  let network = settings.get.getCurrentNetwork()
+  if network.isNone:
+    return err ProviderError(kind: pApi, apiError: GetNetworkFailure)
+
+  var trx = transaction
+  trx.chainId = ChainId(network.get.config.networkId)
+  signTransaction(trx, PrivateKey(accountResult.get.secretKey))
+  let rawTransaction = "0x" & rlp.encode(trx).toHex
+
+  let
+    rpcMethod = RemoteMethod.eth_sendRawTransaction
+    params = %*[rawTransaction]
+
+  let web3Result = self.web3
+  if web3Result.isErr:
+    return err ProviderError(kind: pApi, apiError: GetWeb3Error)
+
+  let
+    web3 = web3Result.get
+    respResult = await web3.callRpc(rpcMethod, params)
+
+  if respResult.isErr:
+    let error = respResult.error
+    if error.kind == web3Internal:
+      return err ProviderError(kind: pApi, apiError: InternalRpcError)
+    else:
+      let
+        ogRpcError = error.rpcError
+        rpcError = RpcError(code: ogRpcError.code, message: ogRpcError.message)
+      return err ProviderError(kind: pRpc, rpcError: rpcError)
+  return ok respResult.get

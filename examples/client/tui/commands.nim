@@ -69,10 +69,8 @@ proc split*(T: type AddCustomToken, argsRaw: string): seq[string] =
 proc command*(self: Tui, command: AddCustomToken) {.async, gcsafe,
   nimcall.} =
 
-  var parsedAddr: Address
-  try:
-    parsedAddr = common.parseAddress(command.address)
-  except:
+  let parsedAddr = common.parseAddress(command.address)
+  if parsedAddr.isErr:
     self.wprintFormatError(getTime().toUnix,
       "Could not parse address, please provide an address in proper format.")
     return
@@ -101,7 +99,8 @@ proc command*(self: Tui, command: AddCustomToken) {.async, gcsafe,
     self.wprintFormatError(getTime().toUnix,
       "symbol cannot be empty, please provide a symbol.")
   else:
-    asyncSpawn self.client.addCustomToken(parsedAddr, command.name, command.symbol, command.color, parsedDecimals)
+    asyncSpawn self.client.addCustomToken(parsedAddr.get, command.name,
+      command.symbol, command.color, parsedDecimals)
 
 # AddWalletAccount ----------------------------------------------------------------
 
@@ -461,15 +460,13 @@ proc split*(T: type GetAssets, argsRaw: string): seq[string] =
   argsRaw.split(" ")
 
 proc command*(self: Tui, command: GetAssets) {.async, gcsafe, nimcall.} =
-  var parsedOwner: Address
-  try:
-    parsedOwner = common.parseAddress(command.owner)
-  except:
+  let parsedOwner = common.parseAddress(command.owner)
+  if parsedOwner.isErr:
     self.wprintFormatError(getTime().toUnix,
       "Could not parse address, please provide an address in proper format.")
     return
 
-  asyncSpawn self.client.getAssets(parsedOwner)
+  asyncSpawn self.client.getAssets(parsedOwner.get)
 
 # GetCustomTokens -----------------------------------------------------------------
 

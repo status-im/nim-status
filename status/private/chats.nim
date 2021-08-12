@@ -7,47 +7,37 @@ import # vendor libs
   sqlcipher
 
 import # status modules
-  ./chatmessages/common, ./contacts, ./conversions, ./messages
+  ./chatmessages/common as chatmessages, ./common, ./contacts, ./conversions,
+  ./messages
 
-export common
+export chatmessages, common
 
-proc getChats*(db: DbConn): seq[Chat] {.raises: [AssertionError, ChatDbError,
+proc getChats*(db: DbConn): DbResult[seq[Chat]] {.raises: [AssertionError,
   Defect].} =
-
-  const errorMsg = "Error getting chats from database"
 
   try:
     var chat: Chat
     let query = fmt"""SELECT   *
                       FROM     {chat.tableName}"""
-    result = db.all(Chat, query)
-  except ConversionError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok db.all(Chat, query)
+  except ConversionError: err MarshalFailure
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getChatById*(db: DbConn, id: string): Option[Chat] {.raises:
-  [AssertionError, ChatDbError, Defect].} =
-
-  const errorMsg = "Error getting chat by id from database"
+proc getChatById*(db: DbConn, id: string): DbResult[Option[Chat]] {.raises:
+  [AssertionError, Defect].} =
 
   try:
     var chat: Chat
     let query = fmt"""SELECT   *
                       FROM     {chat.tableName}
                       WHERE    {ChatCol.Id} = ?"""
-    result = db.one(Chat, query, id)
-  except ConversionError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok db.one(Chat, query, id)
+  except ConversionError: err MarshalFailure
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveChat*(db: DbConn, chat: Chat) {.raises: [Defect, ChatDbError].} =
-  const errorMsg = "Error saving chat to database"
+proc saveChat*(db: DbConn, chat: Chat): DbResult[void] =
 
   try:
 
@@ -87,119 +77,98 @@ proc saveChat*(db: DbConn, chat: Chat) {.raises: [Defect, ChatDbError].} =
       chat.profile,
       chat.invitationAdmin,
       chat.muted)
+    ok()
 
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc muteChat*(db: DbConn, chatId: string) {.raises: [ChatDbError].} =
-  const errorMsg = "Error updating chat to muted in the database"
+proc muteChat*(db: DbConn, chatId: string): DbResult[void] {.raises: [].} =
   try:
     var chat: Chat
     let query = fmt"""UPDATE  {chat.tableName}
                       SET     {ChatCol.Muted} = 1
                       WHERE   {ChatCol.Id} = ?"""
     db.exec(query, chatId)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc unmuteChat*(db: DbConn, chatId: string) {.raises: [ChatDbError].} =
-  const errorMsg = "Error updating chat to unmuted in the database"
+proc unmuteChat*(db: DbConn, chatId: string): DbResult[void] {.raises: [].} =
   try:
     var chat: Chat
     let query = fmt"""UPDATE  {chat.tableName}
                       SET     {ChatCol.Muted} = 0
                       WHERE   {ChatCol.Id} = ?"""
     db.exec(query, chatId)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteChat*(db: DbConn, chat: Chat) {.raises: [ChatDbError].} =
-  const errorMsg = "Error deleting chat from the database"
+proc deleteChat*(db: DbConn, chat: Chat): DbResult[void] {.raises: [].} =
   try:
     var tblChat: Chat
     let query = fmt"""DELETE FROM {tblChat.tableName}
                       WHERE       {ChatCol.Id} = ?"""
     db.exec(query, chat.id)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteOneToOneChat*(db: DbConn, contactId: string) {.raises:
-  [ChatDbError].} =
+proc deleteOneToOneChat*(db: DbConn, contactId: string): DbResult[void]
+  {.raises: [].} =
   # Delete one-to-one chat
 
-  const errorMsg = "Error deleting one-to-one chat from the database"
   try:
     var chat: Chat
     let query = fmt"""DELETE
                       FROM    {chat.tableName}
                       WHERE   id = ?"""
     db.exec(query, contactId)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
 proc updateLastMessage*(db: DbConn, chatId: string,
-  lastMessage: Option[Message]) {.raises: [ChatDbError, Defect, UnpackError].} =
+  lastMessage: Option[Message]): DbResult[void] {.raises: [Defect,
+  UnpackError].} =
   # Updates the last message for a chat
 
-  const errorMsg = "Error updating the last message for a chat in the database"
   try:
     var chat: Chat
     let query = fmt"""UPDATE  {chat.tableName}
                       SET     {ChatCol.LastMessage} = ?
                       WHERE   {ChatCol.Id} = ?"""
     db.exec(query, lastMessage, chatId)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc blockContact*(db: DbConn, contact: Contact): seq[Chat] {.raises:
-  [ChatDbError, ContactDbError, Defect].} =
+proc blockContact*(db: DbConn, contact: Contact): DbResult[seq[Chat]] =
   # BlockContact updates a contact, deletes all the messages and 1-to-1 chat,
   # updates the unread messages count and returns a map with the new count
 
-  const errorMsg = "Error blocking contact in the database"
-  try:
+  # Delete messages
+  ?db.deleteContactMessages(contact.id)
 
-    # Delete messages
-    db.deleteContactMessages(contact.id)
+  # Update contact
+  ?db.saveContact(contact)
 
-    # Update contact
-    db.saveContact(contact)
+  # Delete one-to-one chat
+  ?db.deleteOneToOneChat(contact.id)
 
-    # Delete one-to-one chat
-    db.deleteOneToOneChat(contact.id)
+  # Recalculate denormalized fields
+  ?db.updateAllUnviewedMessageCounts()
 
-    # Recalculate denormalized fields
-    db.updateAllUnviewedMessageCounts()
+  # update last message for all chats
+  var chats = ?getChats(db)
+  # var lastResultErr: DbError
+  var chatsModified: seq[Chat] = @[]
+  for chat in chats:
+    var chatModified = chat
+    let lastMessage = ?db.getLastMessage(chat.id)
+    chatModified.lastMessage = lastMessage
+    chatsModified.add chatModified
+    ?db.updateLastMessage(chat.id, lastMessage)
 
-    # update last message for all chats
-    var chats = getChats(db)
-    chats.apply(proc (c: var Chat) =
-      c.lastMessage = db.getLastMessage(c.id)
-      db.updateLastMessage(c.id, c.lastMessage)
-    )
-
-    # return the updated chats
-    return chats
-
-  except ChatDbError as e:
-    raise e
-  except ContactDbError as e:
-    raise e
-  except MessageDbError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+  # return the updated chats
+  return ok chatsModified

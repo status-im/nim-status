@@ -1,5 +1,5 @@
 import # std libs
-  std/[os, json, options, tables]
+  std/[os, json, options, tables, unittest]
 
 import # vendor libs
   json_serialization, sqlcipher
@@ -13,7 +13,9 @@ from status/private/tx_history import nil
 # Initialize db
 let passwd = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/my.db"
-let db = initializeDB(path, passwd)
+let dbResult = initDb(path, passwd)
+check dbResult.isOk
+let db = dbResult.get
 
 #f315575765b14720b32382a61a89341a # real infura project id
 #40ec14d9d9384d52b7fbcfecdde4e2c0 # test infura project id
@@ -39,7 +41,8 @@ let settingsStr = """{
 let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
 let web3Obj = newWeb3(settingsObj)
 
-tx_history.setWeb3Obj(web3Obj)
+check web3Obj.isOk
+tx_history.setWeb3Obj(web3Obj.get)
 tx_history.setDbConn(db)
 let address = "0x4977E0B5ab94ff8A3c7625099cF3070775B92698"
 
@@ -99,7 +102,7 @@ ti.balance = 15
 ti.blockNumber = 20
 ti.txCount = 9
 
-tx_history.saveTransferInfo(ti)
+check tx_history.saveTransferInfo(ti).isOk
 
 var t = Transfer()
 t.id = "id"
@@ -119,9 +122,11 @@ t.value = 200
 t.fromAddr = "0x1000"
 t.toAddr = "0x2000"
 
-tx_history.saveTransfer(t)
+check tx_history.saveTransfer(t).isOk
 
-let dbData = tx_history.fetchDbData(address)
+let dbDataResult = tx_history.fetchDbData(address)
+check dbDataResult.isOk
+let dbData = dbDataResult.get
 echo "dbData.info: ", dbData.info
 echo "dbData begin: "
 for t in dbData.txToData.values:

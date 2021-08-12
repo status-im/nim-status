@@ -46,7 +46,6 @@ type
     InvitationAdmin = "invitation_admin",
     Muted = "muted"
 
-
   Chat* {.dbTableName("chats").} = object
     id* {.serializedFieldName($ChatType.Id), dbColumnName($ChatCol.Id).}: string
     name* {.serializedFieldName($ChatType.Name), dbColumnName($ChatCol.Name).}: string
@@ -66,8 +65,6 @@ type
     profile* {.serializedFieldName($ChatType.Profile), dbColumnName($ChatCol.Profile).}: string
     invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
     muted* {.serializedFieldName($ChatType.Muted), dbColumnName($ChatCol.Muted).}: bool
-
-  ChatDbError* = object of StatusError
 
   MessageType* {.pure.} = enum
     Id = "id",
@@ -195,12 +192,9 @@ type
     imageType* {.serializedFieldName($MessageType.ImageType), dbColumnName($MessageCol.ImageType).}: string
     imageBase64* {.serializedFieldName($MessageType.ImageBase64), dbColumnName($MessageCol.ImageBase64).}: string
 
-  MessageDbError* = object of StatusError
+proc getLastMessage*(db: DbConn, chatId: string): DbResult[Option[Message]]
+  {.raises: [AssertionError].} =
 
-proc getLastMessage*(db: DbConn, chatId: string): Option[Message] {.raises:
-  [AssertionError, MessageDbError].} =
-
-  const errorMsg = "Error resetting unviewed message count"
   try:
     var message: Message
     let query = fmt"""SELECT    *
@@ -208,31 +202,27 @@ proc getLastMessage*(db: DbConn, chatId: string): Option[Message] {.raises:
                       WHERE     {MessageCol.LocalChatId} = ?
                       ORDER BY  {MessageCol.ClockValue} DESC
                       LIMIT     1"""
-    return db.one(Message, query, chatId)
-  except SqliteError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MessageDbError)(parent: e, msg: errorMsg)
+    ok db.one(Message, query, chatId)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc resetUnviewedMessageCount*(db: DbConn, chatId: string) {.raises:
-  [ChatDbError].} =
+proc resetUnviewedMessageCount*(db: DbConn, chatId: string): DbResult[void]
+  {.raises: [].} =
 
-  const errorMsg = "Error resetting unviewed message count"
   try:
     var chat: Chat
     let chatQuery = fmt"""UPDATE  {chat.tableName}
                           SET     {ChatCol.UnviewedMessageCount} = 0
                           WHERE   {ChatCol.Id} = ?"""
     db.exec(chatQuery, chatId)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc updateAllUnviewedMessageCounts*(db: DbConn) {.raises: [ChatDbError].} =
+proc updateAllUnviewedMessageCounts*(db: DbConn): DbResult[void]
+  {.raises: [].} =
   # Recalculate denormalized fields
 
-  const errorMsg = "Error updating unviewed message count"
   try:
     var
       chat: Chat
@@ -247,15 +237,13 @@ proc updateAllUnviewedMessageCounts*(db: DbConn) {.raises: [ChatDbError].} =
                                           {chat.tableName}.{ChatCol.Id}
                               )"""
     db.exec(query)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc updateUnviewedMessageCount*(db: DbConn, chatId: string) {.raises:
-  [ChatDbError].} =
+proc updateUnviewedMessageCount*(db: DbConn, chatId: string): DbResult[void]
+  {.raises: [].} =
 
-  const errorMsg = "Error updating unviewed message count"
   try:
     var
       chat: Chat
@@ -270,7 +258,6 @@ proc updateUnviewedMessageCount*(db: DbConn, chatId: string) {.raises:
                                   )
                           WHERE {ChatCol.Id} = ?"""
     db.exec(chatQuery, chatId, chatId)
-  except SqliteError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ChatDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

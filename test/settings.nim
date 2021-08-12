@@ -16,7 +16,9 @@ procSuite "settings":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+    let db = dbResult.get
 
     let settingsStr = """{
       "address": "0x1122334455667788990011223344556677889900",
@@ -39,9 +41,11 @@ procSuite "settings":
 
     let nodeConfig = %* {"config": 1}
 
-    createSettings(db, settingsObj, nodeConfig)
+    check createSettings(db, settingsObj, nodeConfig).isOk
 
-    let dbSettings1 = getSettings(db)
+    let dbSettings1Result = db.getSettings
+    check dbSettings1Result.isOk
+    let dbSettings1 = dbSettings1Result.get
 
     check:
       settingsObj.userAddress == dbSettings1.userAddress
@@ -57,7 +61,11 @@ procSuite "settings":
       settingsObj.previewPrivacy == dbSettings1.previewPrivacy
       settingsObj.publicKey == dbSettings1.publicKey
       settingsObj.signingPhrase == dbSettings1.signingPhrase
-      $getNodeConfig(db) == $nodeConfig
+
+    var nodeConfigResult = getNodeConfig(db)
+    check:
+      nodeConfigResult.isOk
+      $nodeConfigResult.get == $nodeConfig
 
     let testBool = true
     let testString = "ABCDE"
@@ -77,51 +85,54 @@ procSuite "settings":
       Network(config: testNetworkConfig, etherscanLink: etherscanLink, id: "test2Id", name: "test2Name"),
       Network(config: testNetworkConfig, etherscanLink: etherscanLink, id: "test3Id", name: "test3Name"),
     ]
-    var testAddress = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".parseAddress
+    var testAddress = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".parseAddress.get
     var setting: Settings
 
-    saveSetting(db, SettingsCol.ChaosMode, testBool)
-    saveSetting(db, SettingsCol.Currency, testString)
-    saveSetting(db, SettingsCol.CustomBootNodes, testJSON)
-    saveSetting(db, SettingsCol.CustomBootNodesEnabled, testJSON)
-    saveSetting(db, SettingsCol.DappsAddress, testAddress)
-    saveSetting(db, SettingsCol.Eip1581Address, testAddress)
-    saveSetting(db, SettingsCol.Fleet, testString)
-    saveSetting(db, SettingsCol.HideHomeTooltip, testBool)
-    saveSetting(db, SettingsCol.KeycardInstanceUID, testString)
-    saveSetting(db, SettingsCol.KeycardPairedOn, testInt64)
-    saveSetting(db, SettingsCol.KeycardPairing, testString)
-    saveSetting(db, SettingsCol.LastUpdated, testInt64)
-    saveSetting(db, SettingsCol.LatestDerivedPath, testInt)
-    saveSetting(db, SettingsCol.LogLevel, testString)
-    saveSetting(db, SettingsCol.Mnemonic, testString)
-    saveSetting(db, SettingsCol.Name, testString)
-    saveSetting(db, SettingsCol.CurrentNetwork, testString)
-    saveSetting(db, SettingsCol.Networks, testNetworks)
-    saveSetting(db, SettingsCol.NodeConfig, testJSON)
-    saveSetting(db, SettingsCol.NotificationsEnabled, testBool)
-    saveSetting(db, SettingsCol.PhotoPath, testString)
-    saveSetting(db, SettingsCol.PinnedMailservers, testJSON)
-    saveSetting(db, SettingsCol.PreferredName, testString)
-    saveSetting(db, SettingsCol.PreviewPrivacy, testBool)
-    saveSetting(db, SettingsCol.PublicKey, testString)
-    saveSetting(db, SettingsCol.RememberSyncingChoice, testBool)
-    saveSetting(db, SettingsCol.RemotePushNotificationsEnabled, testBool)
-    saveSetting(db, SettingsCol.PushNotificationsServerEnabled, testBool)
-    saveSetting(db, SettingsCol.PushNotificationsFromContactsOnly, testBool)
-    saveSetting(db, SettingsCol.SendPushNotifications, testBool)
-    saveSetting(db, SettingsCol.StickersPacksInstalled, testJSON)
-    saveSetting(db, SettingsCol.StickersPacksPending, testJSON)
-    saveSetting(db, SettingsCol.StickersRecentStickers, testJSON)
-    saveSetting(db, SettingsCol.SyncingOnMobileNetwork, testBool)
-    saveSetting(db, SettingsCol.Usernames, testJSON)
-    saveSetting(db, SettingsCol.WalletSetupPassed, testBool)
-    saveSetting(db, SettingsCol.WalletVisibleTokens, testJSON)
-    saveSetting(db, SettingsCol.Appearance, testInt)
-    saveSetting(db, SettingsCol.WakuEnabled, testBool)
-    saveSetting(db, SettingsCol.WakuBloomFilterMode, testBool)
+    check:
+      saveSetting(db, SettingsCol.ChaosMode, testBool).isOk
+      saveSetting(db, SettingsCol.Currency, testString).isOk
+      saveSetting(db, SettingsCol.CustomBootNodes, testJSON).isOk
+      saveSetting(db, SettingsCol.CustomBootNodesEnabled, testJSON).isOk
+      saveSetting(db, SettingsCol.DappsAddress, testAddress).isOk
+      saveSetting(db, SettingsCol.Eip1581Address, testAddress).isOk
+      saveSetting(db, SettingsCol.Fleet, testString).isOk
+      saveSetting(db, SettingsCol.HideHomeTooltip, testBool).isOk
+      saveSetting(db, SettingsCol.KeycardInstanceUID, testString).isOk
+      saveSetting(db, SettingsCol.KeycardPairedOn, testInt64).isOk
+      saveSetting(db, SettingsCol.KeycardPairing, testString).isOk
+      saveSetting(db, SettingsCol.LastUpdated, testInt64).isOk
+      saveSetting(db, SettingsCol.LatestDerivedPath, testInt).isOk
+      saveSetting(db, SettingsCol.LogLevel, testString).isOk
+      saveSetting(db, SettingsCol.Mnemonic, testString).isOk
+      saveSetting(db, SettingsCol.Name, testString).isOk
+      saveSetting(db, SettingsCol.CurrentNetwork, testString).isOk
+      saveSetting(db, SettingsCol.Networks, testNetworks).isOk
+      saveSetting(db, SettingsCol.NodeConfig, testJSON).isOk
+      saveSetting(db, SettingsCol.NotificationsEnabled, testBool).isOk
+      saveSetting(db, SettingsCol.PhotoPath, testString).isOk
+      saveSetting(db, SettingsCol.PinnedMailservers, testJSON).isOk
+      saveSetting(db, SettingsCol.PreferredName, testString).isOk
+      saveSetting(db, SettingsCol.PreviewPrivacy, testBool).isOk
+      saveSetting(db, SettingsCol.PublicKey, testString).isOk
+      saveSetting(db, SettingsCol.RememberSyncingChoice, testBool).isOk
+      saveSetting(db, SettingsCol.RemotePushNotificationsEnabled, testBool).isOk
+      saveSetting(db, SettingsCol.PushNotificationsServerEnabled, testBool).isOk
+      saveSetting(db, SettingsCol.PushNotificationsFromContactsOnly, testBool).isOk
+      saveSetting(db, SettingsCol.SendPushNotifications, testBool).isOk
+      saveSetting(db, SettingsCol.StickersPacksInstalled, testJSON).isOk
+      saveSetting(db, SettingsCol.StickersPacksPending, testJSON).isOk
+      saveSetting(db, SettingsCol.StickersRecentStickers, testJSON).isOk
+      saveSetting(db, SettingsCol.SyncingOnMobileNetwork, testBool).isOk
+      saveSetting(db, SettingsCol.Usernames, testJSON).isOk
+      saveSetting(db, SettingsCol.WalletSetupPassed, testBool).isOk
+      saveSetting(db, SettingsCol.WalletVisibleTokens, testJSON).isOk
+      saveSetting(db, SettingsCol.Appearance, testInt).isOk
+      saveSetting(db, SettingsCol.WakuEnabled, testBool).isOk
+      saveSetting(db, SettingsCol.WakuBloomFilterMode, testBool).isOk
 
-    let dbSettings2 = getSettings(db)
+    let dbSettings2Result {.used.} = db.getSettings()
+    check dbSettings2Result.isOk
+    let dbSettings2 = dbSettings2Result.get
 
     check:
       dbSettings2.chaosMode.get() == testBool
@@ -163,7 +174,11 @@ procSuite "settings":
       dbSettings2.appearance == testUint
       dbSettings2.wakuEnabled.get() == testBool
       dbSettings2.wakuBloomFilterMode.get() == testBool
-      getNodeConfig(db) == testJSON
+
+    nodeConfigResult = getNodeConfig(db)
+    check:
+      nodeConfigResult.isOk
+      nodeConfigResult.get == testJSON
 
     db.close()
     removeFile(path)

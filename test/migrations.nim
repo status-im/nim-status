@@ -20,26 +20,38 @@ procSuite "migrations":
 
     db.key(password)
 
-    var migrationDefinition = migration_accounts.newMigrationDefinition()
+    var
+      migrationDefinition = migration_accounts.newMigrationDefinition()
+      lastMigration = db.getLastMigrationExecuted()
 
     check:
-      db.getLastMigrationExecuted().error() == "No migrations were executed"
+      lastMigration.isErr
+      lastMigration.error == NoMigrationsExecuted
       db.migrate(migrationDefinition).isOk
-      db.isUpToDate(migrationDefinition)
+      db.isUpToDate(migrationDefinition).isOk
 
     # Create new migrations to check if isUpToDate and migrate work as expected
     migrationDefinition.migrationUp["002_abc"] = "CREATE TABLE anotherTable (address VARCHAR NOT NULL PRIMARY KEY) WITHOUT ROWID;".toBytes
     migrationDefinition.migrationDown["002_abc"] = "DROP TABLE anotherTable;".toBytes
 
+    var isUpToDate = db.isUpToDate(migrationDefinition)
     check:
-      not db.isUpToDate(migrationDefinition)
+      isUpToDate.isOk
+      isUpToDate.get == false
       db.migrate(migrationDefinition).isOk
-      db.isUpToDate(migrationDefinition)
+      db.isUpToDate(migrationDefinition).isOk
       db.migrate(migrationDefinition).isOk
-      db.tearDown(migrationDefinition)
-      db.tearDown(migrationDefinition)
-      not db.isUpToDate(migrationDefinition)
-      db.getLastMigrationExecuted().error() == "No migrations were executed"
+      db.tearDown(migrationDefinition).isOk
+      db.tearDown(migrationDefinition).isOk
+    isUpToDate = db.isUpToDate(migrationDefinition)
+    check:
+      isUpToDate.isOk
+      isUpToDate.get == false
+
+    lastMigration = db.getLastMigrationExecuted()
+    check:
+      lastMigration.isErr
+      lastMigration.error == NoMigrationsExecuted
 
     db.close()
     removeFile(path)

@@ -15,7 +15,9 @@ procSuite "pendingtxs":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+    let db = dbResult.get
 
     let tx = PendingTx(
       networkId: 1,
@@ -28,10 +30,12 @@ procSuite "pendingtxs":
     )
 
     # savePendingTx
-    db.savePendingTx(tx)
+    check db.savePendingTx(tx).isOk
 
     # getPendingOutboundTxsByAddress
-    var txs = db.getPendingOutboundTxsByAddress(1, "0xabc")
+    var txsResult = db.getPendingOutboundTxsByAddress(1, "0xabc")
+    check txsResult.isOk
+    let txs = txsResult.get
 
     check:
       len(txs) == 1 and
@@ -42,12 +46,13 @@ procSuite "pendingtxs":
         txs[0].data == "data_json"
 
     # deletePendingTx
-    db.deletePendingTx("0x1234")
+    check db.deletePendingTx("0x1234").isOk
 
-    txs = db.getPendingTxs(1)
+    txsResult = db.getPendingTxs(1)
 
     check:
-      len(txs) == 0
+      txsResult.isOk
+      len(txsResult.get) == 0
 
     db.close()
     removeFile(path)

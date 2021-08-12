@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status lib
-  status/private/[database, permissions]
+  status/private/[common, database, permissions]
 
 import # test modules
   ./test_helpers
@@ -15,7 +15,9 @@ procSuite "permissions":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+    let db = dbResult.get
 
     let dappPerm1: DappPermissions = DappPermissions(
       name: "Dapp1",
@@ -30,22 +32,25 @@ procSuite "permissions":
       permissions: @[]
     )
 
-    db.addPermissions(dappPerm1)
-    db.addPermissions(dappPerm2)
-    db.addPermissions(dappPerm3)
+    check:
+      db.addPermissions(dappPerm1).isOk
+      db.addPermissions(dappPerm2).isOk
+      db.addPermissions(dappPerm3).isOk
 
     var dappPerms = db.getPermissions()
 
     check:
-      dappPerms == @[dappPerm1, dappPerm2, dappPerm3]
+      dappPerms.isOk
+      dappPerms.get == @[dappPerm1, dappPerm2, dappPerm3]
       # ensure serialized result is the same as status-go's RPC response
-      Json.encode(dappPerms) == """[{"dapp":"Dapp1","permissions":["perm1a"]},{"dapp":"Dapp2","permissions":["perm2a","perm2b"]},{"dapp":"Dapp3","permissions":[]}]"""
+      Json.encode(dappPerms.get) == """[{"dapp":"Dapp1","permissions":["perm1a"]},{"dapp":"Dapp2","permissions":["perm2a","perm2b"]},{"dapp":"Dapp3","permissions":[]}]"""
 
-    db.deletePermission(dappPerm2.name)
+    check db.deletePermission(dappPerm2.name).isOk
     dappPerms = db.getPermissions()
 
     check:
-      dappPerms == @[dappPerm1, dappPerm3]
+      dappPerms.isOk
+      dappPerms.get == @[dappPerm1, dappPerm3]
 
     db.close()
     removeFile(path)

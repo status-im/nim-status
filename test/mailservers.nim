@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status lib
-  status/private/[database, mailservers]
+  status/private/[common, database, mailservers]
 
 import # test modules
   ./test_helpers
@@ -15,7 +15,10 @@ procSuite "mailservers":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+
+    let db = dbResult.get
 
     let mailserver1 = Mailserver(
       id: "mailserver-1",
@@ -41,24 +44,25 @@ procSuite "mailservers":
       fleet: "quux"
     )
 
-    db.saveMailserver(mailserver1)
-    db.saveMailservers(@[mailserver2, mailserver3])
+    check db.saveMailserver(mailserver1).isOk
+    check db.saveMailservers(@[mailserver2, mailserver3]).isOk
 
     var dbMailservers = db.getMailservers()
 
     echo dbMailservers
 
     check:
-      dbMailservers.len == 3
-
-    db.deleteMailserver(mailserver1)
+      dbMailservers.isOk
+      dbMailservers.get.len == 3
+      db.deleteMailserver(mailserver1).isOk
 
     dbMailservers = db.getMailservers()
 
     echo dbMailservers
 
     check:
-      dbMailservers.len == 2
+      dbMailservers.isOk
+      dbMailservers.get.len == 2
 
     db.close()
     removeFile(path)

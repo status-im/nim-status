@@ -27,13 +27,8 @@ type
       dbColumnName("permission")
     .}: seq[string]
 
-  DappPermissionsDbError* = object of StatusError
 
-
-proc addPermissions*(db: DbConn, dappPerms: DappPermissions) {.raises: [Defect,
-  DappPermissionsDbError].} =
-
-  const errorMsg = "Error adding dapp permissions in to the database"
+proc addPermissions*(db: DbConn, dappPerms: DappPermissions): DbResult[void] =
 
   try:
     var dapp: Dapp
@@ -47,7 +42,7 @@ proc addPermissions*(db: DbConn, dappPerms: DappPermissions) {.raises: [Defect,
     db.exec(query, dappPerms.name)
 
     if dappPerms.permissions.len == 0:
-      return
+      return ok()
 
     query = fmt"""INSERT INTO {dappPermission.tableName}
                     (
@@ -57,15 +52,12 @@ proc addPermissions*(db: DbConn, dappPerms: DappPermissions) {.raises: [Defect,
                   VALUES(?, ?)"""
     for perm in dappPerms.permissions:
       db.exec(query, dappPerms.name, @[perm])
-  except SqliteError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getPermissions*(db: DbConn): seq[DappPermissions] {.raises: [Defect,
-  DappPermissionsDbError].} =
+proc getPermissions*(db: DbConn): DbResult[seq[DappPermissions]] =
 
-  const errorMsg = "Error getting dapp permissions from the database"
   try:
 
     var
@@ -78,7 +70,9 @@ proc getPermissions*(db: DbConn): seq[DappPermissions] {.raises: [Defect,
     if dapps.len == 0:
       return result
 
-    var tblDappPerms = dapps.map(dapp => (dapp.name, DappPermissions(name: dapp.name))).toOrderedTable()
+    var tblDappPerms =
+      dapps.map(dapp => (dapp.name, DappPermissions(name: dapp.name)))
+      .toOrderedTable()
 
     query = fmt"""SELECT
                         {dappPermission.name.columnName},
@@ -92,20 +86,16 @@ proc getPermissions*(db: DbConn): seq[DappPermissions] {.raises: [Defect,
       var existing = tblDappPerms[dappPerm.name]
       existing.permissions = existing.permissions & dappPerm.permissions
       tblDappPerms[dappPerm.name] = existing
-    return toSeq(tblDappPerms.values)
+    ok(toSeq(tblDappPerms.values))
 
-  except SerializationError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
+  except SerializationError: err DataAndTypeMismatch
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
 
-proc deletePermission*(db: DbConn, name: string) {.raises:
-  [DappPermissionsDbError].} =
+proc deletePermission*(db: DbConn, name: string): DbResult[void] {.raises:
+  [].} =
 
-  const errorMsg = "Error deleting dapp permission from the database"
   try:
     var dapp: Dapp
     let query = fmt"""DELETE FROM   {dapp.tableName}
@@ -114,7 +104,6 @@ proc deletePermission*(db: DbConn, name: string) {.raises:
     db.exec(query, name)
     # Note: No need to also delete permissions from the permissions table due to
     # `FOREIGN KEY(dapp_name) REFERENCES dapps(name) ON DELETE CASCADE`
-  except SqliteError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref DappPermissionsDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

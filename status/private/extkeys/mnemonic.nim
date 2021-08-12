@@ -14,10 +14,16 @@ export types
 
 type
   EntropyStrength* = distinct uint
+
   BitSeq = seq[byte]
+
   Language* = enum
     English, French, Italian, Japanese
-  MnemonicError* = object of StatusError
+
+  MnemonicError* = enum
+    InvalidEntropy = "mnemonic: invalid entropy strength"
+
+  MnemonicResult*[T] = Result[T, MnemonicError]
 
 proc `$`*(s: BitSeq): string {.raises: [].} =
   var str: string
@@ -50,15 +56,14 @@ proc getBits*(byteStr: string): BitSeq {.raises: [].} =
   return s
 
 # MnemonicPhrase returns a human readable seed for BIP32 Hierarchical Deterministic Wallets
-proc mnemonicPhrase*(strength: EntropyStrength, language: Language): Mnemonic
-  {.raises: [MnemonicError].} =
+proc mnemonicPhrase*(strength: EntropyStrength, language: Language):
+  MnemonicResult[Mnemonic] {.raises: [].} =
   # The mnemonic must encode entropy in a multiple of 32 bits.
   # With more entropy security is improved but the sentence length increases.
   # We refer to the initial entropy length as ENT. The recommended size of ENT is 128-256 bits.
 
   if strength.int mod 32 > 0 or strength.int < 128 or strength.int > 256:
-    raise (ref MnemonicError)(msg: "Error generating mnemonic: invalid " &
-      "entropy strength")
+    return err InvalidEntropy
 
   # First, an initial entropy of ENT bits is generated
   var entropy = newSeq[byte](strength.int div 8)
@@ -90,8 +95,7 @@ proc mnemonicPhrase*(strength: EntropyStrength, language: Language): Mnemonic
   if language == Language.Japanese:
     wordSeparator = "　"
 
-
-  return Mnemonic words.join(wordSeparator)
+  ok Mnemonic words.join(wordSeparator)
 
 proc mnemonicSeed*(mnemonic: Mnemonic, password: KeystorePass = ""): KeySeed
   {.raises: [].} =

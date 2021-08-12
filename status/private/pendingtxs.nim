@@ -39,12 +39,8 @@ type
     txType* {.serializedFieldName($PendingTxType.TxType), dbColumnName($PendingTxCol.TxType).}: string
     data* {.serializedFieldName($PendingTxType.Data), dbColumnName($PendingTxCol.Data).}: string
 
-  PendingTxDbError* = object of StatusError
+proc getPendingTxs*(db: DbConn, networkId: int): DbResult[seq[PendingTx]] =
 
-proc getPendingTxs*(db: DbConn, networkId: int): seq[PendingTx] {.raises:
-  [Defect, PendingTxDbError].} =
-
-  const errorMsg = "Error getting pending transactions from the database"
   try:
     var pendingTx: PendingTx
     let query = fmt"""SELECT    {pendingTx.networkId.columnName},
@@ -56,17 +52,13 @@ proc getPendingTxs*(db: DbConn, networkId: int): seq[PendingTx] {.raises:
                                 {pendingTx.data.columnName}
                       FROM      {pendingTx.tableName}
                       WHERE     {pendingTx.networkId.columnName} = ?"""
-    result = db.all(PendingTx, query, networkId)
-  except SqliteError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
+    ok db.all(PendingTx, query, networkId)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
 proc getPendingOutboundTxsByAddress*(db: DbConn, networkId: int,
-  address: string): seq[PendingTx] {.raises: [Defect, PendingTxDbError].} =
+  address: string): DbResult[seq[PendingTx]] =
 
-  const errorMsg = "Error getting pending outbound transactions by address " &
-    "from the database"
   try:
     var pendingTx: PendingTx
     let query = fmt"""SELECT  {pendingTx.networkId.columnName},
@@ -79,15 +71,13 @@ proc getPendingOutboundTxsByAddress*(db: DbConn, networkId: int,
                       FROM    {pendingTx.tableName}
                       WHERE   {pendingTx.networkId.columnName} = ? AND
                               {pendingTx.fromAddress.columnName} = ?"""
-    result = db.all(PendingTx, query, networkId, address)
-  except SqliteError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
+    ok db.all(PendingTx, query, networkId, address)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc savePendingTx*(db: DbConn, tx: PendingTx) {.raises: [PendingTxDbError].} =
+proc savePendingTx*(db: DbConn, tx: PendingTx): DbResult[void]
+  {.raises: [].} =
 
-  const errorMsg = "Error saving pending transaction in the database"
   try:
     var pendingTx: PendingTx
     let query = fmt"""INSERT OR REPLACE INTO  {pendingTx.tableName} (
@@ -108,21 +98,18 @@ proc savePendingTx*(db: DbConn, tx: PendingTx) {.raises: [PendingTxDbError].} =
       tx.toAddress,
       tx.txType,
       tx.data)
-  except SqliteError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deletePendingTx*(db: DbConn, transactionHash: string) {.raises:
-  [PendingTxDbError].} =
+proc deletePendingTx*(db: DbConn, transactionHash: string): DbResult[void]
+  {.raises: [].} =
 
-  const errorMsg = "Error deleting pending transaction from the database"
   try:
     var pendingTx: PendingTx
     let query = fmt"""DELETE FROM   {pendingTx.tableName}
                       WHERE         {pendingTx.transactionHash.columnName} = ?"""
     db.exec(query, transactionHash)
-  except SqliteError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PendingTxDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

@@ -17,8 +17,7 @@ import # vendor libs
 # The initial implementation of initNode is by intention a minimum viable usage
 # of nim-waku v2 from within nim-status
 
-proc initNode*(config: WakuNodeConf = WakuNodeConf.load()): WakuNode {.raises:
-  [Defect, Exception].} =
+proc initNode*(config: WakuNodeConf = WakuNodeConf.load()): WakuNode =
 
   let
     (extIp, extTcpPort, extUdpPort) = setupNat(config.nat, clientId,

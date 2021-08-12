@@ -1,24 +1,25 @@
 {.push raises: [Defect].}
 
 import # status modules
-  ../private/settings,
+  ../private/[settings, util],
   ./common
 
 export
   common
 
 type
-  GetSettingsResult* = Result[Settings, string]
+  SettingsError* = enum
+    GetSettingsError  = "settings: error getting settings from the database"
+    MustBeLoggedIn    = "settings: operation not permitted, must be logged in"
+    UserDbError       = "settings: user DB error, must be logged in"
 
-proc getSettings*(self: StatusObject): GetSettingsResult =
+  SettingsResult*[T] = Result[T, SettingsError]
+
+proc getSettings*(self: StatusObject): SettingsResult[Settings] =
   if not self.isLoggedIn:
-    return GetSettingsResult.err "Not logged in. Must be logged in to get " &
-      "settings."
+    return err MustBeLoggedIn
 
-  const errorMsg = "Error getting settings: "
-  try:
-    return GetSettingsResult.ok self.userDb.getSettings()
-  except SettingDbError as e:
-    return GetSettingsResult.err errorMsg & e.msg
-  except StatusApiError as e:
-    return GetSettingsResult.err errorMsg & e.msg
+  let
+    userDb = ?self.userDb.mapErrTo(UserDbError)
+    settings = ?userDb.getSettings.mapErrTo(GetSettingsError)
+  ok settings

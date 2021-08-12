@@ -16,7 +16,10 @@ procSuite "messages":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+
+    let db = dbResult.get
 
     var msg = Message(
       id: "msg1",
@@ -62,26 +65,31 @@ procSuite "messages":
     )
 
     # saveMessage
-    db.saveMessage(msg)
+    check db.saveMessage(msg).isOk
 
     # getMessageById
-    var dbMsg = db.getMessageById("msg1").get()
-
+    var dbMsgResult = db.getMessageById("msg1")
+    check dbMsgResult.isOk
+    var dbMsgOpt = dbMsgResult.get
+    check dbMsgOpt.isSome
+    var dbMsg = dbMsgOpt.get
     check:
       dbMsg.links == "links" and
         dbMsg.timestamp == 25 and
         dbMsg.username == "user1"
 
     # markAllRead
-    db.markAllRead("local-chat-id")
-    dbMsg = db.getMessageById("msg1").get()
-
-    check:
-      dbMsg.seen == true
+    check db.markAllRead("local-chat-id").isOk
+    dbMsgResult = db.getMessageById("msg1")
+    check dbMsgResult.isOk
+    dbMsgOpt = dbMsgResult.get
+    check dbMsgOpt.isSome
+    dbMsg = dbMsgOpt.get
+    check dbMsg.seen == true
 
     # markMessagesSeen
     msg.id = "msg2"
-    db.saveMessage(msg)
+    check db.saveMessage(msg).isOk
     let
       bip44PublicKey = SkPublicKey.fromHex(
         "0x03ddb90a4f67a81adf534bc19ed06d1546a3cad16a3b2995e18e3d7af823fe5c9a").get
@@ -108,25 +116,28 @@ procSuite "messages":
       invitationAdmin: "invitationAdmin",
       muted: false,
     )
-    db.saveChat(chat)
-    db.markMessagesSeen("local-chat-id", @["msg1", "msg2"])
-    dbMsg = db.getMessageById("msg2").get()
-    var dbChat = db.getChatById("local-chat-id").get()
-
+    check:
+      db.saveChat(chat).isOk
+      db.markMessagesSeen("local-chat-id", @["msg1", "msg2"]).isOk
+    dbMsgResult = db.getMessageById("msg2")
+    check dbMsgResult.isOk
+    dbMsgOpt = dbMsgResult.get
+    check dbMsgOpt.isSome
+    dbMsg = dbMsgOpt.get
+    var dbChatResult = db.getChatById("local-chat-id")
+    check dbChatResult.isOk
+    var dbChatOpt = dbChatResult.get
+    check dbChatOpt.isSome
+    var dbChat = dbChatOpt.get
     check:
       dbMsg.seen == true and dbChat.unviewedMessageCount == 0
 
     # deleteMessage
-    db.deleteMessage(msg)
-    var found: bool
-    try:
-      discard db.getMessageById("msg2").get()
-      found = true
-    except:
-      found = false
-
-    check:
-      found == false
+    check db.deleteMessage(msg).isOk
+    dbMsgResult = db.getMessageById("msg2")
+    check dbMsgResult.isOk
+    dbMsgOpt = dbMsgResult.get
+    check dbMsgOpt.isNone
 
     db.close()
     removeFile(path)

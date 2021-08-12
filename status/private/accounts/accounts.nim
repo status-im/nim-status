@@ -31,14 +31,9 @@ type
     Seed      = "seed",
     Watch     = "watch"
 
-  AccountDbError* = object of StatusError
-
 const STORAGE_ON_DEVICE* = "This device"
 
-proc createAccount*(db: DbConn, account: Account) {.raises: [Defect,
-  AccountDbError].} =
-
-  const errorMsg = "Error inserting account in database"
+proc createAccount*(db: DbConn, account: Account): DbResult[void] =
 
   try:
 
@@ -62,16 +57,12 @@ proc createAccount*(db: DbConn, account: Account) {.raises: [Defect,
     db.exec(query, account.address, account.wallet, account.chat,
       account.`type`, account.storage, account.path, account.publicKey,
       account.name, account.color, now, now)
+    ok()
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteAccount*(db: DbConn, address: Address) {.raises: [Defect,
-  AccountDbError].} =
-
-  const errorMsg = "Error deleting account from database"
+proc deleteAccount*(db: DbConn, address: Address): DbResult[void] =
 
   try:
 
@@ -80,16 +71,14 @@ proc deleteAccount*(db: DbConn, address: Address) {.raises: [Defect,
                       WHERE       {tblAccounts.address.columnName} = ?"""
 
     db.exec(query, address)
+    ok()
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getWalletAccount*(db: DbConn, address: Address): Option[Account] {.raises:
-  [AccountDbError, AssertionError, Defect].} =
+proc getWalletAccount*(db: DbConn, address: Address): DbResult[Option[Account]]
+  {.raises: [AssertionError, Defect].} =
 
-  const errorMsg = "Error getting wallet account from database"
   try:
 
     var tblAccounts: Account
@@ -110,22 +99,18 @@ proc getWalletAccount*(db: DbConn, address: Address): Option[Account] {.raises:
                       FROM      {tblAccounts.tableName}
                       WHERE     {tblAccounts.address.columnName} = '{address}'
                                 AND wallet = 0"""
-    db.one(Account, query)
+    ok db.one(Account, query)
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account]
-  {.raises: [Defect, AccountDbError].} =
-
-  const errorMsg = "Error deleting wallet account from database"
+proc deleteWalletAccount*(db: DbConn, address: Address):
+  DbResult[Option[Account]] =
 
   try:
 
     var tblAccounts: Account
-    let account = db.getWalletAccount(address)
+    let account = ?db.getWalletAccount(address)
     if account.isSome:
       let query = fmt"""DELETE FROM {tblAccounts.tableName}
                         WHERE       {tblAccounts.address.columnName} = ?
@@ -135,17 +120,12 @@ proc deleteWalletAccount*(db: DbConn, address: Address): Option[Account]
       # that has wallet = 1. There is a unique DB constraint that enforces this.
 
       db.exec(query, address)
-    return account
+    ok account
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
-  AccountDbError].} =
-
-  const errorMsg = "Error getting accounts from database"
+proc getAccounts*(db: DbConn): DbResult[seq[Account]] =
 
   try:
 
@@ -163,16 +143,12 @@ proc getAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
                                 {tblAccounts.updatedAt.columnName}
                       FROM      {tblAccounts.tableName}
                       ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
-    result = db.all(Account, query)
+    ok db.all(Account, query)
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getChatAccount*(db: DbConn): Account {.raises: [Defect, AccountDbError].} =
-
-  const errorMsg = "Error getting chat account from database"
+proc getChatAccount*(db: DbConn): DbResult[Account] =
 
   try:
 
@@ -190,17 +166,12 @@ proc getChatAccount*(db: DbConn): Account {.raises: [Defect, AccountDbError].} =
                                 {tblAccounts.updatedAt.columnName}
                       FROM      {tblAccounts.tableName}
                       WHERE     {tblAccounts.chat.columnName} = TRUE"""
-    result = db.one(Account, query).get
+    ok db.one(Account, query).get
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getWalletAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
-  AccountDbError].} =
-
-  const errorMsg = "Error getting chat account from database"
+proc getWalletAccounts*(db: DbConn): DbResult[seq[Account]] =
 
   try:
 
@@ -222,17 +193,12 @@ proc getWalletAccounts*(db: DbConn): seq[Account] {.raises: [Defect,
                       FROM      {tblAccounts.tableName}
                       WHERE     {tblAccounts.chat.columnName} = 0
                       ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
-    result = db.all(Account, query)
+    ok db.all(Account, query)
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc updateAccount*(db: DbConn, account: Account) {.raises: [Defect,
-  AccountDbError].} =
-
-  const errorMsg = "Error getting chat account from database"
+proc updateAccount*(db: DbConn, account: Account): DbResult[void] =
 
   try:
 
@@ -252,8 +218,7 @@ proc updateAccount*(db: DbConn, account: Account) {.raises: [Defect,
     db.exec(query, account.wallet, account.chat, account.`type`, account.storage,
       account.path, account.publicKey, account.name, account.color, now(),
       account.address)
+    ok()
 
-  except SqliteError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref AccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

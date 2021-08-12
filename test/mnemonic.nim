@@ -5,7 +5,7 @@ import # vendor libs
   chronos
 
 import # status lib
-  status/private/extkeys/mnemonic
+  status/private/[common, extkeys/mnemonic]
 
 import # test modules
   ./test_helpers
@@ -17,7 +17,9 @@ procSuite "mnemonic":
 
     echo "BitSeq: ", s
 
-    let mnemonic = mnemonicPhrase(EntropyStrength 128, Language.English).string
+    let mnemonicResult = mnemonicPhrase(EntropyStrength 128, Language.English)
+    check mnemonicResult.isOk
+    let mnemonic = mnemonicResult.get.string
     echo "phrase:"
     echo mnemonic
 
