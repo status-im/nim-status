@@ -4,7 +4,10 @@ import # std libs
   std/[json, strutils]
 
 import # vendor libs
-  chronos, json_rpc/client, web3
+  chronicles, chronos,
+  eth/common as eth_common,
+  eth/[common/transaction, keys],
+  json_rpc/client, web3  
 
 import # status modules
   ./common, ./settings
@@ -85,13 +88,12 @@ proc newWeb3*(settings: Settings): Web3 {.raises: [CatchableError, Defect,
 
 proc callRpc*(web3Conn: Web3, rpcMethod: RemoteMethod, params: JsonNode):
   Future[Response] {.async, raises: [Defect, CatchableError].} =
-  const errorMsg = "Error calling RPC method"
   try:
     return await web3Conn.provider.call($rpcMethod, params)
   except CatchableError as e:
-    raise (ref Web3Error)(parent: e, msg: errorMsg)
+    raise (ref Web3Error)(parent: e, msg: e.msg)
   except ValueError as e:
-    raise (ref Web3Error)(parent: e, msg: errorMsg)
+    raise (ref Web3Error)(parent: e, msg: e.msg)
 
 
 proc callRpc*(web3Conn: Web3, rpcMethod: string, params: JsonNode):
@@ -105,10 +107,24 @@ proc callRpc*(web3Conn: Web3, rpcMethod: string, params: JsonNode):
   except:
     return %* {"code": -32601, "message": "the method " & rpcMethod & " does not exist/is not available"}
 
-  const errorMsg = "Error calling RPC method"
   try:
     return await web3Conn.provider.call(rpcMethod, params)
   except CatchableError as e:
-    raise (ref Web3Error)(parent: e, msg: errorMsg)
+    raise (ref Web3Error)(parent: e, msg: e.msg)
   except ValueError as e:
-    raise (ref Web3Error)(parent: e, msg: errorMsg)
+    raise (ref Web3Error)(parent: e, msg: e.msg)
+
+proc signTransaction*(tr: var Transaction, pk: PrivateKey) =
+  let h = tr.txHashNoSignature
+  let s = sign(pk, SkMessage(h.data))
+
+  var r = toRaw(s)
+  let v = r[64]
+
+  tr.R = fromBytesBE(UInt256, r.toOpenArray(0, 31))
+  tr.S = fromBytesBE(UInt256, r.toOpenArray(32, 63))
+
+  tr.V = int64(v)
+
+  if tr.txType == TxType.TxLegacy:
+    tr.V += 27 # TODO! Complete this

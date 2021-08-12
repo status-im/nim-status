@@ -96,6 +96,11 @@ type
   NetworkStatusEvent* = ref object of ClientEvent
     online*: bool
 
+  SendTransactionEvent* = ref object of ClientEvent
+    response*: string
+    error*: string
+    timestamp*: int64
+
   UserMessageEvent* = ref object of ClientEvent
     message*: string
     timestamp*: int64
@@ -119,6 +124,7 @@ const clientEvents* = [
   "LoginEvent",
   "LogoutEvent",
   "NetworkStatusEvent",
+  "SendTransactionEvent",
   "UserMessageEvent"
 ]
 

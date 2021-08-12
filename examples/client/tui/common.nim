@@ -1,6 +1,9 @@
 import # client modules
   ../client, ./ncurses_helpers
 
+import # vendor libs
+  eth/common
+
 export client, ncurses_helpers
 
 logScope:
@@ -67,6 +70,10 @@ type
     name*: string
     address*: string
 
+  CallRpc* = ref object of Command
+    rpcMethod*: string
+    params*: string
+
   Connect* = ref object of Command
 
   CommandParameter* = ref object of RootObj
@@ -127,9 +134,16 @@ type
   SendMessage* = ref object of Command
     message*: string
 
-  CallRpc* = ref object of Command
-    rpcMethod*: string
-    params*: JsonNode
+  SendTransaction* = ref object of Command
+    fromAddress*: string
+    toAddress*: string
+    value*: string
+    maxPriorityFee*: string
+    maxFee*: string
+    gasLimit*: string
+    payload*: string
+    nonce*: string
+    password*: string
 
 const
   TuiEvents* = [
@@ -164,6 +178,7 @@ const
     "listtopics": "ListTopics",
     "login": "Login",
     "logout": "Logout",
+    "sendtransaction": "SendTransaction",
     "quit": "Quit"
   }.toTable
 
@@ -190,6 +205,7 @@ const
     "sub": "jointopic",
     "subscribe": "jointopic",
     "topics": "listtopics",
+    "trx": "sendtransaction",
     "unjoin": "leavetopic",
     "unsub": "leavetopic",
     "unsubscribe": "leavetopic",
@@ -215,7 +231,8 @@ const
     "leavetopic": @["leave", "part", "unjoin", "unsub", "unsubscribe"],
     "listaccounts": @["list"],
     "listtopics": @["topics"],
-    "listwalletaccounts": @["listwallets", "wallets"]
+    "listwalletaccounts": @["listwallets", "wallets"],
+    "sendtransaction": @["trx"]
   }.toTable
 
 proc stop*(self: Tui) {.async.} =

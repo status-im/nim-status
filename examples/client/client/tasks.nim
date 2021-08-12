@@ -6,12 +6,14 @@ from std/sugar import `=>`, collect
 import # vendor libs
   stew/byteutils
 
+from eth/common as eth_common import nil
+
 import # status lib
   status/api/[auth, opensea, provider, tokens, wallet],
   status/private/[alias, protocol]
 
 import # client modules
-  ./events, ./waku_chat2
+  ./events, ./serialization, ./waku_chat2
 
 export events
 
@@ -1130,6 +1132,53 @@ proc callRpc*(rpcMethod: string, params: JsonNode) {.task(kind=no_rts, stoppable
   except CatchableError as e:
     let
       event = CallRpcEvent(error: "Error calling rpc method, " &
+        "error: " & e.msg, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent event with error to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+
+proc sendTransaction*(fromAddress: eth_common.EthAddress, transaction: eth_common.Transaction, password: string) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = SendTransactionEvent(error: "Not logged in, " &
+        "cannot send transactions.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  try:
+    let dir = status.dataDir / "keystore"
+    let sendTransactionResult = await status.sendTransaction(fromAddress, transaction, password, dir)
+    if sendTransactionResult.isErr:
+      let
+        event = SendTransactionEvent(error: sendTransactionResult.error, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent errored event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+      return
+    else:
+      let
+        response = sendTransactionResult.get
+        event = SendTransactionEvent(response: $response, timestamp: timestamp)
+        eventEnc = event.encode
+        task = taskArg.taskName
+
+      trace "task sent event to host", event=eventEnc, task
+      asyncSpawn chanSendToHost.send(eventEnc.safe)
+  except CatchableError as e:
+    let
+      event = SendTransactionEvent(error: "Error sending transaction, " &
         "error: " & e.msg, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName

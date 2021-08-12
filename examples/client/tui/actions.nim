@@ -470,3 +470,20 @@ proc action*(self: Tui, event: CallRpcEvent) {.async, gcsafe,
       timestamp = event.timestamp
 
     self.printResult(fmt"RPC method response: {response}", timestamp)
+
+# SendTransactionEvent ---------------------------------------------------------
+
+proc action*(self: Tui, event: SendTransactionEvent) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      response = event.response
+      timestamp = event.timestamp
+
+    self.printResult(fmt"eth_sendTransaction response: {response}", timestamp)

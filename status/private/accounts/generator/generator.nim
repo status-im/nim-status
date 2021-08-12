@@ -82,7 +82,7 @@ proc deriveChildAccounts(self: Generator, a: Account,
 
   DeriveChildAccountsResult.ok(derived)
 
-proc findAccount(self: Generator, accountId: UUID): AccountResult =
+proc findAccount*(self: Generator, accountId: UUID): AccountResult =
 
   let id = $accountId
   if not self.accounts.hasKey(id):
