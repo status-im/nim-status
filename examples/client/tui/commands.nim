@@ -4,6 +4,10 @@ import # std libs
 import # client modules
   ./common, ./macros, ./screen, ./tasks
 
+import # vendor libs
+  eth/common as eth_common, stew/byteutils
+
+
 export common, screen, strutils, tasks
 
 logScope:
@@ -67,7 +71,7 @@ proc command*(self: Tui, command: AddCustomToken) {.async, gcsafe,
 
   var parsedAddr: Address
   try:
-    parsedAddr = command.address.parseAddress
+    parsedAddr = common.parseAddress(command.address)
   except:
     self.wprintFormatError(getTime().toUnix,
       "Could not parse address, please provide an address in proper format.")
@@ -459,7 +463,7 @@ proc split*(T: type GetAssets, argsRaw: string): seq[string] =
 proc command*(self: Tui, command: GetAssets) {.async, gcsafe, nimcall.} =
   var parsedOwner: Address
   try:
-    parsedOwner = command.owner.parseAddress
+    parsedOwner = common.parseAddress(command.owner)
   except:
     self.wprintFormatError(getTime().toUnix,
       "Could not parse address, please provide an address in proper format.")
@@ -761,13 +765,7 @@ proc help*(T: type CallRpc): HelpText =
 
 proc new*(T: type CallRpc, args: varargs[string]): T =
   var rpcMethod = if args.len > 0: args[0] else: ""
-  var params = newJArray()
-  if args.len > 1:
-    try:
-      params = args[1..^1].join(" ").parseJson()
-    except:
-      params = newJNull()
-
+  var params = if args.len > 1: args[1..^1].join(" ") else: ""
   T(rpcMethod: rpcMethod, params: params)
 
 proc split*(T: type CallRpc, argsRaw: string): seq[string] =
@@ -779,11 +777,144 @@ proc command*(self: Tui, command: CallRpc) {.async, gcsafe,
     if command.rpcMethod == "":
       self.wprintFormatError(getTime().toUnix,
         "method cannot be blank, please provide an input.")
-    elif command.params.kind == JNull:
+      return
+
+    var params = newJArray()
+    if command.params != "":
+      try:
+        params = command.params.parseJson()
+      except:
+        self.wprintFormatError(getTime().toUnix,
+          "params must be a valid JSON")
+        return
+
+    asyncSpawn self.client.callRpc(command.rpcMethod, params)
+  except:
+    self.wprintFormatError(getTime().toUnix, "invalid arguments.")
+
+# SendTransaction --------------------------------------------------------------
+
+proc help*(T: type SendTransaction): HelpText =
+  let command = "sendtransaction"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "from", description: "The address for the sending account"),
+    CommandParameter(name: "to", description: "The destination address of the message, left empty for a contract-creation transaction."),
+    CommandParameter(name: "value", description: "The value transferred for the transaction in wei"),
+    CommandParameter(name: "maxPriorityFee", description: "Max priority fee in wei"),
+    CommandParameter(name: "maxFee", description: "Max fee in wei"),
+    CommandParameter(name: "gasLimit", description: "The amount of gas to use for the transaction (unused gas is refunded)."),
+    CommandParameter(name: "data", description: "ABI byte string containing the data of the function call on a contract, or contract-creation initialisation code."),
+    CommandParameter(name: "nonce", description: "Integer of the nonce"),
+    CommandParameter(name: "password", description: "Account password")
+    ], description: "Sends an EIP1559 transaction")
+
+proc new*(T: type SendTransaction, args: varargs[string]): T =
+  T(fromAddress: args[0],
+    toAddress: args[1],
+    value: args[2],
+    maxPriorityFee: args[3],
+    maxFee: args[4],
+    gasLimit: args[5],
+    payload: args[6],
+    nonce: args[7],
+    password: args[8])
+
+proc split*(T: type SendTransaction, argsRaw: string): seq[string] =
+  let args = argsRaw.split(" ")
+  var values: array[9, string]
+  for idx, val in args[0..min(high(values), high(args))].pairs:
+    values[idx] = val
+  @values
+
+proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
+  nimcall.} =
+  try:
+    var fromAddress: EthAddress
+    try:
+      fromAddress = eth_common.parseAddress(cmd.fromAddress)
+    except:
       self.wprintFormatError(getTime().toUnix,
-        "params cannot be blank and must be a valid JSON, please provide an input.")
+        "Could not parse `from` address, please provide an address in proper format.")
+      return
+
+    var toAddress: Option[EthAddress]
+    if cmd.toAddress != "":
+      try:
+        toAddress = some(eth_common.parseAddress(cmd.toAddress))
+      except:
+        self.wprintFormatError(getTime().toUnix,
+          "Could not parse `to` address, please provide an address in proper format.")
+        return
     else:
-      asyncSpawn self.client.callRpc(command.rpcMethod, command.params)
+      toAddress = none(EthAddress)
+
+    var value = 0.u256
+    if cmd.value != "":
+      try:
+        value = cmd.value.u256
+      except:
+        self.wprintFormatError(getTime().toUnix,
+        "Could not parse `value`, please provide a valid numeric value (wei).")
+        return
+
+    var gasLimit = int64(0)
+    if cmd.gasLimit != "":
+      try:
+        gasLimit = cmd.gasLimit.parseBiggestInt
+      except:
+        self.wprintFormatError(getTime().toUnix,
+        "Could not parse `gasLimit`, please provide a valid numeric value.")
+        return
+
+    var maxPriorityFee = int64(0)
+    if cmd.maxPriorityFee != "":
+      try:
+        maxPriorityFee = cmd.maxPriorityFee.parseBiggestInt
+      except:
+        self.wprintFormatError(getTime().toUnix,
+        "Could not parse `maxPriorityFee`, please provide a valid numeric value.")
+        return
+
+    var maxFee = int64(0)
+    if cmd.maxFee != "":
+      try:
+        maxFee = cmd.maxFee.parseBiggestInt
+      except:
+        self.wprintFormatError(getTime().toUnix,
+        "Could not parse `maxFee`, please provide a valid numeric value.")
+        return
+
+    var payload:seq[byte] = @[]
+    if cmd.payload != "":
+      try:
+        payload = cmd.payload.hexToSeqByte
+      except:
+        self.wprintFormatError(getTime().toUnix,
+        "Could not parse `payload`, please provide a valid hex string.")
+        return
+
+    var nonce = uint64(0)
+    if cmd.nonce != "":
+      try:
+        nonce = uint64(cmd.nonce.parseBiggestInt)
+      except:
+        self.wprintFormatError(getTime().toUnix,
+        "Could not parse `nonce`, please provide a valid numeric value.")
+        return
+
+    asyncSpawn self.client.sendTransaction(
+      fromAddress,
+      Transaction(
+        txType: TxType.TxEip1559,
+        to: toAddress,
+        value: value,
+        maxPriorityFee: maxPriorityFee,
+        maxFee: maxFee,
+        gasLimit: gasLimit,
+        payload: payload,
+        nonce: nonce,
+      ),
+      cmd.password)
   except:
     self.wprintFormatError(getTime().toUnix, "invalid arguments.")
 

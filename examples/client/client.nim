@@ -4,6 +4,9 @@ import # std libs
 import # client modules
   ./client/tasks
 
+import # vendor libs
+  eth/common
+
 export tasks
 
 logScope:
@@ -124,3 +127,6 @@ proc deleteCustomToken*(self: Client, index: int) {.async.} =
 
 proc callRpc*(self: Client, rpcMethod: string, params: JsonNode) {.async.} =
   asyncSpawn callRpc(self.taskRunner, status, rpcMethod, params)
+
+proc sendTransaction*(self: Client, fromAddress: EthAddress, transaction: Transaction, password: string) {.async.} =
+  asyncSpawn sendTransaction(self.taskRunner, status, fromAddress, transaction, password)
