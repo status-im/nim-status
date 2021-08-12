@@ -2,11 +2,10 @@ import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
-  chronos, json_serialization,
-  options, sqlcipher, web3/conversions
+  chronos, json_serialization, options, sqlcipher, web3/conversions
 
 import # status lib
-  status/private/[callrpc, database, settings]
+  status/private/[callrpc, common, database, settings]
 
 import # test modules
   ./test_helpers
@@ -16,7 +15,10 @@ procSuite "callrpc":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+
+    let db = dbResult.get
 
     let settingsStr = """{
       "address": "0x1122334455667788990011223344556677889900",
@@ -33,24 +35,33 @@ procSuite "callrpc":
       "signing-phrase": "ABC DEF GHI"
     }"""
 
-    let settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
-    let web3Obj = newWeb3(settingsObj)
-    let rGasPrice = await callRpc(web3Obj, eth_gasPrice, %[])
+    let
+      settingsObj = JSON.decode(settingsStr, Settings, allowUnknownFields = true)
+      web3ObjResult = newWeb3(settingsObj)
+    check web3ObjResult.isOk
+    let
+      web3Obj = web3ObjResult.get
+      rGasPrice = await callRpc(web3Obj, eth_gasPrice, %[])
 
     check:
-      rGasPrice.getStr()[0..1] == "0x"
+      rGasPrice.isOk
+      rGasPrice.get.getStr()[0..1] == "0x"
 
     let rEthSign = await callRpc(web3Obj, "eth_sign", %[])
 
     check:
-      rEthSign["code"].getInt == -32601
-      rEthSign["message"].getStr == "the method eth_sign does not exist/is not available"
+      rEthSign.isErr
+      rEthSign.error.kind == web3ErrorKind.web3Rpc
+      rEthSign.error.rpcError.code == -32601
+      rEthSign.error.rpcError.message == "the method eth_sign does not exist/is not available"
 
     let rSendTransaction = await callRpc(web3Obj, "eth_sendTransaction", %* [%*{"from": "0x0000000000000000000000000000000000000000", "to": "0x0000000000000000000000000000000000000000", "value": "123"}])
 
     check:
-      rSendTransaction["code"].getInt == -32601
-      rSendTransaction["message"].getStr == "the method eth_sendTransaction does not exist/is not available"
+      rSendTransaction.isErr
+      rEthSign.error.kind == web3ErrorKind.web3Rpc
+      rSendTransaction.error.rpcError.code == -32601
+      rSendTransaction.error.rpcError.message == "the method eth_sendTransaction does not exist/is not available"
 
     db.close()
     removeFile(path)

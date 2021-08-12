@@ -36,10 +36,7 @@ type
     color* {.serializedFieldName($TokenType.Color), dbColumnName($TokenCol.Color).}: string
     decimals* {.serializedFieldName($TokenType.Decimals), dbColumnName($TokenCol.Decimals).}: uint
 
-  TokenDbError* = object of StatusError
-
-proc addCustomToken*(db: DbConn, token: Token) {.raises: [Defect,
-  TokenDbError].} =
+proc addCustomToken*(db: DbConn, token: Token): DbResult[void] =
 
   try:
     var tblToken: Token
@@ -55,34 +52,27 @@ proc addCustomToken*(db: DbConn, token: Token) {.raises: [Defect,
     # TODO: get network id
     db.exec(query, 1, $token.address, token.name, token.symbol, token.decimals,
       token.color)
-  except SqliteError as e:
-    raise (ref TokenDbError)(parent: e, msg: "Error inserting custom token in " &
-      "to the database")
+    ok()
+  except SqliteError: err OperationError
 
-proc getCustomTokens*(db: DbConn): seq[Token] {.raises: [Defect,
-  TokenDbError].} =
+proc getCustomTokens*(db: DbConn): DbResult[seq[Token]] =
 
-  const errorMsg = "Error getting custom tokena from the database"
   try:
     var token: Token
     const query = fmt"""SELECT      *
                         FROM        {token.tableName}
                         ORDER BY    {token.symbol.columnName},
                                     {token.networkId.columnName}"""
-    result = db.all(Token, query)
-  except SqliteError as e:
-    raise (ref TokenDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref TokenDbError)(parent: e, msg: errorMsg)
+    ok db.all(Token, query)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc deleteCustomToken*(db: DbConn, address: Address) {.raises: [Defect,
-  TokenDbError].} =
+proc deleteCustomToken*(db: DbConn, address: Address): DbResult[void] =
 
   try:
     var token: Token
     const query = fmt"""DELETE FROM   {token.tableName}
                         WHERE         {TokenCol.Address} = ?"""
     db.exec(query, $address)
-  except SqliteError as e:
-    raise (ref TokenDbError)(parent: e, msg: "Error getting custom tokens " &
-      "from the database")
+    ok()
+  except SqliteError: err OperationError

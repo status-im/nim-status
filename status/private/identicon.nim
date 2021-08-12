@@ -4,17 +4,26 @@ import # std libs
   std/[base64, md5, streams]
 
 import # vendor libs
-  chroma, nimPNG, nimage
+  chroma, nimage
+from nimPNG import  encodePNG, LFS_BRUTE_FORCE, LCT_RGBA, makePNGEncoder,
+                    writeChunks
+
 
 import # status modules
   ./common, ./identicon/color
 
 type
   Bitmap = array[0..24, uint8]
+
   Identicon = ref object
     bitmap*: Bitmap
     color*: ColorRGBA
-  IdenticonError* = object of StatusError
+
+  IdenticonError* = enum
+    GenerateError = "identicon: error generating base64-encoded identicon"
+
+  IdenticonResult*[T] = Result[T, IdenticonError]
+
   NimageColor = uint32
 
 proc bitmapFromHash(hash: MD5Digest): Bitmap {.raises: [].} =
@@ -46,7 +55,7 @@ proc generate(id: string): Identicon {.raises: [].} =
   let color = colorFromHash(hash)
   Identicon(bitmap: bitmap, color: color)
 
-proc renderBase64(icon: Identicon): string {.raises: [IdenticonError].} =
+proc renderBase64(icon: Identicon): IdenticonResult[string] {.raises: [].} =
 
   try:
     let img = newNimage(50, 50)
@@ -100,19 +109,18 @@ proc renderBase64(icon: Identicon): string {.raises: [IdenticonError].} =
     strm.setPosition(0)
     let encoded = base64.encode(strm.readAll())
     strm.close()
-    return "data:image/png;base64," & encoded
-  except Exception as e:
-    raise (ref IdenticonError)(parent: e, msg: "Error generating base64 " &
-      "encoded identicon")
+    return ok "data:image/png;base64," & encoded
+  except Exception:
+    return err GenerateError
 
-proc generateBase64(id: string): string {.raises: [IdenticonError].} =
-  let icon = generate(id)
-  renderBase64(icon)
+proc generateBase64(id: string): IdenticonResult[string] {.raises: [].} =
+  let
+    icon = generate(id)
+    encoded = ?renderBase64(icon)
+  ok encoded
 
-proc identicon*(str: string): string {.raises: [].} =
+proc identicon*(str: string): IdenticonResult[string] {.raises: [].} =
   ## identicon returns a base64 encoded icon given a string.
   ## We ignore any error, empty string result is considered an error.
-  try:
-    result = generateBase64(str)
-  except:
-    discard
+  let identicon = ?generateBase64(str)
+  ok identicon

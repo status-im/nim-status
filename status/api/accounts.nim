@@ -9,7 +9,7 @@ import # vendor libs
 import # status modules
   ../private/accounts/[accounts, public_accounts],
   ../private/accounts/generator/[account, generator],
-  ../private/[alias, conversions, identicon, settings],
+  ../private/[alias, conversions, identicon, settings, util],
   ../private/extkeys/[paths, types],
   ./common
 
@@ -20,220 +20,212 @@ export
   #   public_accounts, secp256k1, settings, types, uuid
 
 type
-  PublicAccountResult* = Result[PublicAccount, string]
+  AccountsError* = enum
+    ChatAcctNotFound        = "accts: chat account not found in derived " &
+                                "accounts"
+    CloseDbError            = "accts: error closing user db"
+    CreateAcctError         = "accts: error creating account in the database"
+    CreateSettingsError     = "accts: error creating settings in the database"
+    DefWalletAcctNotFound   = "accts: default wallet account not found in " &
+                                "derived accounts"
+    Eip1581AcctNotFound     = "accts: EIP-1581 account not found in " &
+                                "derived accounts"
+    GenerateAliasError      = "accts: error generating alias for public key"
+    GenerateDeriveError     = "accts: error generating and deriving addresses"
+    GenerateIdenticonError  = "accts: error generating identicon from " &
+                                "public key"
+    GenerateUuidError       = "accts: error generating uuid"
+    GetChatAcctError        = "accts: error getting chat account from the " &
+                                "database"
+    GetPublicAcctsError     = "accts: error getting public account(s) from " &
+                                "the database"
+    ImportMnemonicFailure   = "accts: failed to import mnemonic"
+    InitUserDbError         = "accts: error initialising user db"
+    InvalidPassword         = "accts: invalid password"
+    InvalidPublicKey        = "accts: provided hex is not a valid public key"
+    MustBeLoggedOut         = "accts: operation not permitted, must be " &
+                                "logged out"
+    ParseAddressError       = "accts: failed to parse address from given hex"
+    ParseNodeConfigError    = "accts: error parsing node config json"
+    SaveAccountsError       = "accts: error saving accounts to the database"
+    StoreDerivedAcctsError  = "accts: error generating and storing derived " &
+                                "accounts"
+    UserDbError             = "accts: user DB error, must be logged in"
+    UnknownError            = "accts: unknown error"
+    WalletRootAcctNotFound  = "accts: wallet root account not found in " &
+                                "derived accts"
 
-  PublicAccountsResult* = Result[seq[PublicAccount], string]
-
-  ChatAccountResult* = Result[accounts.Account, string]
+  AccountsResult*[T] = Result[T, AccountsError]
 
 proc storeDerivedAccounts(self: StatusObject, id: UUID, keyUid: string,
   paths: seq[KeyPath], password, dir: string,
-  accountType: AccountType): PublicAccountResult =
-
-  let accountInfos = ?self.accountsGenerator.storeDerivedAccounts(id, paths,
-      password, dir)
-  var whisperAcct: AccountInfo
-  try:
-    whisperAcct = accountInfos[PATH_WHISPER]
-  except KeyError as e:
-    return PublicAccountResult.err "Error getting whisper account from " &
-      "derived accounts: " & e.msg
+  accountType: AccountType): AccountsResult[PublicAccount] =
 
   let
-    alias = try: whisperAcct.publicKey.generateAlias
-            except RegexError as e:
-              return PublicAccountResult.err "Error generating alias for " &
-                "public key: " & e.msg
+    accountInfos = ?self.accountsGenerator.storeDerivedAccounts(id, paths,
+      password, dir).mapErrTo(StoreDerivedAcctsError)
+    whisperAcct = ?(catch accountInfos[PATH_WHISPER]).mapErrTo(ChatAcctNotFound)
+    alias = ?whisperAcct.publicKey.generateAlias.mapErrTo(
+      GenerateAliasError)
+    identicon = ?whisperAcct.publicKey.identicon.mapErrTo(
+      GenerateIdenticonError)
     pubAccount = PublicAccount(
       creationTimestamp: getTime().toUnix,
       name: alias,
-      identicon: whisperAcct.publicKey.identicon(),
+      identicon: identicon,
       keycardPairing: "",
       keyUid: keyUid # whisper key-uid
     )
-  try:
-    self.accountsDb.saveAccount(pubAccount)
-  except PublicAccountDbError as e:
-    return PublicAccountResult.err "Failed to store derived accounts: " & e.msg
+  ?self.accountsDb.saveAccount(pubAccount).mapErrTo(SaveAccountsError)
 
   let
-    defaultWalletAccountDerived =
-      try: accountInfos[PATH_DEFAULT_WALLET]
-      except KeyError as e:
-        return PublicAccountResult.err "Error getting default wallet from " &
-          "derived accounts: " & e.msg
-    defaultWalletPubKeyResult =
-      SkPublicKey.fromHex(defaultWalletAccountDerived.publicKey)
-    whisperAccountPubKeyResult =
-      SkPublicKey.fromHex(whisperAcct.publicKey)
+    defaultWalletAccountDerived = ?(catch accountInfos[PATH_DEFAULT_WALLET])
+      .mapErrTo(DefWalletAcctNotFound)
+    defaultWalletPubKey = ?SkPublicKey.fromHex(
+      defaultWalletAccountDerived.publicKey).mapErrTo(InvalidPublicKey)
+    whisperAccountPubKey = ?SkPublicKey.fromHex(whisperAcct.publicKey)
+      .mapErrTo(InvalidPublicKey)
+    defaultWalletAccount = accounts.Account(
+      address: ?defaultWalletAccountDerived.address.parseAddress.mapErrTo(
+        ParseAddressError),
+      wallet: true.some,
+      chat: false.some,
+      `type`: some($accountType),
+      storage: STORAGE_ON_DEVICE.some,
+      path: PATH_DEFAULT_WALLET.some,
+      publicKey: defaultWalletPubKey.some,
+      name: "Status account".some,
+      color: "#4360df".some
+    )
+    whisperAccount = accounts.Account(
+      address: ?whisperAcct.address.parseAddress.mapErrTo(ParseAddressError),
+      wallet: false.some,
+      chat: true.some,
+      `type`: some($accountType),
+      storage: STORAGE_ON_DEVICE.some,
+      path: PATH_WHISPER.some,
+      publicKey: whisperAccountPubKey.some,
+      name: pubAccount.name.some,
+      color: "#4360df".some
+    )
 
-  if defaultWalletPubKeyResult.isErr:
-    return PublicAccountResult.err $defaultWalletPubKeyResult.error
-  if whisperAccountPubKeyResult.isErr:
-    return PublicAccountResult.err $whisperAccountPubKeyResult.error
+  # We need an inited user db to create accounts, which requires a login.
+  # First, record if we are currently logged in, and then init the user db
+  # if not. After we know the db has been inited, create the needed accounts.
+  # Once finished, close the db if we were originally logged out.
+  let wasLoggedIn = self.isLoggedIn
+  if not wasLoggedIn:
+    ?self.initUserDb(keyUid, password).mapErrTo(
+      {DbError.KeyError: InvalidPassword}.toTable, InitUserDbError)
 
-  const errorMsg = "Error creating default wallet account and whisper account: "
-  try:
-    let
-      defaultWalletAccount = accounts.Account(
-        address: defaultWalletAccountDerived.address.parseAddress,
-        wallet: true.some,
-        chat: false.some,
-        `type`: some($accountType),
-        storage: STORAGE_ON_DEVICE.some,
-        path: PATH_DEFAULT_WALLET.some,
-        publicKey: defaultWalletPubKeyResult.get.some,
-        name: "Status account".some,
-        color: "#4360df".some
-      )
-      whisperAccount = accounts.Account(
-        address: whisperAcct.address.parseAddress,
-        wallet: false.some,
-        chat: true.some,
-        `type`: some($accountType),
-        storage: STORAGE_ON_DEVICE.some,
-        path: PATH_WHISPER.some,
-        publicKey: whisperAccountPubKeyResult.get.some,
-        name: pubAccount.name.some,
-        color: "#4360df".some
-      )
+  let userDb = ?self.userDb.mapErrTo(UserDbError)
+  ?userDb.createAccount(defaultWalletAccount).mapErrTo(CreateAcctError)
+  ?userDb.createAccount(whisperAccount).mapErrTo(CreateAcctError)
 
-    # We need an inited user db to create accounts, which requires a login.
-    # First, record if we are currently logged in, and then init the user db
-    # if not. After we know the db has been inited, create the needed accounts.
-    # Once finished, close the db if we were originally logged out.
-    let wasLoggedIn = self.isLoggedIn
-    if not wasLoggedIn:
-      self.initUserDb(keyUid, password)
+  if not wasLoggedIn:
+    ?self.closeUserDb.mapErrTo(CloseDbError)
 
-    self.userDb.createAccount(defaultWalletAccount)
-    self.userDb.createAccount(whisperAccount)
-
-    if not wasLoggedIn:
-      self.closeUserDb()
-
-    return PublicAccountResult.ok(pubAccount)
-  except AccountDbError as e:
-    return PublicAccountResult.err errorMsg & e.msg
-  except StatusApiError as e:
-    return PublicAccountResult.err errorMsg & e.msg
-  except ValueError as e:
-    return PublicAccountResult.err "Error parsing address of default wallet " &
-      "account: " & e.msg
+  ok pubAccount
 
 
 proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
-  bip39Passphrase, password: string, dir: string): PublicAccountResult =
+  bip39Passphrase, password: string, dir: string):
+  AccountsResult[PublicAccount] =
 
   if self.isLoggedIn:
-    return PublicAccountResult.err "Already logged in. Must be logged out to " &
-      "create a new account."
+    return err MustBeLoggedOut
 
   let
     n = 1 # hardcode only one account being created
     paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER, PATH_DEFAULT_WALLET]
     accounts = ?self.accountsGenerator.generateAndDeriveAddresses(
-      mnemonicPhraseLength, n, bip39Passphrase, paths)
+      mnemonicPhraseLength, n, bip39Passphrase, paths).mapErrTo(
+      GenerateDeriveError)
     account = accounts[n - 1]
 
-  self.initUserDb(account.keyUid, password)
+  ?self.initUserDb(account.keyUid, password).mapErrTo(
+    {DbError.KeyError: InvalidPassword}.toTable, InitUserDbError)
   let
     pubAccount = ?self.storeDerivedAccounts(account.id, account.keyUid, paths,
-      password, dir, AccountType.Generated)
-    uuidResult = uuidGenerate()
+      password, dir, AccountType.Generated).mapErrTo(StoreDerivedAcctsError)
+    uuidResult = ?uuidGenerate().mapErrTo(GenerateUuidError)
 
-  if uuidResult.isErr:
-    return PublicAccountResult.err "Error generating uuid: " & $uuidResult.error
-
-  const nodeConfigJsonError = "Error parsing node config json: "
-  var
-    settings: Settings
-    nodeConfig: JsonNode
-  try:
+  let
+    whisperAcct = ?(catch account.derived[PATH_WHISPER]).mapErrTo(
+      ChatAcctNotFound)
+    eip1581Acct = ?(catch account.derived[PATH_EIP_1581]).mapErrTo(
+      Eip1581AcctNotFound)
+    defWalletAcct = ?(catch account.derived[PATH_DEFAULT_WALLET]).mapErrTo(
+      DefWalletAcctNotFound)
+    walletRootAcct = ?(catch account.derived[PATH_WALLET_ROOT]).mapErrTo(
+      WalletRootAcctNotFound)
     settings = Settings(
       keyUid: account.keyUid,
       mnemonic: (string account.mnemonic).some,
-      publicKey: account.derived[PATH_WHISPER].publicKey,
+      publicKey: whisperAcct.publicKey,
       name: pubAccount.name.some,
-      userAddress: account.address.parseAddress,
-      eip1581Address: account.derived[PATH_EIP_1581].address.parseAddress,
-      dappsAddress: account.derived[PATH_DEFAULT_WALLET].address.parseAddress,
-      walletRootAddress:
-        account.derived[PATH_WALLET_ROOT].address.parseAddress.some,
+      userAddress: ?account.address.parseAddress.mapErrTo(ParseAddressError),
+      eip1581Address: ?eip1581Acct.address.parseAddress.mapErrTo(
+        ParseAddressError),
+      dappsAddress: ?defWalletAcct.address.parseAddress.mapErrTo(
+        ParseAddressError),
+      walletRootAddress: (?walletRootAcct.address.parseAddress.mapErrTo(
+        ParseAddressError)).some,
       previewPrivacy: true,
       signingPhrase: generateSigningPhrase(3),
       logLevel: "INFO".some, # TODO: how can we use the runtime LogLevel setting?
       latestDerivedPath: 0,
       networks: DEFAULT_NETWORKS,
       currency: "usd".some, # TODO: move to constants
-      photoPath: pubAccount.identicon, # TODO: change photoPath to identicon
+      photoPath: pubAccount.identicon,
+        # TODO: change photoPath to identicon
       wakuEnabled: true.some,
       walletVisibleTokens: (%* {
         "mainnet": ["SNT"]
       }).some,
       appearance: 0,
       currentNetwork: DEFAULT_NETWORK_NAME,
-      installationID: $(uuidResult.get)
+      installationID: $uuidResult
     )
     # TODO: a proper node config needs to
     # be created and stored on login (fleet info should be downloaded on login)
-    nodeConfig = NODE_CONFIG.parseJson
-  except JsonParsingError as e:
-    return PublicAccountResult.err nodeConfigJsonError & e.msg
-  except KeyError as e:
-    return PublicAccountResult.err "Error getting account from derived " &
-      "accounts: " & e.msg
-  except ValueError as e:
-    return PublicAccountResult.err "Error parsing an address: " & e.msg
-  except Exception as e: # raised by parseJson
-    return PublicAccountResult.err nodeConfigJsonError & e.msg
+    nodeConfig =  ?(catchEx NODE_CONFIG.parseJson).mapErrTo(
+      ParseNodeConfigError)
 
-  const errorMsg = "Error creating account: "
-  try:
-    self.userDb.createSettings(settings, nodeConfig)
-    self.closeUserDb()
-  except SettingDbError as e:
-    return PublicAccountResult.err errorMsg & e.msg
-  except StatusApiError as e:
-    return PublicAccountResult.err errorMsg & e.msg
+  let userDb = ?self.userDb.mapErrTo(UserDbError)
+  ?userDb.createSettings(settings, nodeConfig).mapErrTo(CreateSettingsError)
+  ?self.closeUserDb.mapErrTo(CloseDbError)
 
-  PublicAccountResult.ok(pubAccount)
+  ok pubAccount
 
-proc getChatAccount*(self: StatusObject): ChatAccountResult =
-  try:
-    return ChatAccountResult.ok self.userDb.getChatAccount()
-  except AccountDbError as e:
-    return ChatAccountResult.err e.msg
-  except StatusApiError as e:
-    return ChatAccountResult.err e.msg
+proc getChatAccount*(self: StatusObject): AccountsResult[accounts.Account] =
+  let
+    userDb = ?self.userDb.mapErrTo(UserDbError)
+    acct = ?userDb.getChatAccount.mapErrTo(GetChatAcctError)
+  ok acct
 
-proc getPublicAccounts*(self: StatusObject): PublicAccountsResult =
-  try:
-    PublicAccountsResult.ok self.accountsDb.getPublicAccounts()
-  except PublicAccountDbError as e:
-    return PublicAccountsResult.err "Failed to get public accounts: " & e.msg
+proc getPublicAccounts*(self: StatusObject):
+  AccountsResult[seq[PublicAccount]] =
+
+  let accts = ?self.accountsDb.getPublicAccounts().mapErrTo(GetPublicAcctsError)
+  ok accts
 
 
 proc importMnemonic*(self: StatusObject, mnemonic: Mnemonic,
-  bip39Passphrase, password: string, dir: string): PublicAccountResult =
+  bip39Passphrase, password: string, dir: string):
+  AccountsResult[PublicAccount] =
 
-  try:
-    let
-      imported = ?self.accountsGenerator.importMnemonic(mnemonic,
-        bip39Passphrase)
-      paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER,
-        PATH_DEFAULT_WALLET]
-      pubAccount = ?self.storeDerivedAccounts(imported.id, imported.keyUid,
-        paths, password, dir, AccountType.Seed)
-    PublicAccountResult.ok(pubAccount)
-  except Exception as e:
-    return PublicAccountResult.err e.msg
+  let
+    imported = ?self.accountsGenerator.importMnemonic(mnemonic,
+      bip39Passphrase).mapErrTo(ImportMnemonicFailure)
+    paths = @[PATH_WALLET_ROOT, PATH_EIP_1581, PATH_WHISPER,
+      PATH_DEFAULT_WALLET]
+    pubAccount = ?self.storeDerivedAccounts(imported.id, imported.keyUid,
+      paths, password, dir, AccountType.Seed).mapErrTo(StoreDerivedAcctsError)
+  ok pubAccount
 
 proc saveAccount*(self: StatusObject, account: PublicAccount):
-  PublicAccountResult =
+  AccountsResult[PublicAccount] {.raises: [].} =
 
-  try:
-    self.accountsDb.saveAccount(account)
-    return PublicAccountResult.ok account
-  except PublicAccountDbError as e:
-    return PublicAccountResult.err "Failed to save account: " & e.msg
+  ?self.accountsDb.saveAccount(account).mapErrTo(SaveAccountsError)
+  ok account

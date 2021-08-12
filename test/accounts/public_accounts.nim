@@ -14,11 +14,14 @@ procSuite "public accounts":
   asyncTest "saveAccount, updateAccountTimestamp, deleteAccount":
     let path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path)
+    let dbResult = initDb(path)
+    check dbResult.isOk
+
+    let db = dbResult.get
 
     let timestamp1 = getTime()
 
-    var account:PublicAccount = PublicAccount(
+    var account: PublicAccount = PublicAccount(
       creationTimestamp: timestamp1.toUnix,
       name: "Test",
       identicon: "data:image/png;base64,something",
@@ -26,22 +29,26 @@ procSuite "public accounts":
       keyUid: "0x1234"
     )
 
-    db.saveAccount(account)
+    check db.saveAccount(account).isOk
 
     # check that the values saved correctly
     var accountList = db.getPublicAccounts()
+    check accountList.isOk
+    var dbAccount = accountList.get[0]
     check:
-      accountList[0].creationTimestamp == timestamp1.toUnix
-      accountList[0].name == account.name
-      accountList[0].identicon == account.identicon
-      accountList[0].keycardPairing == account.keycardPairing
-      accountList[0].keyUid == account.keyUid
-      accountList[0].loginTimestamp.isSome == false
+      dbAccount.creationTimestamp == timestamp1.toUnix
+      dbAccount.name == account.name
+      dbAccount.identicon == account.identicon
+      dbAccount.keycardPairing == account.keycardPairing
+      dbAccount.keyUid == account.keyUid
+      dbAccount.loginTimestamp.isSome == false
 
-    let acctByKeyUid = db.getPublicAccount(account.keyUid)
+    let acctByKeyUidResult = db.getPublicAccount(account.keyUid)
     check:
-      acctByKeyUid.isSome
-    let acctByKeyUidVal = acctByKeyUid.get
+      acctByKeyUidResult.isOk
+      acctByKeyUidResult.get.isSome
+
+    let acctByKeyUidVal = acctByKeyUidResult.get.get
     check:
       acctByKeyUidVal.creationTimestamp == timestamp1.toUnix
       acctByKeyUidVal.name == account.name
@@ -57,41 +64,49 @@ procSuite "public accounts":
     account.identicon = account.identicon & "_updated"
     account.keycardPairing = account.keycardPairing & "_updated"
     account.loginTimestamp = timestamp2.toUnix.some
-    db.updateAccount(account)
+    check db.updateAccount(account).isOk
+
     accountList = db.getPublicAccounts()
+    check:
+      accountList.isOk
+      accountList.get.len == 1
+
+    dbAccount = accountList.get[0]
 
     check:
-      accountList.len == 1
-      accountList[0].creationTimestamp == timestamp1.toUnix
-      accountList[0].name == account.name
-      accountList[0].identicon == account.identicon
-      accountList[0].keycardPairing == account.keycardPairing
-      accountList[0].loginTimestamp == account.loginTimestamp
-      accountList[0].keyUid == account.keyUid # should not have been updated
+      dbAccount.creationTimestamp == timestamp1.toUnix
+      dbAccount.name == account.name
+      dbAccount.identicon == account.identicon
+      dbAccount.keycardPairing == account.keycardPairing
+      dbAccount.loginTimestamp == account.loginTimestamp
+      dbAccount.keyUid == account.keyUid # should not have been updated
 
     # check that we only update timestamp with `updateAccountTimestamp`
     let newTimestamp = 1
-    db.updateAccountTimestamp(newTimestamp, account.keyUid)
+    check db.updateAccountTimestamp(newTimestamp, account.keyUid).isOk
     accountList = db.getPublicAccounts()
 
     check:
-      accountList.len == 1
-      accountList[0].name == account.name
-      accountList[0].identicon == account.identicon
-      accountList[0].keycardPairing == account.keycardPairing
-      accountList[0].loginTimestamp.isSome and
-        accountList[0].loginTimestamp.get == newTimestamp
-      accountList[0].keyUid == account.keyUid
+      accountList.isOk
+      accountList.get.len == 1
+
+    dbAccount = accountList.get[0]
+
+    check:
+      dbAccount.name == account.name
+      dbAccount.identicon == account.identicon
+      dbAccount.keycardPairing == account.keycardPairing
+      dbAccount.loginTimestamp.isSome and
+      dbAccount.loginTimestamp.get == newTimestamp
+      dbAccount.keyUid == account.keyUid
 
     # check that we can delete accounts
-    try:
-      db.deleteAccount(account.keyUid)
-    except PublicAccountDbError as e:
-      echo repr e
+    check db.deleteAccount(account.keyUid).isOk
     accountList = db.getPublicAccounts()
 
     check:
-      accountList.len == 0
+      accountList.isOk
+      accountList.get.len == 0
 
     db.close()
     removeFile(path)

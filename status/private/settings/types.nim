@@ -14,8 +14,6 @@ import # status modules
 export conversions, networks
 
 type
-  SettingsError* = object of CatchableError
-
   SettingsType* {.pure.} = enum
     Address = "address",
     ChaosMode = "chaos-mode?",

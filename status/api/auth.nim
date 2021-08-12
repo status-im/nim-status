@@ -1,10 +1,10 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[strutils, typetraits]
+  std/[tables, typetraits]
 
 import # status modules
-  ../private/[accounts/public_accounts, conversions, settings],
+  ../private/[accounts/public_accounts, conversions, settings, util],
   ./common
 
 export
@@ -13,49 +13,56 @@ export
 #   conversions, public_accounts, settings
 
 type
-  LoginResult* = Result[PublicAccount, string]
+  AuthError* = enum
+    CloseDbError            = "auth: error closing user db"
+    GetAccountError         = "auth: could not get account with specified " &
+                                "keyUid"
+    InvalidKeyUid           = "auth: could not find account with specified " &
+                                "keyUid"
+    InitUserDbError         = "auth: error initialising user db"
+    InvalidPassword         = "auth: invalid password"
+    MustBeLoggedOut         = "auth: operation not permitted, must be logged " &
+                                "out"
+    ParseAddressError       = "auth: failed to parse address"
+    UnknownError            = "auth: unknown error"
+    UserDbError             = "auth: user DB error, must be logged in"
+    WalletRootAddressError  = "auth: failed to get wallet root address setting"
 
-  LogoutResult* = Result[void, string]
 
-proc login*(self: StatusObject, keyUid, password: string): LoginResult =
+  AuthResult*[T] = Result[T, AuthError]
+
+proc login*(self: StatusObject, keyUid, password: string):
+  AuthResult[PublicAccount] =
 
   if self.isLoggedIn:
-    return LoginResult.err "Already logged in"
+    return err MustBeLoggedOut
 
-  try:
-    let account = self.accountsDb.getPublicAccount(keyUid)
-    if account.isNone:
-      return LoginResult.err "Could not find account with keyUid " & keyUid
+  let account = ?self.accountsDb.getPublicAccount(keyUid).mapErrTo(
+    GetAccountError)
 
-    self.initUserDb(keyUid, password)
-    LoginResult.ok account.get
+  if account.isNone:
+    return err InvalidKeyUid
 
-  except StatusApiError as e:
-    if e.msg.contains "file is not a database":
-      return LoginResult.err "Invalid password"
-    return LoginResult.err "Failed to login, error: " & e.msg
-  except PublicAccountDbError as e:
-    return LoginResult.err "Failed to get public account: " & e.msg
+  ?self.initUserDb(keyUid, password).mapErrTo(
+    [(DbError.KeyError, InvalidPassword)].toTable, InitUserDbError)
 
-proc logout*(self: StatusObject): LogoutResult {.raises: [].} =
-  try:
-    self.closeUserDb()
-    LogoutResult.ok
-  except StatusApiError as e:
-    return LogoutResult.err "Error logging out: " & e.msg
+  ok account.get
 
-proc validatePassword*(self: StatusObject, password, dir: string): bool =
+proc logout*(self: StatusObject): AuthResult[void] {.raises: [].} =
+  ?self.closeUserDb().mapErrTo(CloseDbError)
+  ok()
 
-  try:
-    let address = self.userDb.getSetting(string, SettingsCol.WalletRootAddress)
-    if address.isNone:
-      return false
-    let loadAcctResult = self.accountsGenerator.loadAccount(
-      address.get.parseAddress, password, dir)
-    return loadAcctResult.isOk
-  except SettingDbError:
-    return false
-  except StatusApiError:
-    return false
-  except ValueError:
-    return false
+proc validatePassword*(self: StatusObject, password, dir: string):
+  AuthResult[bool] =
+
+  let
+    userDb = ?self.userDb.mapErrTo(UserDbError)
+    address = ?userDb.getSetting(string,
+    SettingsCol.WalletRootAddress).mapErrTo(WalletRootAddressError)
+  if address.isNone:
+    return ok false
+  let
+    addressParsed = ?address.get.parseAddress.mapErrTo(ParseAddressError)
+    loadAcctResult = self.accountsGenerator.loadAccount(addressParsed, password,
+      dir)
+  return ok loadAcctResult.isOk

@@ -15,7 +15,9 @@ procSuite "api":
 
     let dataDir = currentSourcePath.parentDir() / "build" / "data"
 
-    let statusObj = StatusObject.new(dataDir)
+    let statusObjResult = StatusObject.new(dataDir)
+    check statusObjResult.isOk
+    let statusObj = statusObjResult.get
     check:
       statusObj.isLoggedIn == false
       statusObj.accountsGenerator != nil
@@ -28,15 +30,18 @@ procSuite "api":
       keycardPairing: "",
       keyUid: "0x1234"
     )
-
-    discard statusObj.saveAccount(account)
-    statusObj.accountsDb.updateAccountTimestamp(1, "0x1234")
-    let accountsResult = statusObj.getPublicAccounts()
-    echo (%accountsResult.get).pretty
     check:
-      accountsResult.isOk
-      accountsResult.get[0].keyUid == "0x1234"
-      accountsResult.get[0].loginTimestamp == 1.int64.some
+      statusObj.saveAccount(account).isOk
+      statusObj.accountsDb.updateAccountTimestamp(1, "0x1234").isOk
+
+    let accountsResult = statusObj.getPublicAccounts()
+    check accountsResult.isOk
+    let accounts = accountsResult.get
+    echo (%accounts).pretty
+
+    check:
+      accounts[0].keyUid == "0x1234"
+      accounts[0].loginTimestamp == 1.int64.some
 
     let
       password = "qwerty"
@@ -76,13 +81,18 @@ procSuite "api":
     check:
       # should not be able to get settings when logged out
       getSettingsResult.isErr
+      getSettingsResult.error == SettingsError.MustBeLoggedIn
 
     let loginResult = statusObj.login(account.keyUid, password)
     check:
       loginResult.isOk
       loginResult.get == account
 
-    statusObj.userDb.createSettings(settingsObj, nodeConfig)
+    let userDbResult = statusObj.userDb
+    check userDbResult.isOk
+    let userDb = userDbResult.get
+
+    check userDb.createSettings(settingsObj, nodeConfig).isOk
 
     # getSettingResult =
     #   statusObj.getSetting[int](SettingsCol.LatestDerivedPath, 0)
@@ -101,5 +111,5 @@ procSuite "api":
       statusObj.isLoggedIn == false
 
 
-    statusObj.close()
+    check statusObj.close.isOk
     removeDir(datadir)

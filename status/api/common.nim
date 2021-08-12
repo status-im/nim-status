@@ -4,20 +4,20 @@ import # std libs
   std/[os, tables, typetraits]
 
 import # vendor libs
-  sqlcipher, stew/results, web3, web3/ethtypes
+  sqlcipher, web3, web3/ethtypes
 
 from web3/conversions as web3_conversions import `$`
 
 import # status modules
   ../private/common,
-  ../private/[accounts/generator/generator, callrpc, database, settings]
+  ../private/[accounts/generator/generator, callrpc, database, settings, util]
 
 from ../private/conversions import parseAddress, readValue, writeValue
 from ../private/extkeys/types import Mnemonic
 
 export
   `$`, common, database, ethtypes, generator, Mnemonic, parseAddress, readValue,
-  results, sqlcipher, writeValue
+  sqlcipher, util, writeValue
 
 type
   StatusApiDefect* = object of StatusDefect
@@ -32,71 +32,76 @@ type
     web3Conn: Table[string, Web3]
 
 proc new*(T: type StatusObject, dataDir: string,
-  accountsDbFileName: string = "accounts.sql"): T =
+  accountsDbFileName: string = "accounts.sql"): DbResult[T] =
 
-  const errorMsg = "Failed to initialize database"
+  let
+    accountsDb = ?initDb(dataDir / accountsDbFileName).mapErrTo(
+      InitFailure)
+    generator = Generator.new()
 
-  var accountsDb: DbConn
-  try:
-    accountsDb = initializeDB(dataDir / accountsDbFileName)
-  except StatusApiError as e:
-    raise (ref StatusApiDefect)(parent: e, msg: errorMsg)
-  except DbError as e:
-    raise (ref StatusApiDefect)(parent: e, msg: errorMsg)
-
-  let generator = Generator.new()
-
-  T(accountsDbConn: accountsDb, dataDir: dataDir, accountsGenerator: generator,
+  ok T(accountsDbConn: accountsDb, dataDir: dataDir, accountsGenerator: generator,
     web3Conn: initTable[string, Web3]())
 
-proc accountsDb*(self: StatusObject): DbConn =
+proc accountsDb*(self: StatusObject): DbConn {.raises: [].} =
   self.accountsDbConn
 
 proc isLoggedIn*(self: StatusObject): bool {.raises: [].} =
   not distinctBase(self.userDbConn).isNil and self.userDbConn.isOpen
 
-proc userDb*(self: StatusObject): DbConn {.raises: [StatusApiError].} =
+proc userDb*(self: StatusObject): DbResult[DbConn] {.raises: [].} =
   if distinctBase(self.userDbConn).isNil:
-    raise newException(StatusApiError,
-      "User DB not initialized. Please login first.")
-  self.userDbConn
+    return err NotInitialized
+  ok self.userDbConn
 
-proc closeUserDb*(self: StatusObject) {.raises: [StatusApiError].} =
+proc closeUserDb*(self: StatusObject): DbResult[void] {.raises: [].} =
   try:
-    self.userDb.close()
-  except SqliteError as e:
-    raise (ref StatusApiError)(parent: e, msg: "Error closing user database")
-  except Exception as e:
-    raise (ref StatusApiError)(parent: e, msg: "Error closing user database")
+    (?self.userDb).close()
+  except SqliteError, Exception:
+    return err CloseFailure
   self.userDbConn = nil
+  ok()
 
-proc close*(self: StatusObject) {.raises: [StatusApiError].} =
+proc close*(self: StatusObject): DbResult[void] {.raises: [].} =
   if self.isLoggedIn:
-    self.closeUserDb()
+    ?self.closeUserDb()
   try:
     self.accountsDb.close()
-  except SqliteError as e:
-    raise (ref StatusApiError)(parent: e, msg: "Error closing accounts database")
-  except Exception as e:
-    raise (ref StatusApiError)(parent: e, msg: "Error closing accounts database")
+    ok()
+  except SqliteError, Exception:
+    err CloseFailure
 
-proc initUserDb*(self: StatusObject, keyUid, password: string) {.raises:
-  [Defect, StatusApiDefect].} =
+proc initUserDb*(self: StatusObject, keyUid, password: string): DbResult[void] =
+  self.userDbConn = ?initDb(self.dataDir / keyUid & ".db", password)
+  ok()
 
-  try:
-    self.userDbConn = initializeDB(self.dataDir / keyUid & ".db", password)
-  except DbError as e:
-    # convert to a defect as we are in an unrecoverable state
-    raise (ref StatusApiDefect)(parent: e, msg: "Error initializing user database")
+proc web3*(self: StatusObject, network: string): Web3Result[Web3] =
+  let
+    userDb = ?self.userDb
+      .mapErrTo(Web3Error(kind: web3Internal, internalError: UserDbNotLoggedIn))
+    settings = ?userDb.getSettings
+      .mapErrTo(Web3Error(kind: web3Internal, internalError: GetSettingsFailure))
 
-proc web3*(self: StatusObject, network: string): Web3 {.raises: [Defect, Exception]} =
-  let settings = self.userDb.getSettings()
   if not self.web3Conn.hasKey(network):
-    self.web3Conn[network] = newWeb3(settings, network)
-  return self.web3Conn[network]
+    let val = ?newWeb3(settings, network)
+    self.web3Conn[network] = val
 
-proc web3*(self: StatusObject): Web3 {.raises: [Defect, Exception]}  =
-  let settings = self.userDb.getSettings()
+  let web3Conn = ?(catch self.web3Conn[network])
+    .mapErrTo(Web3Error(kind: web3Internal, internalError: NotFound))
+
+  ok web3Conn
+
+proc web3*(self: StatusObject): Web3Result[Web3]  =
+  let
+    userDb = ?self.userDb
+      .mapErrTo(Web3Error(kind: web3Internal, internalError: UserDbNotLoggedIn))
+    settings = ?userDb.getSettings
+      .mapErrTo(Web3Error(kind: web3Internal, internalError: GetSettingsFailure))
+
   if not self.web3Conn.hasKey(settings.currentNetwork):
-    self.web3Conn[settings.currentNetwork] = newWeb3(settings, settings.currentNetwork)
-  return self.web3Conn[settings.currentNetwork]
+    let val = ?newWeb3(settings, settings.currentNetwork)
+    self.web3Conn[settings.currentNetwork] = val
+
+  let web3Conn = ?(catch self.web3Conn[settings.currentNetwork])
+    .mapErrTo(Web3Error(kind: web3Internal, internalError: NotFound))
+
+  ok web3Conn

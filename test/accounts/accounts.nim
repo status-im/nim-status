@@ -12,8 +12,11 @@ import # test modules
 
 procSuite "accounts":
 
+  let address = "0xdeadbeefdeadbeefdeadbeefdeadbeef11111111".parseAddress
+  check address.isOk
+
   var account = Account(
-    address: "0xdeadbeefdeadbeefdeadbeefdeadbeef11111111".parseAddress,
+    address: address.get,
     wallet: true.some,
     chat: false.some,
     `type`: "type".some,
@@ -30,17 +33,20 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
 
-    db.createAccount(account)
+    let db = dbResult.get
+
+    check db.createAccount(account).isOk
 
     # check that the values saved correctly
-    let
-      accountList = db.getAccounts()
-      accountFromDb = accountList[0]
-
+    let accountList = db.getAccounts()
     check:
-      accountList.len == 1
+      accountList.isOk
+      accountList.get.len == 1
+    let accountFromDb = accountList.get[0]
+    check:
       accountFromDb.address == account.address
       accountFromDb.wallet.get == account.wallet.get
       accountFromDb.chat.get == account.chat.get
@@ -61,18 +67,24 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check: dbResult.isOk
 
-    db.createAccount(account)
+    let db = dbResult.get
+
+    check db.createAccount(account).isOk
 
     # check that the values saved correctly
-    var
-      accountList = db.getAccounts()
-      accountFromDb = accountList[0]
+    var accountList = db.getAccounts()
+
+    check:
+      accountList.isOk
 
     # change values, then update
+    var accountFromDb = accountList.get[0]
+    let address_updated = "0xdeadbeefdeadbeefdeadbeefdeadbeef11111111".parseAddress
+    check address_updated.isOk
     let
-      address_updated = "0xdeadbeefdeadbeefdeadbeefdeadbeef11111111".parseAddress
       wallet_updated = false.some
       chat_updated = true.some
       type_updated = "type_changed".some
@@ -82,7 +94,7 @@ procSuite "accounts":
       name_updated = "name_updated".some
       color_updated = "#1360df".some
 
-    accountFromDb.address = address_updated
+    accountFromDb.address = address_updated.get
     accountFromDb.wallet = wallet_updated
     accountFromDb.chat = chat_updated
     accountFromDb.`type` = type_updated
@@ -92,14 +104,15 @@ procSuite "accounts":
     accountFromDb.name = name_updated
     accountFromDb.color = color_updated
 
-    db.updateAccount(accountFromDb)
+    check db.updateAccount(accountFromDb).isOk
 
     accountList = db.getAccounts()
-    accountFromDb = accountList[0]
+    check accountList.isOk
+    accountFromDb = accountList.get[0]
 
     check:
-      accountList.len == 1
-      accountFromDb.address == address_updated
+      accountList.get.len == 1
+      accountFromDb.address == address_updated.get
       accountFromDb.wallet.get == wallet_updated.get
       accountFromDb.chat.get == chat_updated.get
       accountFromDb.`type`.get == type_updated.get
@@ -119,24 +132,27 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
 
-    db.createAccount(account)
+    let db = dbResult.get
+
+    check db.createAccount(account).isOk
 
     # check that the values saved correctly
-    var
-      accountList = db.getAccounts()
-      accountFromDb = accountList[0]
+    var accountList = db.getAccounts()
 
     check:
-      accountList.len == 1
+      accountList.isOk
+      accountList.get.len == 1
 
-    db.deleteAccount(accountFromDb.address)
+    check db.deleteAccount(accountList.get[0].address).isOk
 
     accountList = db.getAccounts()
 
     check:
-      accountList.len == 0
+      accountList.isOk
+      accountList.get.len == 0
 
     db.close()
     removeFile(path)
@@ -147,18 +163,22 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+
+    let db = dbResult.get
 
     account.wallet = false.some
-    db.createAccount(account)
+    check db.createAccount(account).isOk
 
     # check that the values saved correctly
     let accountFromDbOpt = db.getWalletAccount(account.address)
 
     check:
-      accountFromDbOpt.isSome
+      accountFromDbOpt.isOk
+      accountFromDbOpt.get.isSome
 
-    let accountFromDb = accountFromDbOpt.get
+    let accountFromDb = accountFromDbOpt.get.get
     check:
       accountFromDb.wallet.get == account.wallet.get
       accountFromDb.chat.get == account.chat.get
@@ -179,18 +199,23 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+
+    let db = dbResult.get
 
     account.wallet = false.some
-    db.createAccount(account)
+    check db.createAccount(account).isOk
 
     # check that the values saved correctly
-    let
-      accountList = db.getWalletAccounts()
-      accountFromDb = accountList[0]
+    let accountList = db.getWalletAccounts()
+    check:
+      accountList.isOk
+      accountList.get.len == 1
+
+    let accountFromDb = accountList.get[0]
 
     check:
-      accountList.len == 1
       accountFromDb.address == account.address
       accountFromDb.wallet.get == account.wallet.get
       accountFromDb.chat.get == account.chat.get
@@ -211,18 +236,22 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check: dbResult.isOk
+
+    let db = dbResult.get
 
     account.wallet = false.some
-    db.createAccount(account)
+    check db.createAccount(account).isOk
 
     # check that the values saved correctly
     let accountFromDbOpt = db.deleteWalletAccount(account.address)
 
     check:
-      accountFromDbOpt.isSome
+      accountFromDbOpt.isOk
+      accountFromDbOpt.get.isSome
 
-    let accountFromDb = accountFromDbOpt.get
+    let accountFromDb = accountFromDbOpt.get.get
     check:
       accountFromDb.wallet.get == account.wallet.get
       accountFromDb.chat.get == account.chat.get
@@ -238,7 +267,8 @@ procSuite "accounts":
       accountList = db.getWalletAccounts()
 
     check:
-      accountList.len == 0
+      accountList.isOk
+      accountList.get.len == 0
 
     db.close()
     removeFile(path)

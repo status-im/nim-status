@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher, web3/conversions
 
 import # status lib
-  status/private/[database, tokens]
+  status/private/[common, database, tokens]
 
 import # test modules
   ./test_helpers
@@ -15,7 +15,9 @@ procSuite "tokens":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let db = initializeDB(path, password)
+    let dbResult = initDb(path, password)
+    check dbResult.isOk
+    let db = dbResult.get
 
     let tokensStr = """{
       "address": "0x1122334455667788990011223344556677889900",
@@ -27,14 +29,15 @@ procSuite "tokens":
 
     let tokensObj = JSON.decode(tokensStr, Token, allowUnknownFields = true)
 
-    db.addCustomToken(tokensObj)
+    check db.addCustomToken(tokensObj).isOk
 
     var token_list = db.getCustomTokens()
 
     check:
-      token_list.len == 1
+      token_list.isOk
+      token_list.get.len == 1
 
-    let token = token_list[0]
+    let token = token_list.get[0]
 
     check:
       $token.address == "0x1122334455667788990011223344556677889900"
@@ -43,12 +46,13 @@ procSuite "tokens":
       token.decimals == 18
       token.color == "#eeeeee"
 
-    db.deleteCustomToken(token.address)
+    check db.deleteCustomToken(token.address).isOk
 
     token_list = db.getCustomTokens()
 
     check:
-      token_list.len == 0
+      token_list.isOk
+      token_list.get.len == 0
 
     db.close()
     removeFile(path)

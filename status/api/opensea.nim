@@ -5,7 +5,7 @@ import # std libs
 
 import # vendor libs
   chronos, chronos/apps/http/httpclient, json_serialization,
-  stew/[byteutils, result]
+  stew/byteutils
 
 import # status modules
   ./common, ../private/conversions
@@ -16,7 +16,8 @@ type
 
   Asset* = object
     name*: Option[string]
-    imageThumbnailUrl* {.serializedFieldName("image_thumbnail_url").}: Option[string]
+    imageThumbnailUrl* {.serializedFieldName("image_thumbnail_url").}:
+      Option[string]
     imageUrl* {.serializedFieldName("image_url").}: Option[string]
     contract* {.serializedFieldName("asset_contract").}: AssetContract
     collection*: Collection
@@ -27,30 +28,41 @@ type
   Collection* = object
     name*: string
 
-  AssetsResult = Result[seq[Asset], string]
+  OpenSeaError* = enum
+    FetchError    = "opensea: error fetching assets from opensea"
+    UrlBuildError = "opensea: error building query url"
 
-proc queryAssets(owner: Address, offset: int, limit: int): Future[AssetsResult] {.async.} =
+  OpenSeaResult*[T] = Result[T, OpenSeaError]
+
+proc queryAssets(owner: Address, offset: int, limit: int):
+  Future[OpenSeaResult[seq[Asset]]] {.async.} =
+
   var content = ""
-  let url = fmt("https://api.opensea.io/api/v1/assets?owner={owner}&offset={offset}&limit={limit}")
+  let query = catch fmt"{owner}&offset={offset}&limit={limit}"
+  if query.isErr: return err UrlBuildError
+  let url = "https://api.opensea.io/api/v1/assets?owner=" & query.get
   try:
     let response = await fetch(HttpSessionRef.new(), parseUri(url))
     content = string.fromBytes(response.data)
   except CancelledError, HttpError:
-    return AssetsResult.err "Error while fetching assets from opensea"
+    return err FetchError
 
-  let assets = Json.decode(content, AssetsContainer, allowUnknownFields = true).assets
-  return AssetsResult.ok assets
+  let container = Json.decode(content, AssetsContainer,
+    allowUnknownFields = true)
+  return ok container.assets
 
-proc getOpenseaAssets*(self: StatusObject, owner: Address, limit: int = 50): Future[AssetsResult] {.async.} =
+proc getOpenseaAssets*(self: StatusObject, owner: Address, limit: int = 50):
+  Future[OpenSeaResult[seq[Asset]]] {.async.} =
+
   var offset = 0
   var assets: seq[Asset] = @[]
   while true:
     let tmpAssets = await queryAssets(owner, offset, limit)
-    if tmpAssets.isErr: return tmpAssets
+    if tmpAssets.isErr: return err tmpAssets.error
 
-    assets = concat(assets, tmpAssets.get())
+    assets = concat(assets, tmpAssets.get)
     if len(tmpAssets.get()) < limit: break
 
     offset += limit
 
-  return AssetsResult.ok assets
+  return ok assets

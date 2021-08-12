@@ -1,11 +1,10 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, options, strformat]
+  std/[options, strformat]
 
 import # vendor libs
   json_serialization,
-  json_serialization/[lexer, reader, writer],
   sqlcipher, web3/ethtypes
 
 import # status modules
@@ -90,12 +89,7 @@ type
     tributeToTalk* {.serializedFieldName($ContactType.TributeToTalk), dbColumnName($ContactsCol.TributeToTalk).}: Option[string]
     localNickname* {.serializedFieldName($ContactType.LocalNickname), dbColumnName($ContactsCol.LocalNickname).}: Option[string]
 
-  ContactDbError* = object of StatusError
-
-proc saveContact*(db: DbConn, contact: Contact) {.raises:[ContactDbError,
-  Defect].} =
-
-  const errorMsg = "Error saving contact to the database"
+proc saveContact*(db: DbConn, contact: Contact): DbResult[void] =
 
   try:
     var tblContact: Contact
@@ -133,30 +127,23 @@ proc saveContact*(db: DbConn, contact: Contact) {.raises:[ContactDbError,
             contact.tributeToTalk,
             contact.localNickname,
             contact.lastEnsClockValue)
+    ok()
 
-  except SqliteError as e:
-    raise (ref ContactDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ContactDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveContacts*(db: DbConn, contacts: seq[Contact]) {.raises:[Defect,
-  ContactDbError].} =
-
+proc saveContacts*(db: DbConn, contacts: seq[Contact]): DbResult[void] =
   for contact in contacts:
-    db.saveContact(contact)
+    ?db.saveContact(contact)
+  ok()
 
-proc getContacts*(db: DbConn): seq[Contact] {.raises:[ContactDbError,
-  Defect].} =
+proc getContacts*(db: DbConn): DbResult[seq[Contact]] =
 
-  const errorMsg = "Error getting contacts from the database"
   try:
     var contact: Contact
-    let query = fmt"""SELECT *
-                      FROM {contact.tableName}"""
-    result = db.all(Contact, query)
-  except SerializationError as e:
-    raise (ref ContactDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-    raise (ref ContactDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref ContactDbError)(parent: e, msg: errorMsg)
+    let query = fmt"""SELECT    *
+                      FROM      {contact.tableName}"""
+    ok db.all(Contact, query)
+  except SerializationError: err DataAndTypeMismatch
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

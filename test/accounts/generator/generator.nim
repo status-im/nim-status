@@ -45,7 +45,7 @@ procSuite "generator":
     let generateResult = gntr.generate(12, 5, "")
 
     assert generateResult.isOk, "error generating accounts: " &
-      generateResult.error
+      $generateResult.error
 
     echo "Generated Accounts [uuid: pubkey]"
     for uuid, acct in gntr.accounts.pairs:
@@ -105,7 +105,7 @@ procSuite "generator":
       derivedResult = gntr.deriveAddresses(imported.id, paths)
 
     assert derivedResult.isOk, "failed to derive addresses: " &
-      derivedResult.error
+      $derivedResult.error
 
     let derived = derivedResult.get
 
@@ -132,7 +132,7 @@ procSuite "generator":
       echo $uuid & ": " & $ acct.secretKey
 
     assert idAcctInfoResult.isOk, "failed to import private key: " &
-      idAcctInfoResult.error
+      $idAcctInfoResult.error
     assert gntr.accounts.len == 1, "generator should have imported 1 account"
 
     let idAcctInfo = idAcctInfoResult.get
@@ -156,7 +156,7 @@ procSuite "generator":
         testAccount.encryptionPassword, dir)
 
     assert storeKeyFileResult.isOK, "Failed to store keyfile: " &
-      storeKeyFileResult.error
+      $storeKeyFileResult.error
 
     let storedKeyFilePath = storeKeyFileResult.get
     defer: removeFile storedKeyFilePath
@@ -182,9 +182,9 @@ procSuite "generator":
       testAccount.encryptionPassword, dir).get
     defer: removeFile storedKeyFilePath
 
-    let
-      address = secretKey.toAddress
-      loadAcctResult = gntr.loadAccount(address,
+    let address = secretKey.toAddress
+    check address.isOk
+    let loadAcctResult = gntr.loadAccount(address.get,
         testAccount.encryptionPassword, dir)
 
     echo "Loaded account: "
@@ -194,7 +194,7 @@ procSuite "generator":
     echo "  keyUid: ", loadAcctResult.get.keyUid
 
     assert loadAcctResult.isOk, "failed to load account: " &
-      loadAcctResult.error
+      $loadAcctResult.error
     let loadedAcct = loadAcctResult.get
 
     assert loadedAcct.publicKey == testAccount.bip44PubKey0, "loaded public " &
@@ -220,11 +220,14 @@ procSuite "generator":
         testAccount.encryptionPassword, dir).get
     defer: removeFile storedKeyFilePath
 
-    let deleteResult = gntr.deleteKeyFile(testAccount.bip44Address0.parseAddress,
+    let address = testAccount.bip44Address0.parseAddress
+    assert address.isOk, "failed to parse address from given hex"
+
+    let deleteResult = gntr.deleteKeyFile(address.get,
       testAccount.encryptionPassword, dir)
 
     assert deleteResult.isOk, "delete key file failed with error: " &
-      deleteResult.error
+      $deleteResult.error
     assert not storedKeyFilePath.fileExists, "stored key file should have " &
       "been deleted"
 

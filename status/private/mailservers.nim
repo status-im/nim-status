@@ -33,27 +33,21 @@ type
     password* {.serializedFieldName($MailserverType.Password), dbColumnName($MailserversCol.Password).}: Option[string]
     fleet* {.serializedFieldName($MailserverType.Fleet), dbColumnName($MailserversCol.Fleet).}: string
 
-  MailserverDbError* = object of StatusError
+proc deleteMailserver*(db: DbConn, mailserver: Mailserver): DbResult[void]
+  {.raises: [].} =
 
-proc deleteMailserver*(db: DbConn, mailserver: Mailserver) {.raises:
-  [MailserverDbError].} =
-
-  const errorMsg = "Error deleting mailserver"
   try:
     var tblMailserver: Mailserver
     let query = fmt"""DELETE FROM   {mailserver.tableName}
                       WHERE         {MailserversCol.Id} = ?"""
     db.exec(query, mailserver.id)
-  except SqliteError as e:
-    raise (ref MailserverDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MailserverDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
 
-proc getMailservers*(db: DbConn): seq[Mailserver] {.raises: [Defect,
-  MailserverDbError].} =
+proc getMailservers*(db: DbConn): DbResult[seq[Mailserver]] =
 
-  const errorMsg = "Error getting mailservers"
   try:
     var tblMailserver: Mailserver
     let query = fmt"""SELECT    {MailserversCol.Id},
@@ -62,16 +56,12 @@ proc getMailservers*(db: DbConn): seq[Mailserver] {.raises: [Defect,
                                 {MailserversCol.Password},
                                 {MailserversCol.Fleet}
                       FROM      {tblMailserver.tableName}"""
-    db.all(Mailserver, query)
-  except SqliteError as e:
-    raise (ref MailserverDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MailserverDbError)(parent: e, msg: errorMsg)
+    ok db.all(Mailserver, query)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveMailserver*(db: DbConn, mailserver: Mailserver) {.raises: [Defect,
-  MailserverDbError].} =
+proc saveMailserver*(db: DbConn, mailserver: Mailserver): DbResult[void] =
 
-  const errorMsg = "Error getting mailservers"
   try:
     var tblMailserver: Mailserver
     let query = fmt"""INSERT INTO   {tblMailserver.tableName} (
@@ -87,13 +77,14 @@ proc saveMailserver*(db: DbConn, mailserver: Mailserver) {.raises: [Defect,
             mailserver.address,
             (if mailserver.password.isSome(): mailserver.password.get() else: ""),
             mailserver.fleet)
-  except SqliteError as e:
-    raise (ref MailserverDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref MailserverDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveMailservers*(db: DbConn, mailservers: seq[Mailserver]) {.raises:
-  [Defect, MailserverDbError].} =
+proc saveMailservers*(db: DbConn, mailservers: seq[Mailserver]):
+  DbResult[void] =
 
   for mailserver in mailservers:
-    db.saveMailserver(mailserver)
+    ?db.saveMailserver(mailserver)
+
+  ok()

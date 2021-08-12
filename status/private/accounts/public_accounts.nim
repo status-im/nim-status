@@ -20,12 +20,7 @@ type
     keyUid* {.serializedFieldName("keyUid"), dbColumnName("keyUid").}: string
     loginTimestamp* {.serializedFieldName("loginTimestamp"), dbColumnName("loginTimestamp").}: Option[int64]
 
-  PublicAccountDbError* = object of StatusError
-
-proc deleteAccount*(db: DbConn, keyUid: string) {.raises:
-  [PublicAccountDbError].} =
-
-  const errorMsg = "Error deleting account from database"
+proc deleteAccount*(db: DbConn, keyUid: string): DbResult[void] {.raises: [].} =
 
   try:
 
@@ -34,16 +29,13 @@ proc deleteAccount*(db: DbConn, keyUid: string) {.raises:
                       WHERE       {tblAccounts.keyUid.columnName} = ?"""
 
     db.exec(query, keyUid)
+    ok()
 
-  except SqliteError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getPublicAccount*(db: DbConn, keyUid: string): Option[PublicAccount]
-  {.raises: [Defect, PublicAccountDbError].} =
-
-  const errorMsg = "Error getting public account from database"
+proc getPublicAccount*(db: DbConn, keyUid: string):
+  DbResult[Option[PublicAccount]] =
 
   try:
 
@@ -56,17 +48,12 @@ proc getPublicAccount*(db: DbConn, keyUid: string): Option[PublicAccount]
                                 {tblAccounts.keyUid.columnName}
                       FROM      {tblAccounts.tableName}
                       WHERE     {tblAccounts.keyUid.columnName}= ?"""
-    result = db.one(PublicAccount, query, keyUid)
+    ok db.one(PublicAccount, query, keyUid)
 
-  except SqliteError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getPublicAccounts*(db: DbConn): seq[PublicAccount] {.raises: [Defect,
-  PublicAccountDbError].} =
-
-  const errorMsg = "Error getting public accounts from database"
+proc getPublicAccounts*(db: DbConn): DbResult[seq[PublicAccount]] =
 
   try:
 
@@ -79,17 +66,13 @@ proc getPublicAccounts*(db: DbConn): seq[PublicAccount] {.raises: [Defect,
                                 {tblAccounts.keyUid.columnName}
                       FROM      {tblAccounts.tableName}
                       ORDER BY  {tblAccounts.creationTimestamp.columnName} ASC"""
-    result = db.all(PublicAccount, query)
+    ok db.all(PublicAccount, query)
 
-  except SqliteError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc saveAccount*(db: DbConn, account: PublicAccount) {.raises:
-  [PublicAccountDbError].} =
-
-  const errorMsg = "Error saving public account to database"
+proc saveAccount*(db: DbConn, account: PublicAccount): DbResult[void] {.raises:
+  [].} =
 
   try:
 
@@ -106,16 +89,12 @@ proc saveAccount*(db: DbConn, account: PublicAccount) {.raises:
 
     db.exec(query, account.creationTimestamp, account.name, account.identicon,
       account.keycardPairing, account.keyUid)
+    ok()
 
-  except SqliteError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc updateAccount*(db: DbConn, account: PublicAccount) {.raises: [Defect,
-  PublicAccountDbError].} =
-
-  const errorMsg = "Error saving public account to database"
+proc updateAccount*(db: DbConn, account: PublicAccount): DbResult[void] =
 
   try:
 
@@ -130,16 +109,13 @@ proc updateAccount*(db: DbConn, account: PublicAccount) {.raises: [Defect,
 
     db.exec(query, account.creationTimestamp, account.name, account.identicon,
       account.keycardPairing, account.loginTimestamp, account.keyUid)
+    ok()
 
-  except SqliteError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string)
-  {.raises: [PublicAccountDbError].} =
-
-  const errorMsg = "Error saving public account to database"
+proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string):
+  DbResult[void] {.raises: [].} =
 
   try:
 
@@ -149,8 +125,7 @@ proc updateAccountTimestamp*(db: DbConn, loginTimestamp: int64, keyUid: string)
                       WHERE   {tblAccounts.keyUid.columnName} = ?"""
 
     db.exec(query, loginTimestamp, keyUid)
+    ok()
 
-  except SqliteError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref PublicAccountDbError)(parent: e, msg: errorMsg)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError

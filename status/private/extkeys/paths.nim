@@ -22,7 +22,7 @@ const
 proc isNonHardened*(self: PathLevel): bool {.raises: [].} =
   (self.uint32 and HARDENED_INDEX) == 0
 
-func parse(T: type PathLevel, value: string): PathLevelResult {.raises:
+func parse(T: type PathLevel, value: string): ExtKeyResult[PathLevel] {.raises:
   [].} =
 
   var child: string
@@ -38,11 +38,11 @@ func parse(T: type PathLevel, value: string): PathLevelResult {.raises:
 
     let index: uint32 = parseUInt(child).uint32
     if (index and HARDENED_INDEX) == 0:
-      return PathLevelResult.ok(PathLevel (index or mask))
+      ok PathLevel (index or mask)
     else:
-      return PathLevelResult.err("Invalid index number")
-  except ValueError as e:
-    return PathLevelResult.err "Error parsing path level: " & e.msg
+      err InvalidKeyPathIndex
+  except ValueError:
+    err InvalidKeyPathIndex
 
 proc toBEBytes*(x: PathLevel): array[4, byte] {.raises: [].} =
   # BigEndian
@@ -51,10 +51,10 @@ proc toBEBytes*(x: PathLevel): array[4, byte] {.raises: [].} =
   result[1] = ((x.uint32 shr 16) and 0xff).byte
   result[0] = ((x.uint32 shr 24) and 0xff).byte
 
-iterator pathNodes*(path: KeyPath): PathLevelResult {.raises: [].} =
+iterator pathNodes*(path: KeyPath): ExtKeyResult[PathLevel] {.raises: [].} =
   try:
     for elem in path.string.split("/"):
       if elem == "m": continue
       yield PathLevel.parse(elem)
   except ValueError:
-    doAssert false, "Invalid Key Path"
+    yield ExtKeyResult[PathLevel].err(InvalidKeyPath)

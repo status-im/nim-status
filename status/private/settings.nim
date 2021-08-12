@@ -7,15 +7,13 @@ import # vendor libs
   json_serialization, sqlcipher
 
 import # status modules
-  ./conversions, ./settings/types
+  ./common, ./conversions, ./settings/types
 
 export options, types
 
-proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) {.raises:
-  [Defect, SettingDbError].} =
+proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode):
+  DbResult[void] =
   # TODO: replace JsonNode by a proper NodeConfig object?
-
-  const errorMsg = "Error inserting settings in to the database"
 
   try:
     var setting: Settings
@@ -64,14 +62,12 @@ proc createSettings*(db: DbConn, s: Settings, nodecfg: JsonNode) {.raises:
               s.publicKey,
               s.signingPhrase,
               s.walletRootAddress)
-  except SqliteError as e:
-    raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref SettingDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getNodeConfig*(db: DbConn): JsonNode {.raises: [Defect, SettingDbError].} =
+proc getNodeConfig*(db: DbConn): DbResult[JsonNode] =
 
-  const errorMsg = "Error getting node config from the database"
   var nodeConfig: Option[JsonNode]
   try:
     var settings: Settings
@@ -79,79 +75,64 @@ proc getNodeConfig*(db: DbConn): JsonNode {.raises: [Defect, SettingDbError].} =
                       FROM      {settings.tableName}
                       WHERE     synthetic_id = 'id'"""
     nodeConfig = db.value(JsonNode, query)
-  except SqliteError as e:
-    raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-    raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except Exception as e:
-    raise (ref SettingDbError)(parent: e, msg: errorMsg)
+  except SqliteError: return err OperationError
+  except ValueError: return err QueryBuildError
+  except Exception: return err UnknownError
 
   if not nodeConfig.isSome:
-    raise newException(SettingDbError, "No record found for node config")
+    return err RecordNotFound
 
-  return nodeConfig.get
+  ok nodeConfig.get
 
 
-proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol): Option[T]
-  {.raises: [Defect, SettingDbError].} =
+proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol):
+  DbResult[Option[T]] =
 
-  const errorMsg = "Error getting setting from the database"
   try:
     var settings: Settings
     let query = fmt"""SELECT    {setting}
                       FROM      {settings.tableName}
                       WHERE     synthetic_id = 'id'"""
 
-    db.value(T, query)
-  except SqliteError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
+    ok db.value(T, query)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
 proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol,
-  defaultValue: T): T {.raises: [Defect, SettingDbError].} =
+  defaultValue: T): DbResult[T] =
 
-  const errorMsg = "Error getting setting from the database"
   try:
-    let setting = db.getSetting[:T](T, setting)
-    return setting.get(defaultValue)
-  except SqliteError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
+    let setting = ?db.getSetting[:T](T, setting)
+    ok setting.get(defaultValue)
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
 
-proc getSettings*(db: DbConn): Settings {.raises: [SettingDbError].} =
+proc getSettings*(db: DbConn): DbResult[Settings] {.raises: [].} =
 
-  const errorMsg = "Error getting settings from the database"
   try:
+    var setting: Settings
     let query = fmt"""SELECT    *
-                      FROM      {result.tableName}
+                      FROM      {setting.tableName}
                       WHERE     synthetic_id = 'id'"""
 
     let settings = db.one(Settings, query)
-    if not settings.isSome:
-      raise newException(SettingDbError, "No record found for settings")
-    settings.get
+    if settings.isNone:
+      return err RecordNotFound
+    ok settings.get
 
-  except SerializationError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except SqliteError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except Exception as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
+  except SerializationError: err DataAndTypeMismatch
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
+  except Exception: err UnknownError
 
-proc saveSetting*(db: DbConn, setting: SettingsCol, value: auto) {.raises:
-  [Defect, SettingDbError].} =
+proc saveSetting*(db: DbConn, setting: SettingsCol, value: auto):
+  DbResult[void] =
 
-  const errorMsg = "Error saving setting in the database"
   try:
     var settings: Settings
     db.exec(fmt"""UPDATE    {settings.tableName}
                   SET       {setting} = ?
                   WHERE     synthetic_id = 'id'""", value)
-  except SqliteError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
-  except ValueError as e:
-      raise (ref SettingDbError)(parent: e, msg: errorMsg)
+    ok()
+  except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
