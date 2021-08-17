@@ -29,7 +29,7 @@ logScope:
 
 proc help*(T: type AddCustomToken): HelpText =
   let command = "addcustomtoken"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "address", description: "Address of the " &
       "custom token."),
     CommandParameter(name: "name", description: "Name of " &
@@ -103,7 +103,7 @@ proc command*(self: Tui, command: AddCustomToken) {.async, gcsafe,
 
 proc help*(T: type AddWalletAccount): HelpText =
   let command = "addwallet"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "name", description: "(Optional) Display name for " &
       "the new account."),
     CommandParameter(name: "password", description: "Password of the current " &
@@ -142,7 +142,7 @@ proc command*(self: Tui, command: AddWalletAccount) {.async, gcsafe,
 
 proc help*(T: type AddWalletPrivateKey): HelpText =
   let command = "addwalletpk"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "name", description: "(Optional) Display name for " &
       "the new account."),
     CommandParameter(name: "privatekey", description: "Private key of the " &
@@ -191,7 +191,7 @@ proc command*(self: Tui, command: AddWalletPrivateKey) {.async, gcsafe,
 
 proc help*(T: type AddWalletSeed): HelpText =
   let command = "addwalletseed"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "name", description: "(Optional) Display name for " &
       "the new account."),
     CommandParameter(name: "mnemonic", description: "The 12-word mnemonic " &
@@ -255,8 +255,8 @@ proc command*(self: Tui, command: AddWalletSeed) {.async, gcsafe,
 # AddWalletWatchOnly ------------------------------------------------------------
 
 proc help*(T: type AddWalletWatchOnly): HelpText =
-  let command = "addwalletseed"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  let command = "addwalletwatch"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "name", description: "(Optional) Display name for " &
       "the new account."),
     CommandParameter(name: "address", description: "The address of the " &
@@ -316,7 +316,7 @@ proc command*(self: Tui, command: Connect) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type CreateAccount): HelpText =
   let command = "createaccount"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "password", description: "Password for the new " &
       "account.")
     ], description: "Creates a new Status account.")
@@ -340,7 +340,7 @@ proc command*(self: Tui, command: CreateAccount) {.async, gcsafe,
 
 proc help*(T: type DeleteCustomToken): HelpText =
   let command = "deletecustomtoken"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "index", description: "Index of the " &
       "custom token.")
     ], description: "Deletes custom token")
@@ -377,7 +377,7 @@ proc command*(self: Tui, command: DeleteCustomToken) {.async, gcsafe,
 
 proc help*(T: type DeleteWalletAccount): HelpText =
   let command = "deletewalletaccount"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "index", description: "Index of existing account, " &
       "which can be retrieved using the `/listwalletaccounts` command."),
     CommandParameter(name: "password", description: "Currently logged in " &
@@ -442,7 +442,7 @@ proc command*(self: Tui, command: Disconnect) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type GetAssets): HelpText =
   let command = "getassets"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "owner", description: "Address of the owner")
   ], description: "Lists all assets of the owner")
 
@@ -471,7 +471,7 @@ proc command*(self: Tui, command: GetAssets) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type GetCustomTokens): HelpText =
   let command = "getcustomtokens"
-  HelpText(command: command, aliases: aliased[command], description: "Lists " &
+  HelpText(command: command, aliases: aliased.getOrDefault(command), description: "Lists " &
     "all existing custom tokens.")
 
 proc new*(T: type GetCustomTokens, args: varargs[string]): T =
@@ -483,12 +483,11 @@ proc split*(T: type GetCustomTokens, argsRaw: string): seq[string] =
 proc command*(self: Tui, command: GetCustomTokens) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.getCustomTokens()
 
-
 # ImportMnemonic -----------------------------------------------------------------
 
 proc help*(T: type ImportMnemonic): HelpText =
   let command = "importmnemonic"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "mnemonic", description: "The 12-word mnemonic " &
       "seed phrase of the account to import."),
     CommandParameter(name: "bip39passphrase", description: "(Optional) The " &
@@ -543,7 +542,7 @@ proc command*(self: Tui, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type JoinTopic): HelpText =
   let command = "jointopic"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "topic", description: "Name of the topic to join.")
   ], description: "Watches for messages with the specified waku v2 content " &
     "topic.")
@@ -569,7 +568,7 @@ proc command*(self: Tui, command: JoinTopic) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type LeaveTopic): HelpText =
   let command = "leavetopic"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "topic", description: "Name of the topic to leave.")
   ], description: "Stops watching for messages with the specified waku v2 " &
     "content topic.")
@@ -596,7 +595,7 @@ proc command*(self: Tui, command: LeaveTopic) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type ListAccounts): HelpText =
   let command = "listaccounts"
-  HelpText(command: command, aliases: aliased[command], description: "Lists " &
+  HelpText(command: command, aliases: aliased.getOrDefault(command), description: "Lists " &
     "all existing Status accounts.")
 
 proc new*(T: type ListAccounts, args: varargs[string]): T =
@@ -612,7 +611,7 @@ proc command*(self: Tui, command: ListAccounts) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type ListTopics): HelpText =
   let command = "listtopics"
-  HelpText(command: command, aliases: aliased[command], description: "Lists " &
+  HelpText(command: command, aliases: aliased.getOrDefault(command), description: "Lists " &
     "all topics that will be joined when client is online.")
 
 proc new*(T: type ListTopics, args: varargs[string]): T =
@@ -641,7 +640,7 @@ proc command*(self: Tui, command: ListTopics) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type ListWalletAccounts): HelpText =
   let command = "listwalletaccounts"
-  HelpText(command: command, aliases: aliased[command], description: "Lists " &
+  HelpText(command: command, aliases: aliased.getOrDefault(command), description: "Lists " &
     "all wallet accounts.")
 
 proc new*(T: type ListWalletAccounts, args: varargs[string]): T =
@@ -730,7 +729,7 @@ proc command*(self: Tui, command: Quit) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type SendMessage): HelpText =
   let command = ""
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "message", description: "Message to send on the " &
       "network. Max length ???")
     ], description: "Sends a message on the waku network. By default, no " &
@@ -755,7 +754,7 @@ proc command*(self: Tui, command: SendMessage) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type CallRpc): HelpText =
   let command = "call"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "method", description: "RPC method"),
     CommandParameter(name: "params", description: "Array of parameters")
     ], description: "Calls an Ethereum RPC method")
@@ -797,7 +796,7 @@ proc command*(self: Tui, command: CallRpc) {.async, gcsafe,
 
 proc help*(T: type Help): HelpText =
   let command = "help"
-  HelpText(command: command, aliases: aliased[command], parameters: @[
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
     CommandParameter(name: "command", description: "(Optional) Command to " &
       "get help for. If omitted, help for all commands will be displayed.")
     ], description:
@@ -827,7 +826,8 @@ proc command*(self: Tui, command: Help) {.async, gcsafe, nimcall.} =
   var helpTexts = buildCommandHelp()
 
   if command != "":
-    helpTexts = helpTexts.filter(help => help.command == command or help.aliases.contains(command))
+    helpTexts = helpTexts.filter(
+      help => help.command == command or help.aliases.contains(command))
 
   # display on screen
   trace "TUI showing cli help", helpTexts=(%helpTexts)
