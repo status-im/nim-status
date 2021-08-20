@@ -40,7 +40,11 @@ proc dispatch*(self: Tui, command: string) {.gcsafe, nimcall.} =
 
   if isCommand: commandCases()
   else:
-    # should print an error/explanation to the screen as well
+    let
+      cmd = command.split(' ')[0]
+      timestamp = getTime().toUnix
+
+    self.wprintFormatError(timestamp, fmt"Command {cmd} is invalid")
     error "TUI received malformed or unknown command", command
 
 # InputKey ---------------------------------------------------------------------
