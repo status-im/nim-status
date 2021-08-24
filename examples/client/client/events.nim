@@ -61,6 +61,13 @@ type
     error*: string
     timestamp*: int64
 
+  GetPriceEvent* = ref object of ClientEvent
+    symbol*: string
+    currency*: string
+    price*: float
+    error*: string
+    timestamp*: int64
+
   ImportMnemonicEvent* = ref object of ClientEvent
     error*: string
     account*: PublicAccount
@@ -101,6 +108,11 @@ type
     error*: string
     timestamp*: int64
 
+  SetPriceTimeoutEvent* = ref object of ClientEvent
+    timeout*: int
+    error*: string
+    timestamp*: int64
+
   UserMessageEvent* = ref object of ClientEvent
     message*: string
     timestamp*: int64
@@ -116,6 +128,7 @@ const clientEvents* = [
   "DeleteWalletAccountEvent",
   "GetCustomTokensEvent",
   "GetAssetsEvent",
+  "GetPriceEvent",
   "ImportMnemonicEvent",
   "JoinTopicEvent",
   "LeaveTopicEvent",
@@ -125,6 +138,7 @@ const clientEvents* = [
   "LogoutEvent",
   "NetworkStatusEvent",
   "SendTransactionEvent",
+  "SetPriceTimeoutEvent",
   "UserMessageEvent"
 ]
 

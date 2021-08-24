@@ -51,6 +51,8 @@ var
   subscribed {.threadvar.}: bool
   status {.threadvar.}: StatusObject
   statusState {.threadvar.}: StatusState
+  updatePricesTimeout {.threadvar.}: int
+  updatingPrices {.threadvar.}: bool
   wakuNode {.threadvar.}: WakuNode
   wakuState {.threadvar.}: WakuState
 
@@ -85,6 +87,9 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
   # previous comment
   nodekeyGenerated = false
 
+  updatePricesTimeout = 60000 # 60 seconds by default
+  updatingPrices = false
+
   status = StatusObject.new(conf.dataDir).expect(
     "StatusObject init should never fail")
   # threadvar `statusState` is currently out of scope re: "resetting the
@@ -94,6 +99,18 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
 
   # re/set threadvars that don't persist across waku dis/connect
   resetContext()
+
+proc updatePrices() {.async.} =
+  updatingPrices = true
+
+  while statusState == StatusState.loggedin:
+    let res = await status.updatePrices()
+    if res.isErr:
+      # TODO: send error to the TUI for display (possibly in the status bar?)
+      error "failed to update prices", error = $res.error
+    await sleepAsync(updatePricesTimeout)
+
+  updatingPrices = false
 
 proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
   let
@@ -611,6 +628,8 @@ proc login*(account: int, password: string) {.
 
     statusState = StatusState.loggedin
 
+    if not updatingPrices: asyncSpawn updatePrices()
+
     event = LoginEvent(account: publicAccount, error: "", loggedin: true)
     eventEnc = event.encode
 
@@ -1123,6 +1142,53 @@ proc callRpc*(rpcMethod: string, params: JsonNode) {.task(kind=no_rts, stoppable
     trace "task sent event with error to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)
 
+proc getPrice*(tokenSymbol: string, fiatCurrency: string) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  if statusState != StatusState.loggedin:
+    let
+      eventNotLoggedIn = GetPriceEvent(error: "Not logged in, " &
+        "cannot get price for a custom token.",
+        timestamp: timestamp)
+      eventNotLoggedInEnc = eventNotLoggedIn.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventNotLoggedInEnc, task
+    asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
+    return
+
+  let price = status.getPrice(tokenSymbol, fiatCurrency)
+  if price.isErr:
+    let
+      event = GetPriceEvent(error: $price.error)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  let
+    event = GetPriceEvent(symbol: tokenSymbol, currency: fiatCurrency,
+      price: price.get, timestamp: getTime().toUnix)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc setPriceTimeout*(priceTimeout: int) {.task(kind=no_rts, stoppable=false).} =
+  let timestamp = getTime().toUnix
+
+  updatePricesTimeout = priceTimeout * 1000
+
+  let
+    event = SetPriceTimeoutEvent(timeout: priceTimeout, timestamp: getTime().toUnix)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
 
 proc sendTransaction*(fromAddress: eth_common.EthAddress,
   transaction: eth_common.Transaction, password: string)
@@ -1142,43 +1208,32 @@ proc sendTransaction*(fromAddress: eth_common.EthAddress,
     asyncSpawn chanSendToHost.send(eventNotLoggedInEnc.safe)
     return
 
-  try:
-    let dir = status.dataDir / "keystore"
-    let sendTransactionResult = await status.sendTransaction(fromAddress,
+  let
+    dir = status.dataDir / "keystore"
+    sendTransactionResult = await status.sendTransaction(fromAddress,
       transaction, password, dir)
 
-    if sendTransactionResult.isErr:
-      let
-        error = sendTransactionResult.error
-        errorMsg =  if error.kind == pRpc:
-                      error.rpcError.message
-                    else:
-                      $error.apiError
-        event = SendTransactionEvent(error: errorMsg, timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent errored event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-      return
-
-    else:
-      let
-        response = sendTransactionResult.get
-        event = SendTransactionEvent(response: $response, timestamp: timestamp)
-        eventEnc = event.encode
-        task = taskArg.taskName
-
-      trace "task sent event to host", event=eventEnc, task
-      asyncSpawn chanSendToHost.send(eventEnc.safe)
-
-  except CatchableError as e:
+  if sendTransactionResult.isErr:
     let
-      event = SendTransactionEvent(error: "Error sending transaction, " &
-        "error: " & e.msg, timestamp: timestamp)
-
+      error = sendTransactionResult.error
+      errorMsg =  if error.kind == pRpc:
+                    error.rpcError.message
+                  else:
+                    $error.apiError
+      event = SendTransactionEvent(error: errorMsg, timestamp: timestamp)
       eventEnc = event.encode
       task = taskArg.taskName
 
-    trace "task sent event with error to host", event=eventEnc, task
+    trace "task sent errored event to host", event=eventEnc, task
+    asyncSpawn chanSendToHost.send(eventEnc.safe)
+    return
+
+  else:
+    let
+      response = sendTransactionResult.get
+      event = SendTransactionEvent(response: $response, timestamp: timestamp)
+      eventEnc = event.encode
+      task = taskArg.taskName
+
+    trace "task sent event to host", event=eventEnc, task
     asyncSpawn chanSendToHost.send(eventEnc.safe)

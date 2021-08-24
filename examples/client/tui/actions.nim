@@ -278,6 +278,45 @@ proc action*(self: Tui, event: DeleteCustomTokenEvent) {.async, gcsafe,
     self.printResult("Deleted a token:", timestamp)
     self.printResult(fmt"{2.indent()}{address}", timestamp)
 
+# GetPriceEvent ----------------------------------------------------------
+
+proc action*(self: Tui, event: GetPriceEvent) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let symbol = event.symbol
+    let currency = event.currency
+    let price = event.price
+    let timestamp = event.timestamp
+    trace "TUI showing token price from nim-status", symbol=(%symbol),
+      currency=(%currency), price=(%price)
+
+    self.printResult(fmt"{2.indent()} {symbol}/{currency}: {price}", timestamp)
+
+# SetPriceTimeoutEvent ----------------------------------------------------------
+
+proc action*(self: Tui, event: SetPriceTimeoutEvent) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let timeout = event.timeout
+    let timestamp = event.timestamp
+    trace "TUI setting price update timeout from nim-status", timeout=(%timeout)
+
+    self.printResult(
+      fmt"Token prices will update every {timeout} seconds when logged in", timeout)
+
+
 # ImportMnemonicEvent ----------------------------------------------------------
 
 proc action*(self: Tui, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =

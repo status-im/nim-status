@@ -4,7 +4,7 @@ import # std libs
   std/json
 
 import # vendor libs
-  chronicles, chronos, eth/common as eth_common,
+  chronos, eth/common as eth_common,
   eth/[keys, rlp],
   stew/byteutils
 

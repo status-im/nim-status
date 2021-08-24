@@ -10,7 +10,8 @@ from web3/conversions as web3_conversions import `$`
 
 import # status modules
   ../private/common,
-  ../private/[accounts/generator/generator, callrpc, database, settings, util]
+  ../private/[accounts/generator/generator, callrpc, database, settings,
+              token_prices, util]
 
 from ../private/conversions import parseAddress, readValue, writeValue
 from ../private/extkeys/types import Mnemonic
@@ -30,6 +31,8 @@ type
     dataDir*: string
     userDbConn: DbConn
     web3Conn: Table[string, Web3]
+    priceMap*: PriceMap
+
 
 proc new*(T: type StatusObject, dataDir: string,
   accountsDbFileName: string = "accounts.sql"): DbResult[T] =
@@ -40,7 +43,7 @@ proc new*(T: type StatusObject, dataDir: string,
     generator = Generator.new()
 
   ok T(accountsDbConn: accountsDb, dataDir: dataDir, accountsGenerator: generator,
-    web3Conn: initTable[string, Web3]())
+    web3Conn: initTable[string, Web3](), priceMap: newTable[string, ToPriceMap]())
 
 proc accountsDb*(self: StatusObject): DbConn {.raises: [].} =
   self.accountsDbConn
