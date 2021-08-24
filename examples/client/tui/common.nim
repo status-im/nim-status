@@ -97,6 +97,10 @@ type
 
   GetCustomTokens* = ref object of Command
 
+  GetPrice* = ref object of Command
+    tokenSymbol*: string
+    fiatCurrency*: string
+
   Help* = ref object of Command
     command*: string
 
@@ -144,6 +148,9 @@ type
     payload*: string
     nonce*: string
     password*: string
+    
+  SetPriceTimeout* = ref object of Command
+    timeout*: string
 
 const
   TuiEvents* = [
@@ -169,6 +176,7 @@ const
     "disconnect": "Disconnect",
     "getassets": "GetAssets",
     "getcustomtokens": "GetCustomTokens",
+    "getprice": "GetPrice",
     "help": "Help",
     "importmnemonic": "ImportMnemonic",
     "jointopic": "JoinTopic",
@@ -179,6 +187,7 @@ const
     "login": "Login",
     "logout": "Logout",
     "sendtransaction": "SendTransaction",
+    "setpricetimeout": "SetPriceTimeout",
     "quit": "Quit"
   }.toTable
 

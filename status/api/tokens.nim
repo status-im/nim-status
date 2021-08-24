@@ -1,22 +1,28 @@
 {.push raises: [Defect].}
 
+import # std libs
+  std/[json, tables]
+
 import # vendor libs
-  web3/ethtypes
+  chronicles, chronos, web3/ethtypes
 
 import # status modules
-  ../private/[util, tokens],
+  ../private/[util, token_prices, tokens],
   ./common
 
 export
   common, tokens
 
 type
-  CustomTokenError* = enum
-    AddFailure      = "ct: failed to add custom token due a database error"
-    DeleteFailure   = "ct: failed to delete custom token due a database error"
-    GetFailure      = "ct: failed to get custom tokens due a database error"
-    MustBeLoggedIn  = "ct: operation not permitted, must be logged in"
-    UserDbError     = "ct: user db error, must be logged in"
+  CustomTokenError*     = enum
+    AddFailure          = "ct: failed to add custom token due a database error"
+    DeleteFailure       = "ct: failed to delete custom token due a database " &
+                            "error"
+    GetFailure          = "ct: failed to get custom tokens due a database error"
+    MustBeLoggedIn      = "ct: operation not permitted, must be logged in"
+    TokenNotInPriceMap  = "ct: token or currency symbol not found in price map"
+    UpdatePricesError   = "ct: error updating prices"
+    UserDbError         = "ct: user db error, must be logged in"
 
   CustomTokenResult*[T] = Result[T, CustomTokenError]
 
@@ -53,3 +59,30 @@ proc getCustomTokens*(self: StatusObject): CustomTokenResult[seq[Token]] =
     userDb = ?self.userDb.mapErrTo(UserDbError)
     tokens = ?userDb.getCustomTokens().mapErrTo(GetFailure)
   ok tokens
+
+proc getPrice*(self: StatusObject, tokenSymbol: string, fiatCurrency: string):
+  CustomTokenResult[float] {.raises: [ref KeyError].} =
+
+  if not contains(self.priceMap, tokenSymbol) or
+     not contains(self.priceMap[tokenSymbol], fiatCurrency):
+    return err TokenNotInPriceMap
+  else:
+    return ok self.priceMap[tokenSymbol][fiatCurrency].price
+
+proc updatePrices*(self: StatusObject): Future[CustomTokenResult[void]]
+  {.async.} =
+
+  let tokensResult = self.getCustomTokens()
+  if tokensResult.isErr: return err tokensResult.error
+  let tokens = tokensResult.get
+  var tokenSyms: seq[string] = @[]
+  for t in tokens:
+    tokenSyms.add(t.symbol)
+
+  let res = await updatePrices(tokenSyms, FIAT_CURRENCIES, true)
+  if res.isOk:
+    self.priceMap = res.get
+    trace "updated token price map", priceMap = $(%self.priceMap)
+    return ok()
+  else:
+    return err UpdatePricesError

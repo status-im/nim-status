@@ -484,6 +484,71 @@ proc split*(T: type GetCustomTokens, argsRaw: string): seq[string] =
 proc command*(self: Tui, command: GetCustomTokens) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.getCustomTokens()
 
+# GetPrice -----------------------------------------------------------------
+
+proc help*(T: type GetPrice): HelpText =
+  let command = "getprice"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "tokenSymbol", description: "Symbol of the token " &
+      "to fetch price for."),
+    CommandParameter(name: "fiatCurrency", description: "Currency in which " &
+      "to display the price.")
+    ], description: "Shows " &
+    "a fiat price for a custom token.")
+
+proc new*(T: type GetPrice, args: varargs[string]): T =
+  var tokenSymbol, fiatCurrency: string
+  if args.len < 2:
+    tokenSymbol = ""
+    fiatCurrency = ""
+  else:
+    tokenSymbol = args[0].toUpperAscii
+    fiatCurrency = args[1].toUpperAscii
+
+  T(tokenSymbol: tokenSymbol, fiatCurrency: fiatCurrency)
+
+proc split*(T: type GetPrice, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: Tui, command: GetPrice) {.async, gcsafe, nimcall.} =
+  if command.tokenSymbol == "":
+    self.wprintFormatError(getTime().toUnix,
+      "symbol cannot be empty, please provide a symbol.")
+  elif command.fiatCurrency == "":
+    self.wprintFormatError(getTime().toUnix,
+      "currency cannot be empty, please provide a currency.")
+  else:
+    asyncSpawn self.client.getPrice(command.tokenSymbol, command.fiatCurrency)
+
+# SetPriceTimeout -----------------------------------------------------------------
+
+proc help*(T: type SetPriceTimeout): HelpText =
+  let command = "setpricetimeout"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "timeout", description: "Timeout in seconds " &
+      "for the cryptocompare.io price updater.")
+    ], description: "Sets the frequency " &
+    "of token price updates.")
+
+proc new*(T: type SetPriceTimeout, args: varargs[string]): T =
+  let timeout = if args.len == 1: args[0] else: ""
+
+  T(timeout: timeout)
+
+proc split*(T: type SetPriceTimeout, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: Tui, command: SetPriceTimeout) {.async, gcsafe, nimcall.} =
+  try:
+    let intTimeout = command.timeout.parseInt()
+    if intTimeout > 0:
+      asyncSpawn self.client.setPriceTimeout(intTimeout)
+    else:
+      raise (ref ValueError)(msg: "Non-positive timeout value")
+  except ValueError as e:
+    self.wprintFormatError(getTime().toUnix,
+      "Timeout value cannot be parsed, please provide a positive integer. Msg: " & e.msg)
+
 # ImportMnemonic -----------------------------------------------------------------
 
 proc help*(T: type ImportMnemonic): HelpText =
@@ -495,7 +560,7 @@ proc help*(T: type ImportMnemonic): HelpText =
       "BIP-39 passphrase used for securing against seed loss/theft."),
     CommandParameter(name: "password", description: "The password used to " &
       "encrypt the keystore file.")
-    ], description: "Imports a Status account from a mnemoic.")
+    ], description: "Imports a Status account from a mnemonic.")
 
 proc new*(T: type ImportMnemonic, args: varargs[string]): T =
   T(mnemonic: args[0], passphrase: args[1], password: args[2])

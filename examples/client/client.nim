@@ -130,3 +130,9 @@ proc callRpc*(self: Client, rpcMethod: string, params: JsonNode) {.async.} =
 
 proc sendTransaction*(self: Client, fromAddress: EthAddress, transaction: Transaction, password: string) {.async.} =
   asyncSpawn sendTransaction(self.taskRunner, status, fromAddress, transaction, password)
+
+proc getPrice*(self: Client, tokenSymbol, fiatCurrency: string) {.async.} =
+  asyncSpawn getPrice(self.taskRunner, status, tokenSymbol, fiatCurrency)
+
+proc setPriceTimeout*(self: Client, timeout: int) {.async.} =
+  asyncSpawn setPriceTimeout(self.taskRunner, status, timeout)

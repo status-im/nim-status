@@ -24,6 +24,14 @@ type
 
   DbResult*[T] = Result[T, DbError]
 
+  HttpFetchError* = enum
+    CancelledError          = "fetch: HTTP request cancelled"
+    HttpError               = "fetch: error during HTTP request"
+    ParseJsonResponseError  = "fetch: error parsing JSON response"
+    UrlBuildError           = "fetch: error building URL"
+
+  HttpFetchResult*[T] = Result[T, HttpFetchError]
+
   RpcError* = object
     code*: int
     message*: string

@@ -10,7 +10,7 @@ import # vendor libs
   json_rpc/client, json_serialization, web3
 
 import # status modules
-  ./common, ./settings, ./util
+  ./common, ./settings
 
 type
   # remoteMethods contains methods that should be routed to
