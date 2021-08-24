@@ -82,8 +82,8 @@ proc getWalletAccount*(db: DbConn, address: Address): DbResult[Option[Account]]
   try:
 
     var tblAccounts: Account
-    # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
-    # status-go enforces only one account to have wallet = 1 (using a unique
+    # NOTE: using `WHERE wallet = TRUE` is not necessarily valid due to the way
+    # status-go enforces only one account to have wallet = TRUE (using a unique
     # constraint in the db)
     let query = fmt"""SELECT    {tblAccounts.address.columnName},
                                 {tblAccounts.wallet.columnName},
@@ -98,7 +98,7 @@ proc getWalletAccount*(db: DbConn, address: Address): DbResult[Option[Account]]
                                 {tblAccounts.updatedAt.columnName}
                       FROM      {tblAccounts.tableName}
                       WHERE     {tblAccounts.address.columnName} = '{address}'
-                                AND wallet = 0"""
+                                AND {tblAccounts.chat.columnName} = FALSE"""
     ok db.one(Account, query)
 
   except SqliteError: err OperationError
@@ -114,10 +114,10 @@ proc deleteWalletAccount*(db: DbConn, address: Address):
     if account.isSome:
       let query = fmt"""DELETE FROM {tblAccounts.tableName}
                         WHERE       {tblAccounts.address.columnName} = ?
-                                    AND wallet = 0"""
+                                    AND {tblAccounts.wallet.columnName} = FALSE"""
       # NOTE: Prevent deletion of the default created account.
-      # We're relying on the default wallet account being the only account
-      # that has wallet = 1. There is a unique DB constraint that enforces this.
+      # We're relying on the default wallet account being the only account that
+      # has wallet = TRUE. There is a unique DB constraint that enforces this.
 
       db.exec(query, address)
     ok account
@@ -175,8 +175,8 @@ proc getWalletAccounts*(db: DbConn): DbResult[seq[Account]] =
 
   try:
 
-    # NOTE: using `WHERE wallet = 1` is not necessarily valid due to the way
-    # status-go enforces only one account to have wallet = 1 (using a unique
+    # NOTE: using `WHERE wallet = TRUE` is not necessarily valid due to the way
+    # status-go enforces only one account to have wallet = TRUE (using a unique
     # constraint in the db)
     var tblAccounts: Account
     let query = fmt"""SELECT    {tblAccounts.address.columnName},
@@ -191,7 +191,7 @@ proc getWalletAccounts*(db: DbConn): DbResult[seq[Account]] =
                                 {tblAccounts.createdAt.columnName},
                                 {tblAccounts.updatedAt.columnName}
                       FROM      {tblAccounts.tableName}
-                      WHERE     {tblAccounts.chat.columnName} = 0
+                      WHERE     {tblAccounts.chat.columnName} = FALSE
                       ORDER BY  {tblAccounts.createdAt.columnName} ASC"""
     ok db.all(Account, query)
 
