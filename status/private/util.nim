@@ -1,7 +1,7 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[re, sets, strutils, tables, unicode]
+  std/[options, re, sets, sequtils, strutils, sugar, tables, unicode]
 
 import # vendor libs
   nimcrypto, stew/results, web3/ethtypes
@@ -30,6 +30,14 @@ template catchEx*(body: typed): Result[type(body), ref Exception] =
     raise d
   except Exception as e:
     R.err(e)
+
+proc find*[T](s: seq[T], pred: (T) -> bool): Option[T] =
+  let filtered = s.filter(pred)
+  if filtered.len == 0:
+    return T.none
+  return filtered[0].some
+
+proc contains*[T](s: seq[T], pred: (T) -> bool): bool = s.find(pred).isSome
 
 proc isHexString*(str: string): UtilResult[bool] {.raises: [].} =
   try:

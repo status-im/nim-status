@@ -95,6 +95,7 @@ proc getSetting*[T](db: DbConn, _: typedesc[T], setting: SettingsCol):
                       WHERE     synthetic_id = 'id'"""
 
     ok db.value(T, query)
+  except SerializationError: err DataAndTypeMismatch
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
