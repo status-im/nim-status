@@ -42,9 +42,230 @@ proc dispatch*(self: Tui, command: string) {.gcsafe, nimcall.} =
     self.wprintFormatError(timestamp, fmt"Command {cmd} is invalid")
     error "TUI received malformed or unknown command", command
 
-# InputKey ---------------------------------------------------------------------
+# AddCustomTokenEvent ----------------------------------------------------------
 
-proc action*(self: Tui, event: InputKey) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: AddCustomTokenEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      name = event.name
+      symbol = event.symbol
+      address = event.address
+      timestamp = event.timestamp
+
+    self.printResult("Added a token:", timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({symbol}): {address}", timestamp)
+
+# AddWalletAccountEvent --------------------------------------------------------
+
+proc action*(self: Tui, event: AddWalletAccountEvent)
+  {.async, gcsafe, nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      timestamp = event.timestamp
+      name = event.name
+      address = $event.address
+      abbrev = address[0..5] & "..." & address[^4..^1]
+
+    self.printResult("Added wallet account:", timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
+
+# CallRpcEvent -----------------------------------------------------------------
+
+proc action*(self: Tui, event: CallRpcEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    trace "Displaying call result"
+
+    let
+      response = event.response
+      timestamp = event.timestamp
+
+    self.printResult(fmt"RPC method response: {response}", timestamp)
+
+# CreateAccountEvent -----------------------------------------------------------
+
+proc action*(self: Tui, event: CreateAccountEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      account = event.account
+      timestamp = event.timestamp
+
+      name = account.name
+      keyUid = account.keyUid
+      abbrev = keyUid[0..5] & "..." & keyUid[^4..^1]
+
+    self.printResult("Created account:", timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
+
+# DeleteCustomTokenEvent -------------------------------------------------------
+
+proc action*(self: Tui, event: DeleteCustomTokenEvent)
+  {.async, gcsafe, nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      address = event.address
+      timestamp = event.timestamp
+
+    self.printResult("Deleted a token:", timestamp)
+    self.printResult(fmt"{2.indent()}{address}", timestamp)
+
+# DeleteWalletAccountEvent -----------------------------------------------------
+
+proc action*(self: Tui, event: DeleteWalletAccountEvent)
+  {.async, gcsafe, nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      address = event.address
+      timestamp = event.timestamp
+
+    self.printResult("Deleted wallet account:", timestamp)
+    self.printResult(fmt"{2.indent()}{address}", timestamp)
+
+# GetAssetsEvent ---------------------------------------------------------------
+
+proc action*(self: Tui, event: GetAssetsEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let assets = event.assets
+    let timestamp = event.timestamp
+    trace "TUI showing assets", assets=(%assets)
+
+    if assets.len > 0:
+      self.printResult("Assets:", timestamp)
+      var assetsIndexed: Table[string, seq[Asset]] =
+        initTable[string, seq[Asset]]()
+      for asset in assets:
+        if not assetsIndexed.hasKey(asset.collection.name):
+          assetsIndexed[asset.collection.name] = @[]
+
+        assetsIndexed[asset.collection.name].add(asset)
+
+      var i = 1
+      for collectionName, items in assetsIndexed.pairs:
+        self.printResult(fmt"{2.indent()}{i}. {collectionName}", timestamp)
+        var j = 1
+        for item in items:
+          let
+            name = item.name
+            address = item.contract.address
+
+          self.printResult(fmt"{4.indent()}{j}. {name} @ {address}", timestamp)
+          j += 1
+
+        i += 1
+    else:
+      self.printResult("No assets found.", timestamp)
+
+# GetCustomTokensEvent ---------------------------------------------------------
+
+proc action*(self: Tui, event: GetCustomTokensEvent)
+  {.async, gcsafe, nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let tokens = event.tokens
+    let timestamp = event.timestamp
+    trace "TUI showing tokens", tokens=(%tokens)
+
+    if tokens.len > 0:
+      var i = 1
+      self.printResult("Existing tokens:", timestamp)
+      for token in tokens:
+        let
+          name = token.name
+          symbol = token.symbol
+          address = token.address
+
+        self.printResult(fmt"{2.indent()}{i}. {name} ({symbol}): {address}",
+          timestamp)
+        i = i + 1
+    else:
+      self.printResult(
+        "No custom tokens added.",
+        timestamp)
+
+# GetPriceEvent ----------------------------------------------------------
+
+proc action*(self: Tui, event: GetPriceEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let symbol = event.symbol
+    let currency = event.currency
+    let price = event.price
+    let timestamp = event.timestamp
+    trace "TUI showing token price from nim-status", symbol=(%symbol),
+      currency=(%currency), price=(%price)
+
+    self.printResult(fmt"{2.indent()} {symbol}/{currency}: {price}", timestamp)
+
+# ImportMnemonicEvent ----------------------------------------------------------
+
+proc action*(self: Tui, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      account = event.account
+      timestamp = event.timestamp
+      name = account.name
+      keyUid = account.keyUid
+      abbrev = keyUid[0..5] & "..." & keyUid[^4..^1]
+
+    trace "TUI importing account" , account=account.encode
+
+    self.printResult("Imported account:", timestamp)
+    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
+
+# InputKeyEvent ----------------------------------------------------------------
+
+proc action*(self: Tui, event: InputKeyEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for input then ignore it
   if self.inputReady:
     # handle mouse events and special keys e.g. arrow keys, ESCAPE, RETURN, etc.
@@ -84,9 +305,9 @@ proc action*(self: Tui, event: InputKey) {.async, gcsafe, nimcall.} =
       else:
         discard
 
-# InputReady -------------------------------------------------------------------
+# InputReadyEvent --------------------------------------------------------------
 
-proc action*(self: Tui, event: InputReady) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: InputReadyEvent) {.async, gcsafe, nimcall.} =
   let
     ready = event.ready
 
@@ -95,9 +316,9 @@ proc action*(self: Tui, event: InputReady) {.async, gcsafe, nimcall.} =
     self.drawScreen()
     self.outputReady = true
 
-# InputString ------------------------------------------------------------------
+# InputStringEvent -------------------------------------------------------------
 
-proc action*(self: Tui, event: InputString) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: InputStringEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for input then ignore it
   if self.inputReady:
     let input = event.str
@@ -105,233 +326,6 @@ proc action*(self: Tui, event: InputString) {.async, gcsafe, nimcall.} =
     trace "TUI updated current input", currentInput=self.currentInput
 
     self.printInput(input)
-
-# AddWalletAccountEvent --------------------------------------------------------
-
-proc action*(self: Tui, event: AddWalletAccountEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      timestamp = event.timestamp
-      name = event.name
-      address = $event.address
-      abbrev = address[0..5] & "..." & address[^4..^1]
-
-    self.printResult("Added wallet account:", timestamp)
-    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
-
-# CreateAccountEvent -----------------------------------------------------------
-
-proc action*(self: Tui, event: CreateAccountEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      account = event.account
-      timestamp = event.timestamp
-
-      name = account.name
-      keyUid = account.keyUid
-      abbrev = keyUid[0..5] & "..." & keyUid[^4..^1]
-
-    self.printResult("Created account:", timestamp)
-    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
-
-# DeleteWalletAccountEvent -----------------------------------------------------
-
-proc action*(self: Tui, event: DeleteWalletAccountEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      address = event.address
-      timestamp = event.timestamp
-
-    self.printResult("Deleted wallet account:", timestamp)
-    self.printResult(fmt"{2.indent()}{address}", timestamp)
-
-# GetAssetsEvent ---------------------------------------------------------------
-
-proc action*(self: Tui, event: GetAssetsEvent) {.async, gcsafe, nimcall.} =
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let assets = event.assets
-    let timestamp = event.timestamp
-    trace "TUI showing assets", assets=(%assets)
-
-    if assets.len > 0:
-      self.printResult("Assets:", timestamp)
-      var assetsIndexed: Table[string, seq[Asset]] = initTable[string, seq[Asset]]()
-      for asset in assets:
-        if not assetsIndexed.hasKey(asset.collection.name):
-          assetsIndexed[asset.collection.name] = @[]
-
-        assetsIndexed[asset.collection.name].add(asset)
-
-      var i = 1
-      for collectionName, items in assetsIndexed.pairs:
-        self.printResult(fmt"{2.indent()}{i}. {collectionName}", timestamp)
-        var j = 1
-        for item in items:
-          let
-            name = item.name
-            address = item.contract.address
-
-          self.printResult(fmt"{4.indent()}{j}. {name} @ {address}", timestamp)
-          j += 1
-
-        i += 1
-    else:
-      self.printResult("No assets found.", timestamp)
-
-# GetCustomTokensEvent ---------------------------------------------------------
-
-proc action*(self: Tui, event: GetCustomTokensEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let tokens = event.tokens
-    let timestamp = event.timestamp
-    trace "TUI showing tokens", tokens=(%tokens)
-
-    if tokens.len > 0:
-      var i = 1
-      self.printResult("Existing tokens:", timestamp)
-      for token in tokens:
-        let
-          name = token.name
-          symbol = token.symbol
-          address = token.address
-
-        self.printResult(fmt"{2.indent()}{i}. {name} ({symbol}): {address}", timestamp)
-        i = i + 1
-    else:
-      self.printResult(
-        "No custom tokens added.",
-        timestamp)
-
-# AddCustomTokenEvent ----------------------------------------------------------
-
-proc action*(self: Tui, event: AddCustomTokenEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      name = event.name
-      symbol = event.symbol
-      address = event.address
-      timestamp = event.timestamp
-
-    self.printResult("Added a token:", timestamp)
-    self.printResult(fmt"{2.indent()}{name} ({symbol}): {address}", timestamp)
-
-# DeleteCustomTokenEvent -------------------------------------------------------
-
-proc action*(self: Tui, event: DeleteCustomTokenEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      address = event.address
-      timestamp = event.timestamp
-
-    self.printResult("Deleted a token:", timestamp)
-    self.printResult(fmt"{2.indent()}{address}", timestamp)
-
-# GetPriceEvent ----------------------------------------------------------
-
-proc action*(self: Tui, event: GetPriceEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let symbol = event.symbol
-    let currency = event.currency
-    let price = event.price
-    let timestamp = event.timestamp
-    trace "TUI showing token price from nim-status", symbol=(%symbol),
-      currency=(%currency), price=(%price)
-
-    self.printResult(fmt"{2.indent()} {symbol}/{currency}: {price}", timestamp)
-
-# SetPriceTimeoutEvent ----------------------------------------------------------
-
-proc action*(self: Tui, event: SetPriceTimeoutEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let timeout = event.timeout
-    let timestamp = event.timestamp
-    trace "TUI setting price update timeout from nim-status", timeout=(%timeout)
-
-    self.printResult(
-      fmt"Token prices will update every {timeout} seconds when logged in", timeout)
-
-
-# ImportMnemonicEvent ----------------------------------------------------------
-
-proc action*(self: Tui, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      account = event.account
-      timestamp = event.timestamp
-      name = account.name
-      keyUid = account.keyUid
-      abbrev = keyUid[0..5] & "..." & keyUid[^4..^1]
-
-    trace "TUI importing account" , account=account.encode
-
-    self.printResult("Imported account:", timestamp)
-    self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
 # JoinTopicEvent --------------------------------------------------------------
 
@@ -354,10 +348,9 @@ proc action*(self: Tui, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
     if self.outputReady:
       self.printResult(fmt"Switched current topic: {topic}", timestamp)
 
-# LeaveTopicEvent -------------------------------------------------------------
+# LeaveTopicEvent --------------------------------------------------------------
 
-proc action*(self: Tui, event: LeaveTopicEvent) {.async, gcsafe,
-  nimcall.} =
+proc action*(self: Tui, event: LeaveTopicEvent) {.async, gcsafe, nimcall.} =
   let timestamp = event.timestamp
   var topic = if event.topic.shortName != "": event.topic.shortName
               else: $event.topic
@@ -399,11 +392,9 @@ proc action*(self: Tui, event: LeaveTopicEvent) {.async, gcsafe,
       self.printResult("No current topic set because no topics are joined",
         timestamp)
 
-# ListAccountsEvent -----------------------------------------------------------
+# ListAccountsEvent ------------------------------------------------------------
 
-proc action*(self: Tui, event: ListAccountsEvent) {.async, gcsafe,
-  nimcall.} =
-
+proc action*(self: Tui, event: ListAccountsEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
   if self.outputReady:
     let
@@ -430,10 +421,42 @@ proc action*(self: Tui, event: ListAccountsEvent) {.async, gcsafe,
         "No accounts. Create an account using `/create <password>`.",
         timestamp)
 
+# ListNetworksEvent ------------------------------------------------------------
+
+proc action*(self: Tui, event: ListNetworksEvent) {.async, gcsafe,
+  nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      networks = event.networks
+      timestamp = event.timestamp
+
+    trace "TUI showing networks", accounts=(%networks)
+
+    if networks.len > 0:
+      var i = 1
+      self.printResult("Available networks:", timestamp)
+      for network in networks:
+        let
+          name = network.name
+          id = network.id
+          url = network.config.upstreamConfig.url
+
+        self.printResult(fmt"{2.indent()}{i}. {name} (id: {id}), url: {url}",
+          timestamp)
+        i = i + 1
+    else:
+      self.printResult("No networks found.", timestamp)
+
 # ListWalletAccountsEvent ------------------------------------------------------
 
-proc action*(self: Tui, event: ListWalletAccountsEvent) {.async, gcsafe,
-  nimcall.} =
+proc action*(self: Tui, event: ListWalletAccountsEvent)
+  {.async, gcsafe, nimcall.} =
 
   # if TUI is not ready for output then ignore it
   if self.outputReady:
@@ -463,7 +486,7 @@ proc action*(self: Tui, event: ListWalletAccountsEvent) {.async, gcsafe,
         "No wallet accounts. Generate a wallet using `/add <name> <password>`.",
         timestamp)
 
-# LoginEvent ------------------------------------------------------------------
+# LoginEvent -------------------------------------------------------------------
 
 proc action*(self: Tui, event: LoginEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
@@ -477,7 +500,7 @@ proc action*(self: Tui, event: LoginEvent) {.async, gcsafe, nimcall.} =
     else:
       self.printResult("Login successful.", timestamp)
 
-# LogoutEvent -----------------------------------------------------------------
+# LogoutEvent ------------------------------------------------------------------
 
 proc action*(self: Tui, event: LogoutEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
@@ -491,23 +514,6 @@ proc action*(self: Tui, event: LogoutEvent) {.async, gcsafe, nimcall.} =
     else:
       self.printResult("Logout successful.", timestamp)
 
-# WakuConnectionEvent ----------------------------------------------------------
-
-proc action*(self: Tui, event: WakuConnectionEvent) {.async, gcsafe, nimcall.} =
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    let
-      error = event.error
-      online = event.online
-      timestamp = event.timestamp
-
-    if error != "":
-      self.wprintFormatError(timestamp, fmt"{error}")
-    elif online:
-      self.printResult("Connected to network.", timestamp)
-    else:
-      self.printResult("Disconnected from network.", timestamp)
-
 # SendMessageEvent -------------------------------------------------------------
 
 proc action*(self: Tui, event: SendMessageEvent) {.async, gcsafe, nimcall.} =
@@ -518,6 +524,56 @@ proc action*(self: Tui, event: SendMessageEvent) {.async, gcsafe, nimcall.} =
       timestamp = event.timestamp
 
     if error != "": self.wprintFormatError(timestamp, fmt"{error}")
+
+# SendTransactionEvent ---------------------------------------------------------
+
+proc action*(self: Tui, event: SendTransactionEvent)
+  {.async, gcsafe, nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      response = event.response
+      timestamp = event.timestamp
+
+    self.printResult(fmt"eth_sendTransaction response: {response}", timestamp)
+
+# SetPriceTimeoutEvent ---------------------------------------------------------
+
+proc action*(self: Tui, event: SetPriceTimeoutEvent)
+  {.async, gcsafe, nimcall.} =
+
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp, event.error)
+      return
+
+    let
+      timeout = event.timeout
+      timestamp = event.timestamp
+    trace "TUI setting price update timeout from nim-status", timeout=(%timeout)
+
+    self.printResult(
+      fmt"Token prices will update every {timeout} seconds when logged in",
+      timeout)
+
+# SwitchNetworkEvent -----------------------------------------------------------
+
+proc action*(self: Tui, event: SwitchNetworkEvent) {.async, gcsafe, nimcall.} =
+  # if TUI is not ready for output then ignore it
+  if self.outputReady:
+    if event.error != "":
+      self.wprintFormatError(event.timestamp,
+        fmt"Error switching network to '{event.networkId}': {event.error}")
+      return
+
+    self.printResult(fmt"Switched network to '{event.networkId}'",
+      event.timestamp)
 
 # UserMessageEvent -------------------------------------------------------------
 
@@ -541,36 +597,19 @@ proc action*(self: Tui, event: UserMessageEvent) {.async, gcsafe, nimcall.} =
     debug "TUI received user message", message, timestamp, username
     self.printMessage(message, timestamp, username, topic)
 
-# CallRpcEvent -----------------------------------------------------------------
+# WakuConnectionEvent ----------------------------------------------------------
 
-proc action*(self: Tui, event: CallRpcEvent) {.async, gcsafe, nimcall.} =
+proc action*(self: Tui, event: WakuConnectionEvent) {.async, gcsafe, nimcall.} =
   # if TUI is not ready for output then ignore it
   if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    trace "Displaying call result"
-
     let
-      response = event.response
+      error = event.error
+      online = event.online
       timestamp = event.timestamp
 
-    self.printResult(fmt"RPC method response: {response}", timestamp)
-
-# SendTransactionEvent ---------------------------------------------------------
-
-proc action*(self: Tui, event: SendTransactionEvent) {.async, gcsafe,
-  nimcall.} =
-
-  # if TUI is not ready for output then ignore it
-  if self.outputReady:
-    if event.error != "":
-      self.wprintFormatError(event.timestamp, event.error)
-      return
-
-    let
-      response = event.response
-      timestamp = event.timestamp
-
-    self.printResult(fmt"eth_sendTransaction response: {response}", timestamp)
+    if error != "":
+      self.wprintFormatError(timestamp, fmt"{error}")
+    elif online:
+      self.printResult("Connected to network.", timestamp)
+    else:
+      self.printResult("Disconnected from network.", timestamp)

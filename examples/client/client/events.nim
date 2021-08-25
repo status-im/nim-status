@@ -1,5 +1,5 @@
 import # status lib
-  status/api/[accounts, opensea, tokens, wallet]
+  status/api/[accounts, networks, opensea, tokens, wallet]
 
 import # client modules
   ./common
@@ -68,6 +68,10 @@ type
     accounts*: seq[PublicAccount]
     error*: string
 
+  ListNetworksEvent* = ref object of ClientEvent
+    networks*: seq[Network]
+    error*: string
+
   ListWalletAccountsEvent* = ref object of ClientEvent
     accounts*: seq[WalletAccount]
     error*: string
@@ -97,6 +101,10 @@ type
     error*: string
     timeout*: int
 
+  SwitchNetworkEvent* = ref object of ClientEvent
+    error*: string
+    networkId*: string
+
   UserMessageEvent* = ref object of ClientEvent
     message*: string
     topic*: ContentTopic
@@ -117,12 +125,14 @@ const
     "JoinTopicEvent",
     "LeaveTopicEvent",
     "ListAccountsEvent",
+    "ListNetworksEvent",
     "ListWalletAccountsEvent",
     "LoginEvent",
     "LogoutEvent",
     "SendMessageEvent",
     "SendTransactionEvent",
     "SetPriceTimeoutEvent",
+    "SwitchNetworkEvent",
     "UserMessageEvent",
     "WakuConnectionEvent"
   ]

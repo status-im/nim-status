@@ -29,14 +29,14 @@ type
 
   TuiEvent* = ref object of Event
 
-  InputKey* = ref object of TuiEvent
+  InputKeyEvent* = ref object of TuiEvent
     key*: int
     name*: string
 
-  InputReady* = ref object of TuiEvent
+  InputReadyEvent* = ref object of TuiEvent
     ready*: bool
 
-  InputString* = ref object of TuiEvent
+  InputStringEvent* = ref object of TuiEvent
     str*: string
 
   # all fields on types that derive from Command should be of type `string`
@@ -121,6 +121,8 @@ type
 
   ListAccounts* = ref object of Command
 
+  ListNetworks* = ref object of Command
+
   ListWalletAccounts* = ref object of Command
 
   ListTopics* = ref object of Command
@@ -150,6 +152,9 @@ type
   SetPriceTimeout* = ref object of Command
     timeout*: string
 
+  SwitchNetwork* = ref object of Command
+    networkId*: string
+
   SwitchTopic* = ref object of Command
     topic*: string
 
@@ -158,9 +163,9 @@ const
   RETURN* = "RETURN"
 
   TuiEvents* = [
-    "InputKey",
-    "InputReady",
-    "InputString"
+    "InputKeyEvent",
+    "InputReadyEvent",
+    "InputStringEvent"
   ]
 
   DEFAULT_COMMAND* = ""
@@ -186,6 +191,7 @@ const
     "jointopic": "JoinTopic",
     "leavetopic": "LeaveTopic",
     "listaccounts": "ListAccounts",
+    "listnetworks": "ListNetworks",
     "listwalletaccounts": "ListWalletAccounts",
     "listtopics": "ListTopics",
     "login": "Login",
@@ -193,7 +199,7 @@ const
     "quit": "Quit",
     "sendtransaction": "SendTransaction",
     "setpricetimeout": "SetPriceTimeout",
-    "quit": "Quit",
+    "switchnetwork": "SwitchNetwork",
     "switchtopic": "SwitchTopic"
   }.toTable
 
@@ -218,12 +224,14 @@ const
     "leavepublicchat": "leavetopic",
     "list": "listaccounts",
     "listwallets": "listwalletaccounts",
+    "networks": "listnetworks",
     "part": "leavetopic",
     "rpc": "call",
     "send": DEFAULT_COMMAND,
     "sub": "jointopic",
     "subscribe": "jointopic",
     "switch": "switchtopic",
+    "tokens": "getcustomtokens",
     "topics": "listtopics",
     "trx": "sendtransaction",
     "unjoin": "leavetopic",
@@ -244,13 +252,14 @@ const
     "deletecustomtoken": @["deletetoken"],
     "deletewalletaccount": @["delete"],
     "getassets": @["assets"],
-    "getcustomtokens": @["gettokens"],
+    "getcustomtokens": @["gettokens", "tokens"],
     "importmnemonic": @["import"],
     "help": @["?"],
     "jointopic": @["join", "joinpublic", "joinpublicchat", "sub", "subscribe"],
     "leavetopic": @["leave", "leavepublic", "leavepublicchat", "part", "unjoin",
       "unsub", "unsubscribe"],
     "listaccounts": @["list"],
+    "listnetworks": @["networks"],
     "listtopics": @["topics"],
     "listwalletaccounts": @["listwallets", "wallets"],
     "sendtransaction": @["trx"],

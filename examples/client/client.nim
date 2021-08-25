@@ -114,11 +114,11 @@ proc getAssets*(self: Client, owner: Address) {.async.} =
 proc getCustomTokens*(self: Client) {.async.} =
   asyncSpawn getCustomTokens(self.taskRunner, status)
 
-proc getTopics(self: Client): Future[seq[ContentTopic]] {.async, gcsafe.} =
-  return await getTopics(self.taskRunner, status)
-
 proc getPrice*(self: Client, tokenSymbol, fiatCurrency: string) {.async.} =
   asyncSpawn getPrice(self.taskRunner, status, tokenSymbol, fiatCurrency)
+
+proc getTopics(self: Client): Future[seq[ContentTopic]] {.async, gcsafe.} =
+  return await getTopics(self.taskRunner, status)
 
 proc importMnemonic*(self: Client, mnemonic: string, passphrase: string,
   password: string) {.async.} =
@@ -134,6 +134,9 @@ proc leaveTopic*(self: Client, topic: ContentTopic) {.async.} =
 
 proc listAccounts*(self: Client) {.async.} =
   asyncSpawn listAccounts(self.taskRunner, status)
+
+proc listNetworks*(self: Client) {.async.} =
+  asyncSpawn listNetworks(self.taskRunner, status)
 
 proc listWalletAccounts*(self: Client) {.async.} =
   asyncSpawn listWalletAccounts(self.taskRunner, status)
@@ -160,3 +163,6 @@ proc setPriceTimeout*(self: Client, timeout: int) {.async.} =
 
 proc stopContext(self: Client) {.async, gcsafe.} =
   await stopContext(self.taskRunner, status)
+
+proc switchNetwork*(self: Client, networkId: string) {.async.} =
+  asyncSpawn switchNetwork(self.taskRunner, status, networkId)

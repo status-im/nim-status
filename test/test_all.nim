@@ -3,6 +3,7 @@ import # test modules
   ./accounts/accounts,
   ./accounts/public_accounts,
   ./api,
+  ./api/networks,
   ./bip32,
   ./callrpc,
   ./chats,

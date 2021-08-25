@@ -294,6 +294,43 @@ proc command*(self: Tui, command: AddWalletWatchOnly) {.async, gcsafe,
   else:
     asyncSpawn self.client.addWalletWatchOnly(command.address, command.name)
 
+# CallRpc ----------------------------------------------------------------------
+
+proc help*(T: type CallRpc): HelpText =
+  let command = "call"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "method", description: "RPC method"),
+    CommandParameter(name: "params", description: "Array of parameters")
+    ], description: "Calls an Ethereum RPC method")
+
+proc new*(T: type CallRpc, args: varargs[string]): T =
+  var rpcMethod = if args.len > 0: args[0] else: ""
+  var params = if args.len > 1: args[1..^1].join(" ") else: ""
+  T(rpcMethod: rpcMethod, params: params)
+
+proc split*(T: type CallRpc, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: Tui, command: CallRpc) {.async, gcsafe, nimcall.} =
+  try:
+    if command.rpcMethod == "":
+      self.wprintFormatError(getTime().toUnix,
+        "method cannot be blank, please provide an input.")
+      return
+
+    var params = newJArray()
+    if command.params != "":
+      try:
+        params = command.params.parseJson()
+      except:
+        self.wprintFormatError(getTime().toUnix,
+          "params must be a valid JSON")
+        return
+
+    asyncSpawn self.client.callRpc(command.rpcMethod, params)
+  except:
+    self.wprintFormatError(getTime().toUnix, "invalid arguments.")
+
 # Connect ----------------------------------------------------------------------
 
 proc help*(T: type Connect): HelpText =
@@ -511,35 +548,6 @@ proc command*(self: Tui, command: GetPrice) {.async, gcsafe, nimcall.} =
   else:
     asyncSpawn self.client.getPrice(command.tokenSymbol, command.fiatCurrency)
 
-# SetPriceTimeout -----------------------------------------------------------------
-
-proc help*(T: type SetPriceTimeout): HelpText =
-  let command = "setpricetimeout"
-  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
-    CommandParameter(name: "timeout", description: "Timeout in seconds " &
-      "for the cryptocompare.io price updater.")
-    ], description: "Sets the frequency " &
-    "of token price updates.")
-
-proc new*(T: type SetPriceTimeout, args: varargs[string]): T =
-  let timeout = if args.len == 1: args[0] else: ""
-
-  T(timeout: timeout)
-
-proc split*(T: type SetPriceTimeout, argsRaw: string): seq[string] =
-  argsRaw.split(" ")
-
-proc command*(self: Tui, command: SetPriceTimeout) {.async, gcsafe, nimcall.} =
-  try:
-    let intTimeout = command.timeout.parseInt()
-    if intTimeout > 0:
-      asyncSpawn self.client.setPriceTimeout(intTimeout)
-    else:
-      raise (ref ValueError)(msg: "Non-positive timeout value")
-  except ValueError as e:
-    self.wprintFormatError(getTime().toUnix,
-      "Timeout value cannot be parsed, please provide a positive integer. Msg: " & e.msg)
-
 # ImportMnemonic -----------------------------------------------------------------
 
 proc help*(T: type ImportMnemonic): HelpText =
@@ -663,8 +671,8 @@ proc command*(self: Tui, command: LeaveTopic) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type ListAccounts): HelpText =
   let command = "listaccounts"
-  HelpText(command: command, aliases: aliased.getOrDefault(command), description: "Lists " &
-    "all existing Status accounts.")
+  HelpText(command: command, aliases: aliased.getOrDefault(command),
+    description: "Lists all existing Status accounts.")
 
 proc new*(T: type ListAccounts, args: varargs[string]): T =
   T()
@@ -675,7 +683,23 @@ proc split*(T: type ListAccounts, argsRaw: string): seq[string] =
 proc command*(self: Tui, command: ListAccounts) {.async, gcsafe, nimcall.} =
   asyncSpawn self.client.listAccounts()
 
-# ListTopics -------------------------------------------------------------------
+# ListNetworks -----------------------------------------------------------------
+
+proc help*(T: type ListNetworks): HelpText =
+  let command = "listnetworks"
+  HelpText(command: command, aliases: aliased.getOrDefault(command),
+    description: "Lists all available upstream networks.")
+
+proc new*(T: type ListNetworks, args: varargs[string]): T =
+  T()
+
+proc split*(T: type ListNetworks, argsRaw: string): seq[string] =
+  @[]
+
+proc command*(self: Tui, command: ListNetworks) {.async, gcsafe, nimcall.} =
+  asyncSpawn self.client.listNetworks()
+
+# ListTopics -----------------------------------------------------------------
 
 proc help*(T: type ListTopics): HelpText =
   let command = "listtopics"
@@ -840,58 +864,30 @@ proc command*(self: Tui, command: SendMessage) {.async, gcsafe, nimcall.} =
     asyncSpawn self.client.sendMessage(command.message,
       self.client.currentTopic)
 
-# CallRpc ----------------------------------------------------------------------
-
-proc help*(T: type CallRpc): HelpText =
-  let command = "call"
-  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
-    CommandParameter(name: "method", description: "RPC method"),
-    CommandParameter(name: "params", description: "Array of parameters")
-    ], description: "Calls an Ethereum RPC method")
-
-proc new*(T: type CallRpc, args: varargs[string]): T =
-  var rpcMethod = if args.len > 0: args[0] else: ""
-  var params = if args.len > 1: args[1..^1].join(" ") else: ""
-  T(rpcMethod: rpcMethod, params: params)
-
-proc split*(T: type CallRpc, argsRaw: string): seq[string] =
-  argsRaw.split(" ")
-
-proc command*(self: Tui, command: CallRpc) {.async, gcsafe,
-  nimcall.} =
-  try:
-    if command.rpcMethod == "":
-      self.wprintFormatError(getTime().toUnix,
-        "method cannot be blank, please provide an input.")
-      return
-
-    var params = newJArray()
-    if command.params != "":
-      try:
-        params = command.params.parseJson()
-      except:
-        self.wprintFormatError(getTime().toUnix,
-          "params must be a valid JSON")
-        return
-
-    asyncSpawn self.client.callRpc(command.rpcMethod, params)
-  except:
-    self.wprintFormatError(getTime().toUnix, "invalid arguments.")
-
 # SendTransaction --------------------------------------------------------------
 
 proc help*(T: type SendTransaction): HelpText =
   let command = "sendtransaction"
-  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
-    CommandParameter(name: "from", description: "The address for the sending account"),
-    CommandParameter(name: "to", description: "The destination address of the message, left empty for a contract-creation transaction."),
-    CommandParameter(name: "value", description: "The value transferred for the transaction in wei"),
-    CommandParameter(name: "maxPriorityFee", description: "Max priority fee in wei"),
-    CommandParameter(name: "maxFee", description: "Max fee in wei"),
-    CommandParameter(name: "gasLimit", description: "The amount of gas to use for the transaction (unused gas is refunded)."),
-    CommandParameter(name: "data", description: "ABI byte string containing the data of the function call on a contract, or contract-creation initialisation code."),
-    CommandParameter(name: "nonce", description: "Integer of the nonce"),
-    CommandParameter(name: "password", description: "Account password")
+  HelpText(command: command, aliases: aliased.getOrDefault(command),
+    parameters: @[
+      CommandParameter(name: "from", description:
+        "The address for the sending account"),
+      CommandParameter(name: "to", description:
+        "The destination address of the message, left empty for a " &
+        "contract-creation transaction."),
+      CommandParameter(name: "value", description:
+        "The value transferred for the transaction in wei"),
+      CommandParameter(name: "maxPriorityFee", description:
+        "Max priority fee in wei"),
+      CommandParameter(name: "maxFee", description: "Max fee in wei"),
+      CommandParameter(name: "gasLimit", description:
+        "The amount of gas to use for the transaction (unused gas is " &
+        "refunded)."),
+      CommandParameter(name: "data", description:
+        "ABI byte string containing the data of the function call on a " &
+        "contract, or contract-creation initialisation code."),
+      CommandParameter(name: "nonce", description: "Integer of the nonce"),
+      CommandParameter(name: "password", description: "Account password")
     ], description: "Sends an EIP1559 transaction")
 
 proc new*(T: type SendTransaction, args: varargs[string]): T =
@@ -920,7 +916,8 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
       fromAddress = eth_common.parseAddress(cmd.fromAddress)
     except:
       self.wprintFormatError(getTime().toUnix,
-        "Could not parse `from` address, please provide an address in proper format.")
+        "Could not parse `from` address, please provide an address in proper " &
+        "format.")
       return
 
     var toAddress: Option[EthAddress]
@@ -929,7 +926,8 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
         toAddress = some(eth_common.parseAddress(cmd.toAddress))
       except:
         self.wprintFormatError(getTime().toUnix,
-          "Could not parse `to` address, please provide an address in proper format.")
+          "Could not parse `to` address, please provide an address in proper " &
+          "format.")
         return
     else:
       toAddress = none(EthAddress)
@@ -940,7 +938,8 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
         value = cmd.value.u256
       except:
         self.wprintFormatError(getTime().toUnix,
-        "Could not parse `value`, please provide a valid numeric value (wei).")
+          "Could not parse `value`, please provide a valid numeric value " &
+          "(wei).")
         return
 
     var gasLimit = int64(0)
@@ -949,7 +948,7 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
         gasLimit = cmd.gasLimit.parseBiggestInt
       except:
         self.wprintFormatError(getTime().toUnix,
-        "Could not parse `gasLimit`, please provide a valid numeric value.")
+          "Could not parse `gasLimit`, please provide a valid numeric value.")
         return
 
     var maxPriorityFee = int64(0)
@@ -958,7 +957,8 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
         maxPriorityFee = cmd.maxPriorityFee.parseBiggestInt
       except:
         self.wprintFormatError(getTime().toUnix,
-        "Could not parse `maxPriorityFee`, please provide a valid numeric value.")
+          "Could not parse `maxPriorityFee`, please provide a valid numeric " &
+          "value.")
         return
 
     var maxFee = int64(0)
@@ -967,7 +967,7 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
         maxFee = cmd.maxFee.parseBiggestInt
       except:
         self.wprintFormatError(getTime().toUnix,
-        "Could not parse `maxFee`, please provide a valid numeric value.")
+          "Could not parse `maxFee`, please provide a valid numeric value.")
         return
 
     var payload:seq[byte] = @[]
@@ -1003,6 +1003,60 @@ proc command*(self: Tui, cmd: SendTransaction) {.async, gcsafe,
       cmd.password)
   except:
     self.wprintFormatError(getTime().toUnix, "invalid arguments.")
+
+# SetPriceTimeout --------------------------------------------------------------
+
+proc help*(T: type SetPriceTimeout): HelpText =
+  let command = "setpricetimeout"
+  HelpText(command: command, aliases: aliased.getOrDefault(command),
+    parameters: @[
+      CommandParameter(name: "timeout", description: "Timeout in seconds " &
+        "for the cryptocompare.io price updater.")
+    ], description: "Sets the frequency of token price updates.")
+
+proc new*(T: type SetPriceTimeout, args: varargs[string]): T =
+  let timeout = if args.len == 1: args[0] else: ""
+
+  T(timeout: timeout)
+
+proc split*(T: type SetPriceTimeout, argsRaw: string): seq[string] =
+  argsRaw.split(" ")
+
+proc command*(self: Tui, command: SetPriceTimeout) {.async, gcsafe, nimcall.} =
+  try:
+    let intTimeout = command.timeout.parseInt()
+    if intTimeout > 0:
+      asyncSpawn self.client.setPriceTimeout(intTimeout)
+    else:
+      raise (ref ValueError)(msg: "Non-positive timeout value")
+  except ValueError as e:
+    self.wprintFormatError(getTime().toUnix,
+      "Timeout value cannot be parsed, please provide a positive integer.")
+
+# SwitchNetwork ----------------------------------------------------------------
+
+proc help*(T: type SwitchNetwork): HelpText =
+  let command = "switchnetwork"
+  HelpText(command: command, parameters: @[
+      CommandParameter(name: "id", description:
+        "The network id to switch to, ie 'testnet_rpc'")
+    ], description:
+      "Switches the upstream network endpoint, id, and data directory")
+
+proc new*(T: type SwitchNetwork, args: varargs[string]): T =
+  T(networkId: args[0])
+
+proc split*(T: type SwitchNetwork, argsRaw: string): seq[string] =
+  let args = argsRaw.split(" ")
+  var values: array[1, string]
+  for idx, val in args[0..min(high(values), high(args))].pairs:
+    values[idx] = val
+  @values
+
+proc command*(self: Tui, cmd: SwitchNetwork) {.async, gcsafe,
+  nimcall.} =
+
+  asyncSpawn self.client.switchNetwork(cmd.networkId)
 
 # Switchtopic ------------------------------------------------------------------
 
@@ -1045,6 +1099,7 @@ proc command*(self: Tui, command: Switchtopic) {.async, gcsafe, nimcall.} =
           fmt"Cannot set current topic to an unjoined topic: {topic}")
 
 # Help -------------------------------------------------------------------------
+
 # Note: although "Help" is not alphabetically last, we need to keep this below
 # all other `help()` definitions so that they are available to the
 # `buildCommandHelp()` macro. Alternatively, we could use forward declarations
@@ -1053,9 +1108,10 @@ proc command*(self: Tui, command: Switchtopic) {.async, gcsafe, nimcall.} =
 
 proc help*(T: type Help): HelpText =
   let command = "help"
-  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
-    CommandParameter(name: "command", description: "(Optional) Command to " &
-      "get help for. If omitted, help for all commands will be displayed.")
+  HelpText(command: command, aliases: aliased.getOrDefault(command),
+    parameters: @[
+      CommandParameter(name: "command", description: "(Optional) Command to " &
+        "get help for. If omitted, help for all commands will be displayed.")
     ], description:
     "Show help text.")
 
