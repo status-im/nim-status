@@ -21,10 +21,6 @@ export
   sqlcipher, util, writeValue
 
 type
-  StatusApiDefect* = object of StatusDefect
-
-  StatusApiError* = object of StatusError
-
   StatusObject* = ref object
     accountsGenerator*: Generator
     accountsDbConn: DbConn
