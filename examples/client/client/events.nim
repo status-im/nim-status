@@ -73,9 +73,18 @@ type
     account*: PublicAccount
     timestamp*: int64
 
+  JoinPublicChatEvent* = ref object of ClientEvent
+    timestamp*: int64
+    id*: string
+    name*: string
+
   JoinTopicEvent* = ref object of ClientEvent
     timestamp*: int64
     topic*: string
+
+  LeavePublicChatEvent* = ref object of ClientEvent
+    timestamp*: int64
+    id*: string
 
   LeaveTopicEvent* = ref object of ClientEvent
     timestamp*: int64
@@ -130,7 +139,9 @@ const clientEvents* = [
   "GetAssetsEvent",
   "GetPriceEvent",
   "ImportMnemonicEvent",
+  "JoinPublicChatEvent",
   "JoinTopicEvent",
+  "LeavePublicChatEvent",
   "LeaveTopicEvent",
   "ListAccountsEvent",
   "ListWalletAccountsEvent",

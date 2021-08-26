@@ -338,6 +338,20 @@ proc action*(self: Tui, event: ImportMnemonicEvent) {.async, gcsafe, nimcall.} =
     self.printResult("Imported account:", timestamp)
     self.printResult(fmt"{2.indent()}{name} ({abbrev})", timestamp)
 
+# JoinPublicChatEvent -------------------------------------------------------
+
+proc action*(self: Tui, event: JoinPublicChatEvent) {.async, gcsafe, nimcall.} =
+  let
+    timestamp = event.timestamp
+    id = event.id
+    name = event.name
+
+  if not self.client.chats.hasKey(id):
+    self.client.chats[id] = name
+    self.printResult(fmt"Joined chat: {name}", timestamp)
+  else:
+    self.printResult(fmt"Chat already joined: {name}", timestamp)
+    
 # JoinTopicEvent --------------------------------------------------------------
 
 proc action*(self: Tui, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
@@ -350,6 +364,22 @@ proc action*(self: Tui, event: JoinTopicEvent) {.async, gcsafe, nimcall.} =
     self.printResult(fmt"Joined topic: {topic}", timestamp)
   else:
     self.printResult(fmt"Topic already joined: {topic}", timestamp)
+
+# LeavePublicChatEvent ------------------------------------------------------
+
+proc action*(self: Tui, event: LeavePublicChatEvent) {.async, gcsafe,
+  nimcall.} =
+  let
+    timestamp = event.timestamp
+    id = event.id
+
+  if self.client.chats.hasKey(id):
+    let chatName = self.client.chats[id]
+    self.client.chats.del(id)
+    self.printResult(fmt"Left chat: status#{chatName}", timestamp)
+  else:
+    self.printResult(fmt"chat not joined, no need to leave",
+      timestamp)
 
 # LeaveTopicEvent -------------------------------------------------------------
 

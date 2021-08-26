@@ -1,10 +1,13 @@
 import # std libs
-  std/os
+  std/os, tables
 
 from std/sugar import `=>`, collect
 
 import # vendor libs
-  stew/byteutils
+  eth/[keys],
+  nimcrypto/pbkdf2,
+  stew/byteutils,
+  waku/whisper/whisper_types
 
 from eth/common as eth_common import nil
 
@@ -50,6 +53,7 @@ var
   publicAccount {.threadvar.}: PublicAccount
   subscribed {.threadvar.}: bool
   status {.threadvar.}: StatusObject
+  statusChats {.threadvar.}: Table[string, string]
   statusState {.threadvar.}: StatusState
   updatePricesTimeout {.threadvar.}: int
   updatingPrices {.threadvar.}: bool
@@ -61,6 +65,7 @@ proc resetContext() {.gcsafe, nimcall.} =
   nick = ""
   subscribed = false
   wakuNode = nil
+  statusChats.clear()
   wakuState = WakuState.stopped
 
 proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
@@ -73,7 +78,7 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
 
   let contentTopicsStr = conf.contentTopics.strip()
   if contentTopicsStr != "":
-    contentTopics = contentTopicsStr.split(" ").map(handleTopic)
+    contentTopics = contentTopicsStr.split(" ").map(proc(t: string): string = handleTopic(t, "proto"))
       .filter(t => t != "").toOrderedSet()
 
   # threadvar `natIsSetup` is a special case because the values of its
@@ -89,6 +94,8 @@ proc statusContext*(arg: ContextArg) {.async, gcsafe, nimcall,
 
   updatePricesTimeout = 60000 # 60 seconds by default
   updatingPrices = false
+
+  statusChats = initTable[string, string]()
 
   status = StatusObject.new(conf.dataDir).expect(
     "StatusObject init should never fail")
@@ -116,6 +123,8 @@ proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
   let
     topic = wakuMessage.contentTopic
     topicSplit = topic.split('/')
+
+  var topicName = topic
 
   var
     fallback = true
@@ -152,29 +161,59 @@ proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
             error=protoResult, payload=string.fromBytes(wakuMessage.payload)
 
     of waku1App:
-      if topicSplit[4] == "proto": # should be `rlp` for real decoding
-        try:
-          let
-            # will first need to RLP decode payload for real decoding
-            protoMsg = protocol.ProtocolMessage.decode(
-              wakuMessage.payload)
-            appMetaMsg = protocol.ApplicationMetadataMessage.decode(
-              protoMsg.public_message)
-            chatMsg = protocol.ChatMessage.decode(appMetaMsg.payload)
+      try:
+        case topicSplit[4]:
+          of "proto":
+            let
+              protoMsg = protocol.ProtocolMessage.decode(
+                wakuMessage.payload)
+              appMetaMsg = protocol.ApplicationMetadataMessage.decode(
+                protoMsg.public_message)
+              chatMsg = protocol.ChatMessage.decode(appMetaMsg.payload)
 
-          # "placeholder handling" of decoded protobuffer that will be iterated
-          # along with changes to what data we signal from the client to the
-          # TUI and how we display/notify re: that data in the TUI
-          message = chatMsg.text
-          timestamp = chatMsg.timestamp.int64
-          username = generateAlias(
-            "0x" & byteutils.toHex(protoMsg.bundles[0].identity)).get("error")
+            # "placeholder handling" of decoded protobuffer that will be iterated
+            # along with changes to what data we signal from the client to the
+            # TUI and how we display/notify re: that data in the TUI
+            message = chatMsg.text
+            timestamp = chatMsg.timestamp.int64
+            username = generateAlias(
+              "0x" & byteutils.toHex(protoMsg.bundles[0].identity)).get("error")
 
-          fallback = false
+            fallback = false
+          of "rfc26":
+            var payload = wakuMessage.payload
+            var pubKey: PublicKey
+            # TODO: currently we only support public chats:
+            if statusChats.hasKey(topic):
+              var ctx: HMAC[sha256]
+              var symKey: SymKey
+              var salt:seq[byte] = @[]
+              if pbkdf2(ctx, statusChats[topic].toBytes(), salt, 65356, symKey) != sizeof(SymKey):
+                raise (ref Defect)(msg: "Should not occur as array is properly sized")
+              let decodedMsg = decode(payload, none[PrivateKey](), some(symKey)).get
+              payload = decodedMsg.payload
+              pubKey = decodedMsg.src.get
+              
+            let
+              protoMsg = protocol.ProtocolMessage.decode(payload)
+              appMetaMsg = protocol.ApplicationMetadataMessage.decode(
+                protoMsg.public_message)
+              chatMsg = protocol.ChatMessage.decode(appMetaMsg.payload)
 
-        except CatchableError as e:
-          error "error decoding waku/1 message", contentTopic=topic,
-            error=e.msg, payload=string.fromBytes(wakuMessage.payload)
+            # "placeholder handling" of decoded protobuffer that will be iterated
+            # along with changes to what data we signal from the client to the
+            # TUI and how we display/notify re: that data in the TUI
+            message = chatMsg.text
+            timestamp = chatMsg.timestamp.int64 div 1000.int64        
+            username = generateAlias("0x04" & byteutils.toHex(pubKey.toRaw())).get("error")
+            if statusChats.hasKey(topic):
+              topicName = "status#" & statusChats[topic] 
+            fallback = false
+          else:
+            raise (ref Defect)(msg: "Unknown message protocol")
+      except CatchableError as e:
+        error "error decoding waku/1 message", contentTopic=topic,
+          error=e.msg, payload=string.fromBytes(wakuMessage.payload)
 
   if fallback:
     message = string.fromBytes(wakuMessage.payload)
@@ -184,7 +223,7 @@ proc new(T: type UserMessageEvent, wakuMessage: WakuMessage): T =
     warn "used fallback decoding strategy for unsupported contentTopic",
       contentTopic=topic
 
-  T(message: message, timestamp: timestamp, topic: topic, username: username)
+  T(message: message, timestamp: timestamp, topic: topicName, username: username)
 
 proc addWalletAccount*(name: string,
   password: string) {.task(kind=no_rts, stoppable=false).} =
@@ -491,6 +530,21 @@ proc importMnemonic*(mnemonic: string, bip39Passphrase: string,
   trace "task sent event to host", event=eventEnc, task
   asyncSpawn chanSendToHost.send(eventEnc.safe)
 
+proc joinPublicChat*(id: string, name: string) {.task(kind=no_rts, stoppable=false).} =
+  if not statusChats.hasKey(id):
+    statusChats[id] = name
+    trace "joined chat", id, name
+  else:
+    trace "chat already joined", id, name
+
+  let
+    event = JoinPublicChatEvent(timestamp: getTime().toUnix, id: id, name: name)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
 proc joinTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
   if not contentTopics.contains(topic):
     contentTopics.incl(topic)
@@ -500,6 +554,21 @@ proc joinTopic*(topic: string) {.task(kind=no_rts, stoppable=false).} =
 
   let
     event = JoinTopicEvent(timestamp: getTime().toUnix, topic: topic)
+    eventEnc = event.encode
+    task = taskArg.taskName
+
+  trace "task sent event to host", event=eventEnc, task
+  asyncSpawn chanSendToHost.send(eventEnc.safe)
+
+proc leavePublicChat*(id: string) {.task(kind=no_rts, stoppable=false).} =
+  if statusChats.hasKey(id):
+    statusChats.del(id)
+    trace "left chat", id
+  else:
+    trace "chat not joined, no need to leave", id
+
+  let
+    event = LeavePublicChatEvent(timestamp: getTime().toUnix, id: id)
     eventEnc = event.encode
     task = taskArg.taskName
 
@@ -809,10 +878,11 @@ proc startWakuChat*(username: string) {.task(kind=no_rts, stoppable=false).} =
         trace "decoded WakuMessage", message
 
         let contentTopic = message.contentTopic
+        let isStatusChat = statusChats.hasKey(contentTopic)
 
-        if not (contentTopic in contentTopics):
+        if not (contentTopic in contentTopics) and not isStatusChat:
           trace "ignored message for unjoined topic", contentTopic,
-            joined=contentTopics
+            joined=contentTopics, statusChats
 
         else:
           let

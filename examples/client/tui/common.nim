@@ -115,6 +115,12 @@ type
     passphrase*: string
     password*: string
 
+  JoinPublicChat* = ref object of Command
+    name*: string
+
+  LeavePublicChat* = ref object of Command
+    name*: string
+
   JoinTopic* = ref object of Command
     topic*: string
 
@@ -179,7 +185,9 @@ const
     "getprice": "GetPrice",
     "help": "Help",
     "importmnemonic": "ImportMnemonic",
+    "joinpublicchat": "JoinPublicChat",
     "jointopic": "JoinTopic",
+    "leavepublicchat": "LeavePublicChat",
     "leavetopic": "LeaveTopic",
     "listaccounts": "ListAccounts",
     "listwalletaccounts": "ListWalletAccounts",

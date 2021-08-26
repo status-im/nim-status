@@ -604,6 +604,30 @@ proc command*(self: Tui, command: ImportMnemonic) {.async, gcsafe, nimcall.} =
     asyncSpawn self.client.importMnemonic(command.mnemonic, command.passphrase,
       command.password)
 
+# JoinPublicChat ---------------------------------------------------------------
+
+proc help*(T: type JoinPublicChat): HelpText =
+  let command = "joinpublicchat"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "topic", description: "Name of the status chat to join.")
+  ], description: "Joins the specified status chat on waku v2")
+
+proc new*(T: type JoinPublicChat, args: varargs[string]): T =
+  T(name: args[0])
+
+proc split*(T: type JoinPublicChat, argsRaw: string): seq[string] =
+  @[argsRaw.strip().split(" ")[0]]
+
+proc command*(self: Tui, command: JoinPublicChat) {.async, gcsafe, nimcall.} =
+  var topic = handleTopic(command.name, "rfc26")
+  if command.name == "":
+    self.wprintFormatError(getTime().toUnix,
+      "chat name cannot be blank, please provide a chat name as the first argument.")
+  elif self.client.chats.contains(topic):
+    self.printResult(fmt"Channel already joined: {command.name}", getTime().toUnix)
+  else:
+    asyncSpawn self.client.joinPublicChat(topic, command.name)
+
 # JoinTopic --------------------------------------------------------------------
 
 proc help*(T: type JoinTopic): HelpText =
@@ -629,6 +653,33 @@ proc command*(self: Tui, command: JoinTopic) {.async, gcsafe, nimcall.} =
     self.printResult(fmt"Topic already joined: {topic}", getTime().toUnix)
   else:
     asyncSpawn self.client.joinTopic(topic)
+
+# LeavePublicChat --------------------------------------------------------------
+
+proc help*(T: type LeavePublicChat): HelpText =
+  let command = "leavepublicchat"
+  HelpText(command: command, aliases: aliased.getOrDefault(command), parameters: @[
+    CommandParameter(name: "name", description: "Name of the chat to leave.")
+  ], description: "Stops watching for messages for the specified public chat")
+
+proc new*(T: type LeavePublicChat, args: varargs[string]): T =
+  T(name: args[0])
+
+proc split*(T: type LeavePublicChat, argsRaw: string): seq[string] =
+  @[argsRaw.strip().split(" ")[0]]
+
+proc command*(self: Tui, command: LeavePublicChat) {.async, gcsafe, nimcall.} =
+  let topic = handleTopic(command.name, "rfc26")
+
+  if topic == "":
+    self.wprintFormatError(getTime().toUnix,
+      "name cannot be blank, please provide a chat name as the first argument.")
+  elif not self.client.chats.contains(topic):
+    self.printResult(fmt"Chat not joined, no need to leave: {command.name}",
+      getTime().toUnix)
+  else:
+    asyncSpawn self.client.leavePublicChat(topic)
+
 
 # LeaveTopic -------------------------------------------------------------------
 

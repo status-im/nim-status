@@ -26,11 +26,12 @@ proc new*(T: type Client, clientConfig: ClientConfig): T =
   var topics: OrderedSet[string]
   let topicsStr = clientConfig.contentTopics.strip()
   if topicsStr != "":
-    topics = topicsStr.split(" ").map(handleTopic).filter(t => t != "")
+    topics = topicsStr.split(" ").map(proc(t: string): string = handleTopic(t, "proto")).filter(t => t != "")
       .toOrderedSet()
 
-  T(clientConfig: clientConfig, events: newEventChannel(), loggedin: false,
-    online: false, running: false, taskRunner: taskRunner, topics: topics)
+  T(clientConfig: clientConfig, chats: initTable[string, string](), 
+    events: newEventChannel(), loggedin: false, online: false,
+    running: false, taskRunner: taskRunner, topics: topics)
 
 proc start*(self: Client) {.async.} =
   debug "client starting"
@@ -92,8 +93,14 @@ proc importMnemonic*(self: Client, mnemonic: string, passphrase: string,
   asyncSpawn importMnemonic(self.taskRunner, status, mnemonic, passphrase,
     password)
 
+proc joinPublicChat*(self: Client, id: string, name: string) {.async.} =
+  asyncSpawn joinPublicChat(self.taskRunner, status, id, name)
+
 proc joinTopic*(self: Client, topic: string) {.async.} =
   asyncSpawn joinTopic(self.taskRunner, status, topic)
+
+proc leavePublicChat*(self: Client, id: string) {.async.} =
+  asyncSpawn leavePublicChat(self.taskRunner, status, id)
 
 proc leaveTopic*(self: Client, topic: string) {.async.} =
   asyncSpawn leaveTopic(self.taskRunner, status, topic)

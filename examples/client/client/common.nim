@@ -2,7 +2,8 @@ import # std libs
   std/[sets, strformat, strutils, sugar, times]
 
 import # vendor libs
-  task_runner
+  task_runner,
+  nimcrypto/keccak
 
 import # status lib
   status/api/accounts
@@ -31,12 +32,13 @@ type
     running*: bool
     taskRunner*: TaskRunner
     topics*: OrderedSet[string]
+    chats*: Table[string, string]
 
 const
   hashCharSet* = {'#'}
   status* = "status"
 
-proc handleTopic*(topic: string): string =
+proc handleTopic*(topic: string, protocol="proto"): string =
   var t = topic
   let topicSplit = topic.split('/')
 
@@ -47,11 +49,8 @@ proc handleTopic*(topic: string): string =
     t = topic.strip(true, false, hashCharSet)
     # should end with `/rlp` for real encoding and decoding
     if t != "":
-      # formatted topic should use hex encoded first four bytes of sha256
-      # digest, but will need to e.g. return a tuple and come up with some
-      # structure/s to keep track of hashed and human-friendly names
-      # t = "0x" & ($sha256.digest(t))[0..7].toLowerAscii
-      t = fmt"/waku/1/{t}/proto"
+      let hexTopic = "0x" & ($keccak256.digest(t))[0..7].toLowerAscii
+      t = fmt"/waku/1/{hexTopic}/{protocol}"
 
   return t
 
