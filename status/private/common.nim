@@ -48,6 +48,14 @@ type
 
   HttpFetchResult*[T] = Result[T, HttpFetchError]
 
+  NetworkId* = enum
+    Mainnet = 1
+    Ropsten = 3
+    Rinkeby = 4
+    Goerli  = 5
+    Poa     = 99
+    XDai    = 100
+
   RpcError* = object
     code*: int
     message*: string

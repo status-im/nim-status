@@ -28,7 +28,7 @@ procSuite "callrpc":
       "installation-id": "ABC-DEF-GHI",
       "key-uid": "XYZ",
       "latest-derived-path": 0,
-      "networks/networks": [{"id":"mainnet_rpc","etherscan-link":"https://etherscan.io/address/","name":"Mainnet with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/mainnet_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://mainnet.infura.io/ws/v3/7230123556ec4a8aac8d89ccd0dd74d7"}}}],
+      "networks/networks": [{"id":"mainnet_rpc","etherscan-link":"https://etherscan.io/address/","name":"Mainnet with upstream RPC","config":{"NetworkId":1,"DataDir":"/ethereum/mainnet_rpc","UpstreamConfig":{"Enabled":true,"URL":"wss://mainnet.infura.io/ws/v3/220a1abb4b6943a093c35d0ce4fb0732"}}}],
       "photo-path": "ABXYZC",
       "preview-privacy?": false,
       "public-key": "0x123",

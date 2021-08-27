@@ -1,6 +1,6 @@
 {.push raises: [Defect].}
 
-import # std modules
+import # std libs
   std/[options, strformat]
 
 import # vendor modules

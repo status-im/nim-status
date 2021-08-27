@@ -57,6 +57,9 @@ proc fromDbValue*(val: DbValue, T: typedesc[Message]): Message {.raises:
   except Exception as e:
     raise (ref ConversionError)(parent: e, msg: errorMsg)
 
+proc fromDbValue*(val: DbValue, T: typedesc[NetworkId]): NetworkId =
+  NetworkId val.intVal
+
 proc fromDbValue*(val: DbValue, T: typedesc[SkPublicKey]): SkPublicKey =
   let pubKeyResult = SkPublicKey.fromRaw(val.blobVal)
   if pubKeyResult.isErr:
@@ -142,6 +145,9 @@ proc toDbValue*(val: KeyPath): DbValue {.raises: [].} =
 
 proc toDbValue*(val: Message): DbValue =
   DbValue(kind: sqliteBlob, blobVal: Json.encode(val).toBytes)
+
+proc toDbValue*(val: NetworkId): DbValue =
+  DbValue(kind: sqliteInteger, intVal: val.int)
 
 proc toDbValue*[T: seq[auto]](val: T): DbValue =
   DbValue(kind: sqliteText, strVal: Json.encode(val))

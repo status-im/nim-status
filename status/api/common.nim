@@ -18,11 +18,10 @@ from ../private/extkeys/types import Mnemonic
 from ../private/opensea import Asset, AssetContract, Collection
 
 export # modules
-  common, database, ethtypes, events, generator, sqlcipher, util
+  common, database, ethtypes, events, find, generator, settings, sqlcipher, util
 
 export # symbols
-  `$`, Asset, AssetContract, Collection, Mnemonic, parseAddress, readValue,
-  writeValue
+  `$`, Asset, Mnemonic, parseAddress, readValue, writeValue
 
 type
   LoginState* = enum loggedout, loggingin, loggedin, loggingout

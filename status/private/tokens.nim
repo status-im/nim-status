@@ -1,7 +1,7 @@
 {.push raises: [Defect].}
 
 import # std libs
-  std/[json, options, strformat]
+  std/[json, options, sequtils, strformat]
 
 import # vendor libs
   json_serialization,
@@ -29,7 +29,7 @@ type
     Color = "color"
 
   Token* {.dbTableName("tokens").} = object
-    networkId* {.serializedFieldName($TokenType.NetworkId), dbColumnName($TokenCol.NetworkId).}: uint
+    networkId* {.serializedFieldName($TokenType.NetworkId), dbColumnName($TokenCol.NetworkId).}: NetworkId
     address* {.serializedFieldName($TokenType.Address), dbColumnName($TokenCol.Address).}: Address
     name* {.serializedFieldName($TokenType.Name), dbColumnName($TokenCol.Name).}: string
     symbol* {.serializedFieldName($TokenType.Symbol), dbColumnName($TokenCol.Symbol).}: string
@@ -49,30 +49,51 @@ proc addCustomToken*(db: DbConn, token: Token): DbResult[void] =
                                                   {TokenCol.Color}
                                                 )
                         VALUES                  (?, ?, ?, ?, ?, ?)"""
-    # TODO: get network id
-    db.exec(query, 1, $token.address, token.name, token.symbol, token.decimals,
-      token.color)
+
+    db.exec(query, token.networkId, token.address, token.name, token.symbol,
+      token.decimals, token.color)
     ok()
   except SqliteError: err OperationError
 
-proc getCustomTokens*(db: DbConn): DbResult[seq[Token]] =
+proc deleteCustomToken*(db: DbConn, address: Address, networkId: NetworkId):
+  DbResult[void] =
+
+  try:
+    var token: Token
+    const query = fmt"""DELETE FROM   {token.tableName}
+                        WHERE         {token.address.columnName} = ? AND
+                                      {token.networkId.columnName} = ?"""
+    db.exec(query, address, networkId)
+    ok()
+  except SqliteError: err OperationError
+
+proc getCustomToken*(db: DbConn, symbol: string, networkId: NetworkId):
+  DbResult[Option[Token]] =
 
   try:
     var token: Token
     const query = fmt"""SELECT      *
                         FROM        {token.tableName}
-                        ORDER BY    {token.symbol.columnName},
-                                    {token.networkId.columnName}"""
-    ok db.all(Token, query)
+                        WHERE       {token.symbol.columnName} = ? AND
+                                    {token.networkId.columnName} = ?
+                        LIMIT 1"""
+    ok db.one(Token, query, symbol, networkId)
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
-proc deleteCustomToken*(db: DbConn, address: Address): DbResult[void] =
+proc getCustomTokens*(db: DbConn, networkId: NetworkId): DbResult[seq[Token]] =
 
   try:
     var token: Token
-    const query = fmt"""DELETE FROM   {token.tableName}
-                        WHERE         {TokenCol.Address} = ?"""
-    db.exec(query, $address)
-    ok()
+    const query = fmt"""SELECT      *
+                        FROM        {token.tableName}
+                        WHERE       {token.networkId.columnName} = ?
+                        ORDER BY    {token.symbol.columnName}"""
+    ok db.all(Token, query, networkId)
   except SqliteError: err OperationError
+  except ValueError: err QueryBuildError
+
+proc getSntToken*(db: DbConn, networkId: NetworkId): DbResult[Option[Token]] =
+  let sntNets = @[NetworkId.Mainnet, NetworkId.XDai]
+  let symbol = if sntNets.contains(networkId): "SNT" else: "STT"
+  db.getCustomToken(symbol, networkId)
