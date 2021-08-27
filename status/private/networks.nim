@@ -8,6 +8,9 @@ import # vendor libs
   json_serialization/[lexer, reader, writer],
   json_serialization/std/options as json_options
 
+import # nim-status modules
+  ./common
+
 type
   UpstreamConfig* = object
     enabled* {.serializedFieldName("Enabled").}: bool
@@ -15,7 +18,7 @@ type
 
   NetworkConfig* = object
     dataDir* {.serializedFieldName("DataDir").}: string
-    networkId* {.serializedFieldName("NetworkId").}: int
+    networkId* {.serializedFieldName("NetworkId").}: NetworkId
     upstreamConfig* {.serializedFieldName("UpstreamConfig").}: UpstreamConfig
 
   Network* = object
@@ -38,7 +41,7 @@ const DEFAULT_NETWORKS* = @[
     etherscanLink: "https://ropsten.etherscan.io/address/".some,
     name: "Ropsten with upstream RPC",
     config: NetworkConfig(
-      networkId: 3,
+      networkId: NetworkId.Ropsten,
       dataDir: "/ethereum/testnet_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
@@ -51,7 +54,7 @@ const DEFAULT_NETWORKS* = @[
     etherscanLink: "https://rinkeby.etherscan.io/address/".some,
     name: "Rinkeby with upstream RPC",
     config: NetworkConfig(
-      networkId: 4,
+      networkId: NetworkId.Rinkeby,
       dataDir: "/ethereum/rinkeby_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
@@ -64,7 +67,7 @@ const DEFAULT_NETWORKS* = @[
     etherscanLink: "https://goerli.etherscan.io/address/".some,
     name: "Goerli with upstream RPC",
     config: NetworkConfig(
-      networkId: 5,
+      networkId: NetworkId.Goerli,
       dataDir: "/ethereum/goerli_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
@@ -77,7 +80,7 @@ const DEFAULT_NETWORKS* = @[
     etherscanLink: "https://etherscan.io/address/".some,
     name: "Mainnet with upstream RPC",
     config: NetworkConfig(
-      networkId: 1,
+      networkId: NetworkId.Mainnet,
       dataDir: "/ethereum/mainnet_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
@@ -90,7 +93,7 @@ const DEFAULT_NETWORKS* = @[
     etherscanLink: string.none,
     name: "xDai Chain",
     config: NetworkConfig(
-      networkId: 100,
+      networkId: NetworkId.XDai,
       dataDir: "/ethereum/xdai_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,
@@ -103,7 +106,7 @@ const DEFAULT_NETWORKS* = @[
     etherscanLink: string.none,
     name: "Mainnet with upstream RPC",
     config: NetworkConfig(
-      networkId: 99,
+      networkId: NetworkId.Poa,
       dataDir: "/ethereum/poa_rpc",
       upstreamConfig: UpstreamConfig(
         enabled: true,

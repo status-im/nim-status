@@ -7,8 +7,8 @@ import # vendor libs
   chronicles, chronos, web3/ethtypes
 
 import # status modules
-  ../private/[util, token_prices, tokens],
-  ./common
+  ../private/[token_prices, tokens, util],
+  ./common, ./networks
 
 export common except setLoginState, setNetworkState
 export tokens
@@ -19,6 +19,7 @@ type
     DeleteFailure       = "ct: failed to delete custom token due a database " &
                             "error"
     GetFailure          = "ct: failed to get custom tokens due a database error"
+    GetNetworkError     = "ct: failed to get current network"
     MustBeLoggedIn      = "ct: operation not permitted, must be logged in"
     TokenNotInPriceMap  = "ct: token or currency symbol not found in price map"
     UpdatePricesError   = "ct: error updating prices"
@@ -32,8 +33,12 @@ proc addCustomToken*(self: StatusObject, address: Address, name, symbol,
   if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
+  let currNetwork = ?self.getCurrentNetwork().mapErrTo(GetNetworkError)
+
+  if currNetwork.isNone: return err GetNetworkError
+
   let token = Token(address: address, name: name, symbol: symbol, color: color,
-    decimals: decimals)
+      decimals: decimals, networkId: currNetwork.get.config.networkId)
 
   let userDb = ?self.userDb.mapErrTo(UserDbError)
   ?userDb.addCustomToken(token).mapErrTo(AddFailure)
@@ -46,8 +51,14 @@ proc deleteCustomToken*(self: StatusObject, address: Address):
   if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
-  let userDb = ?self.userDb.mapErrTo(UserDbError)
-  ?userDb.deleteCustomToken(address).mapErrTo(DeleteFailure)
+  let currNetwork = ?self.getCurrentNetwork().mapErrTo(GetNetworkError)
+  if currNetwork.isNone: return err GetNetworkError
+
+  let
+    userDb = ?self.userDb.mapErrTo(UserDbError)
+    networkId = currNetwork.get.config.networkId
+
+  ?userDb.deleteCustomToken(address, networkId).mapErrTo(DeleteFailure)
 
   ok address
 
@@ -55,9 +66,13 @@ proc getCustomTokens*(self: StatusObject): CustomTokenResult[seq[Token]] =
   if self.loginState != LoginState.loggedin:
     return err MustBeLoggedIn
 
+  let currNetwork = ?self.getCurrentNetwork().mapErrTo(GetNetworkError)
+  if currNetwork.isNone: return err GetNetworkError
+
   let
+    networkId = currNetwork.get.config.networkId
     userDb = ?self.userDb.mapErrTo(UserDbError)
-    tokens = ?userDb.getCustomTokens().mapErrTo(GetFailure)
+    tokens = ?userDb.getCustomTokens(networkId).mapErrTo(GetFailure)
 
   ok tokens
 

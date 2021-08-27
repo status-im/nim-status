@@ -12,6 +12,8 @@ export Network
 type
   NetworksError* = enum
     GetNetworksError          = "nets: error retrieving networks from settings"
+    GetSettingsFailure        = "nets: failed to get web3 object, unable to " &
+                                  "get settings"
     MustBeLoggedIn            = "nets: operation not permitted, must be " &
                                 "logged in"
     NetworkDoesntExist        = "nets: network with specified ID doesn't exist"
@@ -19,6 +21,21 @@ type
     UserDbError               = "nets: user db error, must be logged in"
 
   NetworksResult*[T] = Result[T, NetworksError]
+
+proc getCurrentNetwork*(self: StatusObject): NetworksResult[Option[Network]] =
+
+  if self.loginState != LoginState.loggedin:
+    return err MustBeLoggedIn
+
+  let
+    userDb = ?self.userDb.mapErrTo(UserDbError)
+    settings = ?userDb.getSettings.mapErrTo(GetSettingsFailure)
+    networks = ?userDb.getSetting(seq[Network], SettingsCol.Networks, @[])
+      .mapErrTo(GetNetworksError)
+    currentNetwork = networks.find(
+      (n: Network) => n.id == settings.currentNetwork)
+
+  ok currentNetwork
 
 proc getNetworks*(self: StatusObject): NetworksResult[seq[Network]] =
 

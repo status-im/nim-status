@@ -6,7 +6,8 @@ import # vendor libs
   sqlcipher
 
 import # status lib
-  status/private/[conversions, database, migrations/sql_scripts_app, settings]
+  status/private/[common, conversions, database, migrations/sql_scripts_app,
+                  settings]
 
 import # test modules
   ./test_helpers
@@ -76,7 +77,7 @@ procSuite "settings":
     let testUpstreamConfig = UpstreamConfig(enabled: true, url: "https://test.network")
     let testNetworkConfig = NetworkConfig(
       dataDir: "/test",
-      networkId: 1,
+      networkId: NetworkId.Mainnet,
       upstreamConfig: testUpstreamConfig
     )
     let etherscanLink = some("https://test.etherscan.link")
