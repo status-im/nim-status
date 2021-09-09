@@ -5,8 +5,7 @@ import # vendor libs
   json_serialization, secp256k1, sqlcipher, stew/byteutils
 
 import # status lib
-  status/private/[conversions, chats, database, messages,
-                  migrations/sql_scripts_app]
+  status/private/[conversions, chats, database, messages]
 
 import # test modules
   ./test_helpers
@@ -16,7 +15,7 @@ procSuite "messages":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let db = dbResult.get

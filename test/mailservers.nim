@@ -15,7 +15,7 @@ procSuite "mailservers":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let db = dbResult.get

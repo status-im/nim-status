@@ -5,7 +5,7 @@ import # vendor libs
   chronos, json_serialization, sqlcipher
 
 import # status lib
-  status/private/[contacts, conversions, database, migrations/sql_scripts_app]
+  status/private/[contacts, conversions, database]
 
 import # test modules
   ./test_helpers
@@ -15,7 +15,7 @@ procSuite "contacts":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let

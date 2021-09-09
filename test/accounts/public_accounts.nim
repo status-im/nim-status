@@ -14,7 +14,7 @@ procSuite "public accounts":
   asyncTest "saveAccount, updateAccountTimestamp, deleteAccount":
     let path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
-    let dbResult = initDb(path)
+    let dbResult = initAccountsDb(path)
     check dbResult.isOk
 
     let db = dbResult.get

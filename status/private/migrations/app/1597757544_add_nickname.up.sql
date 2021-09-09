@@ -1,1 +1,0 @@
-ALTER TABLE contacts ADD COLUMN local_nickname TEXT;

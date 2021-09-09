@@ -12,7 +12,7 @@ import # test modules
   ./db_smoke,
   ./mailservers,
   ./messages,
-  ./migrations,
+  # ./migrations,
   ./mnemonic,
   ./multiaccount,
   ./pendingtxs,
