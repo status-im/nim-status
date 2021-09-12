@@ -24,9 +24,16 @@ type
     LastMessage = "lastMessage",
     Members = "members",
     MembershipUpdates = "membershipUpdates"
-    Profile = "profile",
+    Muted = "muted",
     InvitationAdmin = "invitationAdmin",
-    Muted = "muted"
+    Profile = "profile",
+    CommunityId = "communityId",
+    Accepted = "accepted",
+    Joined = "joined",
+    SyncedTo = "syncedTo",
+    SyncedFrom = "syncedFrom",
+    UnviewedMentionsCount = "unviewedMentionsCount",
+    Description = "description"
 
   ChatCol* {.pure.} = enum
     Id = "id",
@@ -42,9 +49,16 @@ type
     LastMessage = "last_message",
     Members = "members",
     MembershipUpdates = "membership_updates"
-    Profile = "profile",
+    Muted = "muted",
     InvitationAdmin = "invitation_admin",
-    Muted = "muted"
+    Profile = "profile"
+    CommunityId = "community_id",
+    Accepted = "accepted",
+    Joined = "joined",
+    SyncedTo = "synced_to",
+    SyncedFrom = "synced_from",
+    UnviewedMentionsCount = "unviewed_mentions_count",
+    Description = "description"
 
   Chat* {.dbTableName("chats").} = object
     id* {.serializedFieldName($ChatType.Id), dbColumnName($ChatCol.Id).}: string
@@ -62,9 +76,16 @@ type
     members* {.serializedFieldName($ChatType.Members), dbColumnName($ChatCol.Members).}: seq[byte]
     # TODO: membershipUpdates should be a concrete type
     membershipUpdates* {.serializedFieldName($ChatType.MembershipUpdates), dbColumnName($ChatCol.MembershipUpdates).}: seq[byte]
-    profile* {.serializedFieldName($ChatType.Profile), dbColumnName($ChatCol.Profile).}: string
-    invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
     muted* {.serializedFieldName($ChatType.Muted), dbColumnName($ChatCol.Muted).}: bool
+    invitationAdmin* {.serializedFieldName($ChatType.InvitationAdmin), dbColumnName($ChatCol.InvitationAdmin).}: string
+    profile* {.serializedFieldName($ChatType.Profile), dbColumnName($ChatCol.Profile).}: string
+    communityId* {.serializedFieldName($ChatType.CommunityId), dbColumnName($ChatCol.CommunityId).}: string
+    accepted* {.serializedFieldName($ChatType.Accepted), dbColumnName($ChatCol.Accepted).}: bool
+    joined* {.serializedFieldName($ChatType.Joined), dbColumnName($ChatCol.Joined).}: int
+    syncedTo* {.serializedFieldName($ChatType.SyncedTo), dbColumnName($ChatCol.SyncedTo).}: int
+    syncedFrom* {.serializedFieldName($ChatType.SyncedFrom), dbColumnName($ChatCol.SyncedFrom).}: int
+    unviewedMentionsCount* {.serializedFieldName($ChatType.UnviewedMentionsCount), dbColumnName($ChatCol.UnviewedMentionsCount).}: int
+    description* {.serializedFieldName($ChatType.Description), dbColumnName($ChatCol.Description).}: string
 
   MessageType* {.pure.} = enum
     Id = "id",

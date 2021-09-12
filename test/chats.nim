@@ -2,7 +2,7 @@ import # std libs
   std/[json, options, os, unittest]
 
 import # vendor libs
-  chronos, json_serialization, secp256k1, sqlcipher, stew/byteutils
+  chronicles, chronos, json_serialization, secp256k1, sqlcipher, stew/byteutils
 
 import # status lib
   status/private/[chats, contacts, conversions, database, messages]
@@ -42,9 +42,16 @@ procSuite "chats":
       lastMessage: message.some,
       members: "members".toBytes(),
       membershipUpdates: "membershipUpdates".toBytes(),
-      profile: "profile",
-      invitationAdmin: "invitationAdmin",
       muted: false,
+      invitationAdmin: "invitationAdmin",
+      profile: "profile",
+      communityId: "community-id",
+      accepted: false,
+      joined: 0,
+      syncedTo: 0,
+      syncedFrom: 0,
+      unviewedMentionsCount: 0,
+      description: "chat-description"
     )
 
     # saveChat
@@ -113,6 +120,8 @@ procSuite "chats":
       localNickname: some("ABC1")
     )
 
+    var saved = db.saveContact(contact)
+    error "THIS WAS THE ERROR", error=saved.error
     check db.saveContact(contact).isOk
 
     var msg = Message(
