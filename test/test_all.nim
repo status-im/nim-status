@@ -18,6 +18,7 @@ import # test modules
   ./pendingtxs,
   ./permissions,
   ./settings,
+  ./stickers,
   ./tokens,
   ./tx_history
   # ./waku_smoke
