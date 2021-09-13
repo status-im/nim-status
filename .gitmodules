@@ -120,3 +120,6 @@
 [submodule "vendor/combparser"]
 	path = vendor/combparser
 	url = https://github.com/PMunch/combparser.git
+[submodule "vendor/edn.nim"]
+	path = vendor/edn.nim
+	url = https://github.com/status-im/edn.nim
