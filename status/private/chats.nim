@@ -12,35 +12,37 @@ import # status modules
 
 export chatmessages, common
 
-proc getChats*(db: DbConn): DbResult[seq[Chat]] {.raises: [AssertionError,
-  Defect].} =
+proc getChats*(db: DbConn): DbResult[seq[Chat]]
+  {.raises: [AssertionError, Defect].} =
 
   try:
     var chat: Chat
     let query = fmt"""SELECT   *
                       FROM     {chat.tableName}"""
+
     ok db.all(Chat, query)
+
   except ConversionError: err MarshalFailure
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
-proc getChatById*(db: DbConn, id: string): DbResult[Option[Chat]] {.raises:
-  [AssertionError, Defect].} =
+proc getChatById*(db: DbConn, id: string): DbResult[Option[Chat]]
+  {.raises: [AssertionError, Defect].} =
 
   try:
     var chat: Chat
     let query = fmt"""SELECT   *
                       FROM     {chat.tableName}
                       WHERE    {ChatCol.Id} = ?"""
+
     ok db.one(Chat, query, id)
+
   except ConversionError: err MarshalFailure
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
 proc saveChat*(db: DbConn, chat: Chat): DbResult[void] =
-
   try:
-
     let query = fmt"""INSERT INTO chats(
       {ChatCol.Id},
       {ChatCol.Name},
@@ -55,11 +57,20 @@ proc saveChat*(db: DbConn, chat: Chat): DbResult[void] =
       {ChatCol.LastMessage},
       {ChatCol.Members},
       {ChatCol.MembershipUpdates},
-      {ChatCol.Profile},
+      {ChatCol.Muted},
       {ChatCol.InvitationAdmin},
-      {ChatCol.Muted})
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      {ChatCol.Profile},
+      {ChatCol.CommunityId},
+      {ChatCol.Accepted},
+      {ChatCol.Joined},
+      {ChatCol.SyncedTo},
+      {ChatCol.SyncedFrom},
+      {ChatCol.UnviewedMentionsCount},
+      {ChatCol.Description}
+      )
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """
+
     db.exec(query,
       chat.id,
       chat.name,
@@ -74,9 +85,17 @@ proc saveChat*(db: DbConn, chat: Chat): DbResult[void] =
       chat.lastMessage,
       chat.members,
       chat.membershipUpdates,
-      chat.profile,
+      chat.muted,
       chat.invitationAdmin,
-      chat.muted)
+      chat.profile,
+      chat.communityId,
+      chat.accepted,
+      chat.joined,
+      chat.syncedTo,
+      chat.syncedFrom,
+      chat.unviewedMentionsCount,
+      chat.description)
+
     ok()
 
   except SqliteError: err OperationError
@@ -88,8 +107,10 @@ proc muteChat*(db: DbConn, chatId: string): DbResult[void] {.raises: [].} =
     let query = fmt"""UPDATE  {chat.tableName}
                       SET     {ChatCol.Muted} = 1
                       WHERE   {ChatCol.Id} = ?"""
+
     db.exec(query, chatId)
     ok()
+
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
@@ -99,8 +120,10 @@ proc unmuteChat*(db: DbConn, chatId: string): DbResult[void] {.raises: [].} =
     let query = fmt"""UPDATE  {chat.tableName}
                       SET     {ChatCol.Muted} = 0
                       WHERE   {ChatCol.Id} = ?"""
+
     db.exec(query, chatId)
     ok()
+
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
@@ -109,8 +132,10 @@ proc deleteChat*(db: DbConn, chat: Chat): DbResult[void] {.raises: [].} =
     var tblChat: Chat
     let query = fmt"""DELETE FROM {tblChat.tableName}
                       WHERE       {ChatCol.Id} = ?"""
+
     db.exec(query, chat.id)
     ok()
+
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
@@ -123,8 +148,10 @@ proc deleteOneToOneChat*(db: DbConn, contactId: string): DbResult[void]
     let query = fmt"""DELETE
                       FROM    {chat.tableName}
                       WHERE   id = ?"""
+
     db.exec(query, contactId)
     ok()
+
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
@@ -138,8 +165,10 @@ proc updateLastMessage*(db: DbConn, chatId: string,
     let query = fmt"""UPDATE  {chat.tableName}
                       SET     {ChatCol.LastMessage} = ?
                       WHERE   {ChatCol.Id} = ?"""
+
     db.exec(query, lastMessage, chatId)
     ok()
+
   except SqliteError: err OperationError
   except ValueError: err QueryBuildError
 
@@ -163,6 +192,7 @@ proc blockContact*(db: DbConn, contact: Contact): DbResult[seq[Chat]] =
   var chats = ?getChats(db)
   # var lastResultErr: DbError
   var chatsModified: seq[Chat] = @[]
+
   for chat in chats:
     var chatModified = chat
     let lastMessage = ?db.getLastMessage(chat.id)
