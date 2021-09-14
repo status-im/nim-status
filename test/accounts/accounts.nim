@@ -33,7 +33,7 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let db = dbResult.get
@@ -67,7 +67,7 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check: dbResult.isOk
 
     let db = dbResult.get
@@ -132,7 +132,7 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let db = dbResult.get
@@ -163,7 +163,7 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let db = dbResult.get
@@ -199,7 +199,7 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let db = dbResult.get
@@ -236,7 +236,7 @@ procSuite "accounts":
       path = currentSourcePath.parentDir().parentDir() & "/build/my.db"
     removeFile(path)
 
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check: dbResult.isOk
 
     let db = dbResult.get

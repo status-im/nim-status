@@ -1,1 +1,0 @@
-ALTER TABLE user_messages ADD COLUMN links BLOB;

@@ -21,11 +21,9 @@ export LINK_PCRE := 0
 	all \
 	clean \
 	clean-build-dirs \
-	clean-migration-files \
 	clean-sqlcipher \
 	client \
 	deps \
-	migrations \
 	nat-libs-sub \
 	rlnlib-sub \
 	sqlcipher \
@@ -62,18 +60,11 @@ else
  detected_OS := $(strip $(shell uname))
 endif
 
-clean: | clean-common clean-build-dirs clean-migration-files clean-sqlcipher
+clean: | clean-common clean-build-dirs clean-sqlcipher
 
 clean-build-dirs:
 	rm -rf \
 		test/build
-
-clean-migration-files:
-	rm -f \
-		status/private/migrations/sql_generate \
-		status/private/migrations/sql_generate.exe \
-		status/private/migrations/sql_scripts_accounts.nim \
-		status/private/migrations/sql_scripts_app.nim
 
 clean-sqlcipher:
 	cd vendor/nim-sqlcipher && $(MAKE) clean-build-dirs
@@ -170,15 +161,6 @@ ifeq ($(detected_OS),macOS)
 endif
 
 rlnlib-sub: $(RLN_LIB)
-
-MIGRATIONS ?= status/private/migrations/sql_scripts_app.nim
-
-$(MIGRATIONS): | deps
-	$(ENV_SCRIPT) nim c $(NIM_PARAMS) --verbosity:0 status/private/migrations/sql_generate.nim
-	status/private/migrations/sql_generate status/private/migrations/accounts > status/private/migrations/sql_scripts_accounts.nim
-	status/private/migrations/sql_generate status/private/migrations/app > status/private/migrations/sql_scripts_app.nim
-
-migrations: clean-migration-files $(MIGRATIONS)
 
 # These SSL variables and logic work like those in nim-sqlcipher's Makefile
 ifeq ($(detected_OS),macOS)
@@ -484,13 +466,13 @@ else ifneq ($(detected_OS),macOS)
  NIMBLE_ENV += LD_LIBRARY_PATH="$(LD_LIBRARY_PATH_NIMBLE)"
 endif
 
-client: $(SQLCIPHER) $(MIGRATIONS)
+client: $(SQLCIPHER)
 	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble client
 
-waku_chat2: $(SQLCIPHER) $(MIGRATIONS)
+waku_chat2: $(SQLCIPHER)
 	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble waku_chat2
 
-test: $(SQLCIPHER) $(MIGRATIONS)
+test: $(SQLCIPHER)
 	$(NIMBLE_ENV) $(ENV_SCRIPT) nimble tests
 
 endif # "variables.mk" was not included

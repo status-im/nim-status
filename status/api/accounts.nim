@@ -146,6 +146,7 @@ proc createAccount*(self: StatusObject, mnemonicPhraseLength: int,
 
   ?self.initUserDb(account.keyUid, password).mapErrTo(
     {DbError.KeyError: InvalidPassword}.toTable, InitUserDbError)
+
   self.setLoginState(LoginState.loggedin)
 
   let

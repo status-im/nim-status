@@ -52,12 +52,12 @@ type
     web3Conn: Table[string, Web3]
 
 proc new*(T: type StatusObject, dataDir: string,
-  accountsDbFileName = "accounts.sql",
+  accountsDbFileName = "accounts.db",
   signalHandler = defaultStatusSignalHandler):
   DbResult[T] =
 
   let
-    accountsDb = ?initDb(dataDir / accountsDbFileName).mapErrTo(InitFailure)
+    accountsDb = ?initAccountsDb(dataDir / accountsDbFileName).mapErrTo(InitFailure)
     generator = Generator.new()
 
   ok T(accountsDbConn: accountsDb, accountsGenerator: generator,
@@ -83,7 +83,7 @@ proc closeUserDb*(self: StatusObject): DbResult[void] {.raises: [].} =
   ok()
 
 proc initUserDb*(self: StatusObject, keyUid, password: string): DbResult[void] =
-  self.userDbConn = ?initDb(self.dataDir / keyUid & ".db", password)
+  self.userDbConn = ?initUserDb(self.dataDir / keyUid & ".db", password)
   ok()
 
 proc web3*(self: StatusObject, network: string): Web3Result[Web3] =

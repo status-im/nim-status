@@ -18,7 +18,7 @@ procSuite "chats":
       bip44PublicKey = SkPublicKey.fromHex(
         "0x03ddb90a4f67a81adf534bc19ed06d1546a3cad16a3b2995e18e3d7af823fe5c9a").get
     removeFile(path)
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
 
     let

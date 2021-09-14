@@ -11,9 +11,9 @@ from status/private/tx_history import nil
 
 
 # Initialize db
-let passwd = "qwerty"
+let password = "qwerty"
 let path = currentSourcePath.parentDir() & "/build/my.db"
-let dbResult = initDb(path, passwd)
+let dbResult = initUserDb(path, password)
 check dbResult.isOk
 let db = dbResult.get
 

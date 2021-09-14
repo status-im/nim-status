@@ -6,8 +6,7 @@ import # vendor libs
   sqlcipher
 
 import # status lib
-  status/private/[common, conversions, database, migrations/sql_scripts_app,
-                  settings]
+  status/private/[common, conversions, database, settings]
 
 import # test modules
   ./test_helpers
@@ -17,7 +16,7 @@ procSuite "settings":
     let password = "qwerty"
     let path = currentSourcePath.parentDir() & "/build/my.db"
     removeFile(path)
-    let dbResult = initDb(path, password)
+    let dbResult = initUserDb(path, password)
     check dbResult.isOk
     let db = dbResult.get
 

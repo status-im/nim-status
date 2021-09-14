@@ -31,12 +31,17 @@ type
     KeyError            = "db: could not key database with given key"
     MarshalFailure      = "db: failed to de/serialise db data to/from " &
                             "supplied type"
-    MigrationError      = "db: error executing migrations"
     NotInitialized      = "db: not initialized, login required"
     OperationError      = "db: database operation error"
     QueryBuildError     = "db: invalid values used to build query"
     RecordNotFound      = "db: record not found"
+    SchemaHashMismatch  = "db: hash of schema does not match library's hash " &
+                            "for schema of database's current user_version"
     UnknownError        = "db: unknown error"
+    VersionTooHigh      = "db: user_version is greater than library's latest " &
+                            "database version"
+    VersionTooLow       = "db: user_version less than 1 is not supported"
+    VersionUnavailable  = "db: unable to determine database's user_version"
 
   DbResult*[T] = Result[T, DbError]
 
